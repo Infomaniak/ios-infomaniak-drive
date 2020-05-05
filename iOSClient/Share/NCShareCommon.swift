@@ -69,9 +69,9 @@ class NCShareCommon: NSObject {
         shareLinkMenuView.width = 250
         if metadata.directory {
             //infomaniak only
-            shareLinkMenuView.height = 230
+            shareLinkMenuView.height = 262
         } else {
-            shareLinkMenuView.height = 230
+            shareLinkMenuView.height = 262
         }
         
         shareLinkMenuView.backgroundColor = NCBrandColor.sharedInstance.backgroundForm

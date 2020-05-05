@@ -53,7 +53,6 @@ class NCShareLinkMenuView: UIView, UIGestureRecognizerDelegate, NCShareNetworkin
     @IBOutlet weak var fieldNoteToRecipient: UITextField!
     
     @IBOutlet weak var buttonDeleteShareLink: UIButton!
-    @IBOutlet weak var labelDeleteShareLink: UILabel!
     @IBOutlet weak var imageDeleteShareLink: UIImageView!
     
     @IBOutlet weak var buttonAddAnotherLink: UIButton!
@@ -114,8 +113,8 @@ class NCShareLinkMenuView: UIView, UIGestureRecognizerDelegate, NCShareNetworkin
         labelSetExpirationDate?.textColor = NCBrandColor.sharedInstance.textView
         labelNoteToRecipient?.text = NSLocalizedString("_share_note_recipient_", comment: "")
         labelNoteToRecipient?.textColor = NCBrandColor.sharedInstance.textView
-        labelDeleteShareLink?.text = NSLocalizedString("_share_delete_sharelink_", comment: "")
-        labelDeleteShareLink?.textColor = NCBrandColor.sharedInstance.textView
+        buttonDeleteShareLink?.setTitle(NSLocalizedString("_share_delete_sharelink_", comment: ""), for: .normal)
+        buttonDeleteShareLink?.setTitleColor(NCBrandColor.sharedInstance.textView, for: .normal)
         labelAddAnotherLink?.text = NSLocalizedString("_share_add_sharelink_", comment: "")
         labelAddAnotherLink?.textColor = NCBrandColor.sharedInstance.textView
         
@@ -155,64 +154,64 @@ class NCShareLinkMenuView: UIView, UIGestureRecognizerDelegate, NCShareNetworkin
         if metadata.directory {
             // File Drop
             if tableShare.permissions == k_create_share_permission {
-                switchReadOnly.setOn(false, animated: false)
-                switchAllowUploadAndEditing.setOn(false, animated: false)
-                switchFileDrop.setOn(true, animated: false)
+                switchReadOnly?.setOn(false, animated: false)
+                switchAllowUploadAndEditing?.setOn(false, animated: false)
+                switchFileDrop?.setOn(true, animated: false)
             } else {
                 // Read Only
                 if UtilsFramework.isAnyPermission(toEdit: tableShare.permissions) {
-                    switchReadOnly.setOn(false, animated: false)
-                    switchAllowUploadAndEditing.setOn(true, animated: false)
+                    switchReadOnly?.setOn(false, animated: false)
+                    switchAllowUploadAndEditing?.setOn(true, animated: false)
                 } else {
-                    switchReadOnly.setOn(true, animated: false)
-                    switchAllowUploadAndEditing.setOn(false, animated: false)
+                    switchReadOnly?.setOn(true, animated: false)
+                    switchAllowUploadAndEditing?.setOn(false, animated: false)
                 }
-                switchFileDrop.setOn(false, animated: false)
+                switchFileDrop?.setOn(false, animated: false)
             }
         } else {
             // Allow editing
             if UtilsFramework.isAnyPermission(toEdit: tableShare.permissions) {
-                switchAllowEditing.setOn(true, animated: false)
+                switchAllowEditing?.setOn(true, animated: false)
             } else {
-                switchAllowEditing.setOn(false, animated: false)
+                switchAllowEditing?.setOn(false, animated: false)
             }
         }
        
         // Hide download
         if tableShare.hideDownload {
-            switchHideDownload.setOn(true, animated: false)
+            switchHideDownload?.setOn(true, animated: false)
         } else {
-            switchHideDownload.setOn(false, animated: false)
+            switchHideDownload?.setOn(false, animated: false)
         }
         
         // Password protect
         if tableShare.shareWith.count > 0 {
-            switchPasswordProtect.setOn(true, animated: false)
-            fieldPasswordProtect.isEnabled = true
-            fieldPasswordProtect.text = tableShare.shareWith
+            switchPasswordProtect?.setOn(true, animated: false)
+            fieldPasswordProtect?.isEnabled = true
+            fieldPasswordProtect?.text = tableShare.shareWith
         } else {
-            switchPasswordProtect.setOn(false, animated: false)
-            fieldPasswordProtect.isEnabled = false
-            fieldPasswordProtect.text = ""
+            switchPasswordProtect?.setOn(false, animated: false)
+            fieldPasswordProtect?.isEnabled = false
+            fieldPasswordProtect?.text = ""
         }
         
         // Set expiration date
         if tableShare.expirationDate != nil {
-            switchSetExpirationDate.setOn(true, animated: false)
-            fieldSetExpirationDate.isEnabled = true
+            switchSetExpirationDate?.setOn(true, animated: false)
+            fieldSetExpirationDate?.isEnabled = true
             
             let dateFormatter = DateFormatter()
             dateFormatter.formatterBehavior = .behavior10_4
             dateFormatter.dateStyle = .medium
-            fieldSetExpirationDate.text = dateFormatter.string(from: tableShare.expirationDate! as Date)
+            fieldSetExpirationDate?.text = dateFormatter.string(from: tableShare.expirationDate! as Date)
         } else {
-            switchSetExpirationDate.setOn(false, animated: false)
-            fieldSetExpirationDate.isEnabled = false
-            fieldSetExpirationDate.text = ""
+            switchSetExpirationDate?.setOn(false, animated: false)
+            fieldSetExpirationDate?.isEnabled = false
+            fieldSetExpirationDate?.text = ""
         }
         
         // Note to recipient
-        fieldNoteToRecipient.text = tableShare.note
+        fieldNoteToRecipient?.text = tableShare.note
     }
     
     // MARK: - Tap viewWindowCalendar

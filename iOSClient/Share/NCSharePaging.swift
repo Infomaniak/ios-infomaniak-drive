@@ -40,9 +40,7 @@ class NCSharePaging: UIViewController {
         pagingViewController.metadata = metadata
         
         // Navigation Controller
-        var image = CCGraphics.changeThemingColorImage(UIImage(named: "exitCircle")!, width: 60, height: 60, color: NCBrandColor.sharedInstance.brandText)
-        image = image?.withRenderingMode(.alwaysOriginal)
-        self.navigationItem.rightBarButtonItem = UIBarButtonItem(image: image, style:.plain, target: self, action: #selector(exitTapped))
+        self.navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .stop, target: self, action: #selector(exitTapped))
         
         // Pagination
         addChild(pagingViewController)
