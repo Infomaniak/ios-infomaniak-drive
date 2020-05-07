@@ -54,15 +54,23 @@
     [row.cellConfig setObject:NCBrandColor.sharedInstance.textView forKey:@"textLabel.textColor"];
     [section addFormRow:row];
     
-    // Format Compatibility
+    // Format Compatibility + Live Photo
     
     section = [XLFormSectionDescriptor formSection];
     [form addFormSection:section];
-    section.footerTitle = NSLocalizedString(@"_format_compatibility_footer_", nil);
+    section.footerTitle = [NSString stringWithFormat:@"%@\n%@", NSLocalizedString(@"_format_compatibility_footer_", nil), NSLocalizedString(@"_upload_mov_livephoto_footer_", nil)];
 
     row = [XLFormRowDescriptor formRowDescriptorWithTag:@"formatCompatibility" rowType:XLFormRowDescriptorTypeBooleanSwitch title:NSLocalizedString(@"_format_compatibility_", nil)];
     row.cellConfigAtConfigure[@"backgroundColor"] = NCBrandColor.sharedInstance.backgroundView;
     if ([CCUtility getFormatCompatibility]) row.value = @"1";
+    else row.value = @"0";
+    [row.cellConfig setObject:[UIFont systemFontOfSize:15.0] forKey:@"textLabel.font"];
+    [row.cellConfig setObject:NCBrandColor.sharedInstance.textView forKey:@"textLabel.textColor"];
+    [section addFormRow:row];
+    
+    row = [XLFormRowDescriptor formRowDescriptorWithTag:@"livePhoto" rowType:XLFormRowDescriptorTypeBooleanSwitch title:NSLocalizedString(@"_upload_mov_livephoto_", nil)];
+    row.cellConfigAtConfigure[@"backgroundColor"] = NCBrandColor.sharedInstance.backgroundView;
+    if ([CCUtility getLivePhoto]) row.value = @"1";
     else row.value = @"0";
     [row.cellConfig setObject:[UIFont systemFontOfSize:15.0] forKey:@"textLabel.font"];
     [row.cellConfig setObject:NCBrandColor.sharedInstance.textView forKey:@"textLabel.textColor"];
@@ -161,7 +169,7 @@
     appDelegate = (AppDelegate *)[[UIApplication sharedApplication] delegate];
     
     // changeTheming
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changeTheming) name:@"changeTheming" object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changeTheming) name:k_notificationCenter_changeTheming object:nil];
     [self changeTheming];
 }
 
@@ -186,6 +194,11 @@
     if ([rowDescriptor.tag isEqualToString:@"formatCompatibility"]) {
         
         [CCUtility setFormatCompatibility:[[rowDescriptor.value valueData] boolValue]];
+    }
+    
+    if ([rowDescriptor.tag isEqualToString:@"livePhoto"]) {
+        
+        [CCUtility setLivePhoto:[[rowDescriptor.value valueData] boolValue]];
     }
     
     if ([rowDescriptor.tag isEqualToString:@"disableLocalCacheAfterUpload"]) {
@@ -237,12 +250,11 @@
     [CCUtility createDirectoryStandard];
 
     [[NCAutoUpload sharedInstance] alignPhotoLibrary];
-    [appDelegate.filterocId removeAllObjects];
 
     [appDelegate maintenanceMode:NO];
 
     // Inizialized home
-    [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:@"initializeMain" object:nil userInfo:nil];
+    [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_initializeMain object:nil userInfo:nil];
 }
 
 - (void)clearCacheRequest:(XLFormRowDescriptor *)sender

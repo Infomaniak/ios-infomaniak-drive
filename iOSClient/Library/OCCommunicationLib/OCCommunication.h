@@ -85,7 +85,7 @@ typedef enum {
 /* This flag indicate if the server handling forbidden characters */
 @property BOOL isForbiddenCharactersAvailable;
 
-
+@property NSInteger nextcloudVersion;
 
 ///-----------------------------------
 /// @name Init with Upload Session Manager
@@ -167,6 +167,8 @@ typedef enum {
  * Method to update the a request with the current credentials
  */
 - (id) getRequestWithCredentials:(id) request;
+
+- (void) setupNextcloudVersion:(NSInteger) version;
 
 
 #pragma mark - Network operations
@@ -933,23 +935,23 @@ typedef enum {
 - (void)deleteEndToEndPrivateKey:(NSString*)serverPath onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
 
 
-- (void)markEndToEndFolderEncrypted:(NSString*)serverPath ocId:(NSString *)ocId onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
+- (void)markEndToEndFolderEncrypted:(NSString*)serverPath fileId:(NSString *)fileId onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
 
-- (void)deletemarkEndToEndFolderEncrypted:(NSString*)serverPath ocId:(NSString *)ocId onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
-
-
-- (void)lockEndToEndFolderEncrypted:(NSString*)serverPath ocId:(NSString *)ocId token:(NSString *)token onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *token, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
-
-- (void)unlockEndToEndFolderEncrypted:(NSString*)serverPath ocId:(NSString *)ocId token:(NSString *)token onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
+- (void)deletemarkEndToEndFolderEncrypted:(NSString*)serverPath fileId:(NSString *)fileId e2eToken:(NSString *)e2eToken onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
 
 
-- (void)getEndToEndMetadata:(NSString*)serverPath ocId:(NSString *)ocId onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *encryptedMetadata, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
+- (void)lockEndToEndFolderEncrypted:(NSString*)serverPath fileId:(NSString *)fileId e2eToken:(NSString *)e2eToken onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *e2eToken, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
 
-- (void)storeEndToEndMetadata:(NSString*)serverPath ocId:(NSString *)ocId encryptedMetadata:(NSString *)encryptedMetadata onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *encryptedMetadata, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
+- (void)unlockEndToEndFolderEncrypted:(NSString*)serverPath fileId:(NSString *)fileId e2eToken:(NSString *)e2eToken onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
 
-- (void)updateEndToEndMetadata:(NSString*)serverPath ocId:(NSString *)ocId encryptedMetadata:(NSString *)encryptedMetadata token:(NSString *)token onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *encryptedMetadata, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
 
-- (void)deleteEndToEndMetadata:(NSString*)serverPath ocId:(NSString *)ocId onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
+- (void)getEndToEndMetadata:(NSString*)serverPath fileId:(NSString *)fileId onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *encryptedMetadata, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
+
+- (void)storeEndToEndMetadata:(NSString*)serverPath fileId:(NSString *)fileId e2eToken:(NSString *)e2eToken encryptedMetadata:(NSString *)encryptedMetadata onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *encryptedMetadata, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
+
+- (void)updateEndToEndMetadata:(NSString*)serverPath fileId:(NSString *)fileId encryptedMetadata:(NSString *)encryptedMetadata e2eToken:(NSString *)e2eToken onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *encryptedMetadata, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
+
+- (void)deleteEndToEndMetadata:(NSString*)serverPath fileId:(NSString *)fileId e2eToken:(NSString *)e2eToken onCommunication:(OCCommunication *)sharedOCComunication successRequest:(void(^)(NSHTTPURLResponse *response, NSString *redirectedServer)) successRequest failureRequest:(void(^)(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer)) failureRequest;
 
 #pragma mark - Manage Mobile Editor OCS API
 

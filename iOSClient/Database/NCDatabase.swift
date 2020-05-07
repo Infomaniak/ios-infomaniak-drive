@@ -38,6 +38,9 @@ class tableAccount: Object {
     @objc dynamic var autoUploadVideo: Bool = false
     @objc dynamic var autoUploadWWAnPhoto: Bool = false
     @objc dynamic var autoUploadWWAnVideo: Bool = false
+    @objc dynamic var backend = ""
+    @objc dynamic var backendCapabilitiesSetDisplayName: Bool = false
+    @objc dynamic var backendCapabilitiesSetPassword: Bool = false
     @objc dynamic var businessSize: String = ""
     @objc dynamic var businessType = ""
     @objc dynamic var dateSearchContentTypeImageVideo = NSDate.distantPast
@@ -47,6 +50,10 @@ class tableAccount: Object {
     @objc dynamic var displayName = ""
     @objc dynamic var email = ""
     @objc dynamic var enabled: Bool = false
+    @objc dynamic var groups = ""
+    @objc dynamic var language = ""
+    @objc dynamic var lastLogin: Double = 0
+    @objc dynamic var locale = ""
     @objc dynamic var optimization = NSDate()
     @objc dynamic var password = ""
     @objc dynamic var phone = ""
@@ -57,6 +64,8 @@ class tableAccount: Object {
     @objc dynamic var quotaUsed: Double = 0
     @objc dynamic var role = ""
     @objc dynamic var startDirectoryPhotosTab = ""
+    @objc dynamic var storageLocation = ""
+    @objc dynamic var subadmin = ""
     @objc dynamic var twitter = ""
     @objc dynamic var url = ""
     @objc dynamic var user = ""
@@ -197,6 +206,12 @@ class tableCapabilities: Object {
     @objc dynamic var isFulltextsearchEnabled: Bool = false
     // Extended Support
     @objc dynamic var isExtendedSupportEnabled: Bool = false
+    // Pagination iOS Helper
+    @objc dynamic var isPaginationEnabled: Bool = false
+    @objc dynamic var paginationEndponit = ""
+    // Core
+    @objc dynamic var corePollInterval: Int = 0
+    @objc dynamic var coreWebDavRoot = ""
 }
 
 class tableComments: Object {
@@ -246,6 +261,7 @@ class tableDirectory: Object {
     @objc dynamic var e2eEncrypted: Bool = false
     @objc dynamic var etag = ""
     @objc dynamic var favorite: Bool = false
+    @objc dynamic var fileId = ""
     @objc dynamic var lock: Bool = false
     @objc dynamic var ocId = ""
     @objc dynamic var offline: Bool = false
@@ -261,7 +277,7 @@ class tableDirectory: Object {
 class tableE2eEncryption: Object {
     
     @objc dynamic var account = ""
-    @objc dynamic var authenticationTag = ""
+    @objc dynamic var authenticationTag: String? = nil
     @objc dynamic var fileName = ""
     @objc dynamic var fileNameIdentifier = ""
     @objc dynamic var fileNamePath = ""
@@ -282,12 +298,12 @@ class tableE2eEncryptionLock: Object {
 
     @objc dynamic var account = ""
     @objc dynamic var date = NSDate()
-    @objc dynamic var ocId = ""
+    @objc dynamic var fileId = ""
     @objc dynamic var serverUrl = ""
-    @objc dynamic var token = ""
+    @objc dynamic var e2eToken = ""
     
     override static func primaryKey() -> String {
-        return "ocId"
+        return "fileId"
     }
 }
 
@@ -489,6 +505,7 @@ class tableTag: Object {
 class tableTrash: Object {
     
     @objc dynamic var account = ""
+    @objc dynamic var contentType = ""
     @objc dynamic var date = NSDate()
     @objc dynamic var directory: Bool = false
     @objc dynamic var fileId = ""

@@ -21,6 +21,7 @@
 
 /*CORE*/
 @property (nonatomic) NSInteger corePollInterval;
+@property (nonatomic, strong) NSString *coreWebDavRoot;
 
 /*FILES SHARING*/
 
@@ -120,5 +121,9 @@
 
 // Extended Support
 @property (nonatomic) BOOL isExtendedSupportEnabled;
+
+// Pagination
+@property (nonatomic) BOOL isPaginationEnabled;
+@property (nonatomic, strong) NSString *paginationEndponit;
 
 @end

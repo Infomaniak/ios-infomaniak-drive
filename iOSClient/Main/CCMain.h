@@ -27,13 +27,11 @@
 #import <AudioToolbox/AudioToolbox.h>
 #import <DZNEmptyDataSet/UIScrollView+EmptyDataSet.h>
 
-#import "AHKActionSheet.h"
 #import "BKPasscodeViewController.h"
 #import "NSString+TruncateToWidth.h"
 #import "CCLogin.h"
 #import "CCCellMain.h"
 #import "CCCellMainTransfer.h"
-#import "CCDetail.h"
 #import "CCGraphics.h"
 #import "CCSection.h"
 #import "CCUtility.h"
@@ -57,7 +55,6 @@
 @property (nonatomic, strong) NSString *serverUrl;
 @property (nonatomic, strong) NSString *titleMain;
 @property (nonatomic, strong) NSString *richWorkspaceText;
-@property (nonatomic, weak) CCDetail *detailViewController;
 @property (nonatomic, strong) UISearchController *searchController;
 @property (nonatomic, strong) UITapGestureRecognizer *singleFingerTap;
 @property (nonatomic, strong) NSString *blinkFileNamePath;
@@ -78,7 +75,7 @@
 - (void)readFolder:(NSString *)serverUrl;
 - (void)readFileReloadFolder;
 
-- (void)uploadFileAsset:(NSMutableArray *)assets serverUrl:(NSString *)serverUrl useSubFolder:(BOOL)useSubFolder session:(NSString *)session;
+- (void)uploadFileAsset:(NSMutableArray *)assets urls:(NSMutableArray *)urls serverUrl:(NSString *)serverUrl useSubFolder:(BOOL)useSubFolder session:(NSString *)session;
 
 - (void)reloadDatasource:(NSString *)serverUrl ocId:(NSString *)ocId action:(NSInteger)action;
 
@@ -93,17 +90,14 @@
 
 //expose methods for swift
 - (void)didSelectAll;
-- (void)deleteFile;
+- (void)deleteMetadatas;
 - (void)saveSelectedFiles;
 - (void)downloadSelectedFilesFolders;
 - (void)moveOpenWindow:(NSArray *)indexPaths;
 
-- (void)settingFavorite:(tableMetadata *)metadata favorite:(BOOL)favorite;
 - (void)minCharTextFieldDidChange:(UITextField *)sender;
-- (void)renameFile:(NSArray *)arguments;
 - (void)comandoLockPassword;
 - (void)actionDelete:(NSIndexPath *)indexPath;
-- (void)openinFile:(id)sender;
 - (void)createRichWorkspace;
 
 @end

@@ -71,7 +71,7 @@ class NCShare: UIViewController, UIGestureRecognizerDelegate, NCShareLinkCellDel
         tableView.register(UINib.init(nibName: "NCShareLinkCell", bundle: nil), forCellReuseIdentifier: "cellLink")
         tableView.register(UINib.init(nibName: "NCShareUserCell", bundle: nil), forCellReuseIdentifier: "cellUser")
         
-        NotificationCenter.default.addObserver(self, selector: #selector(self.reloadData), name: NSNotification.Name(rawValue: "reloadDataNCShare"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(reloadData), name: NSNotification.Name(rawValue: k_notificationCenter_reloadDataNCShare), object: nil)
         
         // Shared with you by ...
         if metadata!.ownerId != self.appDelegate.activeUserID {
@@ -84,7 +84,7 @@ class NCShare: UIViewController, UIGestureRecognizerDelegate, NCShareLinkCellDel
             if FileManager.default.fileExists(atPath: fileNameLocalPath) {
                 if let image = UIImage(contentsOfFile: fileNameLocalPath) { sharedWithYouByImage.image = image }
             } else {
-                NCCommunication.sharedInstance.downloadAvatar(urlString: appDelegate.activeUrl, userID: metadata!.ownerId, fileNameLocalPath: fileNameLocalPath, size: Int(k_avatar_size), account: appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
+                NCCommunication.sharedInstance.downloadAvatar(serverUrl: appDelegate.activeUrl, userID: metadata!.ownerId, fileNameLocalPath: fileNameLocalPath, size: Int(k_avatar_size), customUserAgent: nil, addCustomHeaders: nil, account: appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
                     if errorCode == 0 && account == self.appDelegate.activeAccount && UIImage(data: data!) != nil {
                         if let image = UIImage(contentsOfFile: fileNameLocalPath) {
                             self.sharedWithYouByImage.image = image
@@ -102,7 +102,7 @@ class NCShare: UIViewController, UIGestureRecognizerDelegate, NCShareLinkCellDel
         networking?.readShare()
         
         // changeTheming
-        NotificationCenter.default.addObserver(self, selector: #selector(self.changeTheming), name: NSNotification.Name(rawValue: "changeTheming"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(changeTheming), name: NSNotification.Name(rawValue: k_notificationCenter_changeTheming), object: nil)
         changeTheming()
     }
     
@@ -234,11 +234,11 @@ class NCShare: UIViewController, UIGestureRecognizerDelegate, NCShareLinkCellDel
     /// MARK: - NCShareNetworkingDelegate
     
     func readShareCompleted() {
-        NotificationCenter.default.post(name: NSNotification.Name(rawValue: "reloadDataNCShare"), object: nil, userInfo: nil)
+        NotificationCenter.default.post(name: NSNotification.Name(rawValue: k_notificationCenter_reloadDataNCShare), object: nil, userInfo: nil)
     }
     
     func shareCompleted() {
-        NotificationCenter.default.post(name: NSNotification.Name(rawValue: "reloadDataNCShare"), object: nil, userInfo: nil)
+        NotificationCenter.default.post(name: NSNotification.Name(rawValue: k_notificationCenter_reloadDataNCShare), object: nil, userInfo: nil)
     }
     
     func unShareCompleted() { }
@@ -259,10 +259,7 @@ class NCShare: UIViewController, UIGestureRecognizerDelegate, NCShareLinkCellDel
         appearance.shadowRadius = 25
         appearance.animationduration = 0.25
         appearance.textColor = .darkGray
-        
-        if #available(iOS 11.0, *) {
-            appearance.setupMaskedCorners([.layerMaxXMaxYCorner, .layerMinXMaxYCorner])
-        }
+        appearance.setupMaskedCorners([.layerMaxXMaxYCorner, .layerMinXMaxYCorner])
         
         for item in items {
             if item.displayName != nil && item.displayName != "" {
@@ -288,7 +285,7 @@ class NCShare: UIViewController, UIGestureRecognizerDelegate, NCShareLinkCellDel
                 if let image = UIImage(contentsOfFile: fileNameLocalPath) { cell.imageItem.image = image }
             } else {
                 DispatchQueue.global().async {
-                    NCCommunication.sharedInstance.downloadAvatar(urlString: self.appDelegate.activeUrl, userID: item.name, fileNameLocalPath: fileNameLocalPath, size: Int(k_avatar_size), account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
+                    NCCommunication.sharedInstance.downloadAvatar(serverUrl: self.appDelegate.activeUrl, userID: item.name, fileNameLocalPath: fileNameLocalPath, size: Int(k_avatar_size), customUserAgent: nil, addCustomHeaders: nil, account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
                         if errorCode == 0 && account == self.appDelegate.activeAccount && UIImage(data: data!) != nil {
                             if let image = UIImage(contentsOfFile: fileNameLocalPath) {
                                 cell.imageItem.image = image
@@ -380,7 +377,7 @@ extension NCShare: UITableViewDataSource {
                     if let image = UIImage(contentsOfFile: fileNameLocalPath) { cell.imageItem.image = image }
                 } else {
                     DispatchQueue.global().async {
-                        NCCommunication.sharedInstance.downloadAvatar(urlString: self.appDelegate.activeUrl, userID: tableShare.shareWith, fileNameLocalPath: fileNameLocalPath, size: Int(k_avatar_size), account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
+                        NCCommunication.sharedInstance.downloadAvatar(serverUrl: self.appDelegate.activeUrl, userID: tableShare.shareWith, fileNameLocalPath: fileNameLocalPath, size: Int(k_avatar_size), customUserAgent: nil, addCustomHeaders: nil, account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
                             if errorCode == 0 && account == self.appDelegate.activeAccount && UIImage(data: data!) != nil {
                                 if let image = UIImage(contentsOfFile: fileNameLocalPath) {
                                     cell.imageItem.image = image

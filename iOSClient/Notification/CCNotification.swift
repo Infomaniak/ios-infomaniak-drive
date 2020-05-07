@@ -41,10 +41,10 @@ class CCNotification: UITableViewController, CCNotificationCelllDelegate {
         self.tableView.allowsSelection = false
         
         // Register to receive notification reload data
-        NotificationCenter.default.addObserver(self, selector: #selector(self.reloadDatasource), name: Notification.Name("notificationReloadData"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(reloadDatasource), name: Notification.Name(rawValue: k_notificationCenter_reloadDataNotification), object: nil)
 
         // Theming view
-        NotificationCenter.default.addObserver(self, selector: #selector(self.changeTheming), name: NSNotification.Name(rawValue: "changeTheming"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(changeTheming), name: NSNotification.Name(rawValue: k_notificationCenter_changeTheming), object: nil)
         changeTheming()
         
         reloadDatasource()
@@ -57,7 +57,7 @@ class CCNotification: UITableViewController, CCNotificationCelllDelegate {
     @objc func viewClose() {
         
         // Stop listening notification reload data
-        NotificationCenter.default.removeObserver(self, name: Notification.Name("notificationReloadData"), object: nil);
+        NotificationCenter.default.removeObserver(self, name: Notification.Name(k_notificationCenter_reloadDataNotification), object: nil);
         
         self.dismiss(animated: true, completion: nil)
     }
@@ -110,7 +110,7 @@ class CCNotification: UITableViewController, CCNotificationCelllDelegate {
                         }
                     } else {
                         DispatchQueue.global().async {
-                            NCCommunication.sharedInstance.downloadAvatar(urlString: self.appDelegate.activeUrl, userID: name, fileNameLocalPath: fileNameLocalPath, size: Int(k_avatar_size), account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
+                            NCCommunication.sharedInstance.downloadAvatar(serverUrl: self.appDelegate.activeUrl, userID: name, fileNameLocalPath: fileNameLocalPath, size: Int(k_avatar_size), customUserAgent: nil, addCustomHeaders: nil, account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
                                 if errorCode == 0 && account == self.appDelegate.activeAccount && UIImage(data: data!) != nil {
                                     if let image = UIImage(contentsOfFile: fileNameLocalPath) {
                                         cell.avatar.isHidden = false

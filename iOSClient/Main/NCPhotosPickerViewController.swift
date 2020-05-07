@@ -29,15 +29,18 @@ class NCPhotosPickerViewController: NSObject {
     let appDelegate = UIApplication.shared.delegate as! AppDelegate
     var sourceViewController: UIViewController
     var maxSelectedAssets = 1
+    var singleSelectedMode = false
 
-    @objc init (_ viewController: UIViewController, maxSelectedAssets: Int) {
+    @objc init (_ viewController: UIViewController, maxSelectedAssets: Int, singleSelectedMode: Bool) {
         sourceViewController = viewController
         self.maxSelectedAssets = maxSelectedAssets
+        self.singleSelectedMode = singleSelectedMode
     }
     
-    @objc func openPhotosPickerViewController(phAssets: @escaping ([PHAsset]) -> ()) {
+    @objc func openPhotosPickerViewController(phAssets: @escaping ([PHAsset]?, [URL]?) -> ()) {
         
         var selectedPhAssets = [PHAsset]()
+        var selectedUrls = [URL]()
         var configure = TLPhotosPickerConfigure()
         
         configure.cancelTitle = NSLocalizedString("_cancel_", comment: "")
@@ -47,22 +50,28 @@ class NCPhotosPickerViewController: NSObject {
         
         configure.maxSelectedAssets = self.maxSelectedAssets
         configure.selectedColor = NCBrandColor.sharedInstance.brand
-        
-        if maxSelectedAssets == 1 {
-            configure.singleSelectedMode = true
-        }
+        configure.singleSelectedMode = singleSelectedMode
         
         let viewController = customPhotoPickerViewController(withTLPHAssets: { (assets) in
             
             for asset: TLPHAsset in assets {
                 if asset.phAsset != nil {
-                    selectedPhAssets.append(asset.phAsset!)
+                    asset.tempCopyMediaFile(videoRequestOptions: nil, imageRequestOptions: nil, livePhotoRequestOptions: nil, exportPreset: AVAssetExportPresetHighestQuality, convertLivePhotosToJPG: false, progressBlock: { (progress) in }) { (url, contentType) in
+                        
+                        selectedPhAssets.append(asset.phAsset!)
+                        selectedUrls.append(url)
+                        
+                        if asset == assets.last {
+                            phAssets(selectedPhAssets, selectedUrls)
+                        }
+                    }
                 }
             }
             
-            phAssets(selectedPhAssets)
+        }) {
             
-        }, didCancel: nil)
+            phAssets(nil,nil)
+        }
         
         viewController.didExceedMaximumNumberOfSelection = { (picker) in
             NCContentPresenter.shared.messageNotification("_info_", description: "_limited_dimension_", delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: Int(k_CCErrorInternalError))
@@ -91,8 +100,8 @@ class customPhotoPickerViewController: TLPhotosPickerViewController {
     override func makeUI() {
         super.makeUI()
         
-        self.customNavItem.leftBarButtonItem?.tintColor = NCBrandColor.sharedInstance.textView
-        self.customNavItem.rightBarButtonItem?.tintColor = NCBrandColor.sharedInstance.textView
+        self.customNavItem.leftBarButtonItem?.tintColor = NCBrandColor.sharedInstance.brandText
+        self.customNavItem.rightBarButtonItem?.tintColor = NCBrandColor.sharedInstance.brandText
         
         self.titleLabel.textColor = NCBrandColor.sharedInstance.icon
         self.subTitleLabel.textColor = NCBrandColor.sharedInstance.graySoft
@@ -103,7 +112,7 @@ class customPhotoPickerViewController: TLPhotosPickerViewController {
         if CCUtility.getDarkMode() {
             self.navigationBar.barStyle = .black
         }
-        self.titleLabel.textColor = NCBrandColor.sharedInstance.textView
-        self.subTitleLabel.textColor = NCBrandColor.sharedInstance.textView
+        self.titleLabel.textColor = NCBrandColor.sharedInstance.brandText
+        self.subTitleLabel.textColor = NCBrandColor.sharedInstance.brandText
     }
 }

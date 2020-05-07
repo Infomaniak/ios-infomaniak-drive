@@ -48,6 +48,7 @@
 "_no_"                      = "No";
 "_yes_"                     = "Yes";
 "_select_"                  = "Select";
+"_deselect_"                = "Deselect";
 "_select_all_"              = "Select all";
 "_upload_"                  = "Upload";
 "_home_"                    = "Files";
@@ -117,8 +118,22 @@
 "_request_upload_new_ver_"  = "The file has been modified, do you want to upload the new version ?";
 "_add_folder_info_"         = "Add folder info";
 "_back_"                    = "Back";
+"_search_"                  = "Search";
+"_of_"                      = "of";
 "_internal_modify_"         = "Edit with internal editor";
 "_database_corrupt_"        = "Oops something went wrong, please enter your credentials but don't worry, your files have remained secure";
+"_download_image_max_"      = "Download the image in full resolution";
+"_livephoto_save_"          = "Save Live Photo to photo album";
+"_livephoto_save_error_"    = "Error during save of Live Photo";
+"_file_conflict_num_"       = "file conflict";
+"_file_conflicts_num_"      = "file conflicts";
+"_file_conflict_desc_"      = "Which files do you want to keep?\nIf you select both versions, the copied file will have a number added to its name.";
+"_file_conflict_new_"       = "New files";
+"_file_conflict_exists_"    = "Already existing files";
+"_file_not_rewite_doc_"     = "It is not possible to overwrite a document but only to create a new one";
+"_move_or_copy_"            = "Move or copy";
+"_copy_"                    = "Copy";
+"_now_"                     = "Now";
 
 // App
 
@@ -272,6 +287,8 @@
 "_privacy_footer_"              = "Nextcloud iOS uses a service for the analysis of a crash. Your personal information is not sent with the report. If you want disable it, please change the setting \"Disable crash reporter\" to ON";
 "_crashservice_title_"          = "Disable crash reporter";
 "_crashservice_alert_"          = "This option requires a restart of the app to take effect";
+"_upload_mov_livephoto_"        = "Live Photo";
+"_upload_mov_livephoto_footer_" = "\"Live Photo\" will save, when possible, Live Photo video and hide the mov file part";
 
 // Login
 
@@ -351,6 +368,7 @@
 "_order_by_size_largest_"       = "Sort from the largest";
 "_delete_selected_files_"       = "Delete files";
 "_move_selected_files_"         = "Move files";
+"_move_or_copy_selected_files_" = "Move or copy files";
 "_download_selected_files_"     = "Download files";
 "_download_selected_files_folders_" = "Download files and folders";
 "_error_operation_canc_"        = "Error: Operation canceled.";
@@ -427,7 +445,7 @@
 "_copy_files_"                  = "Copy files";
 "_paste_file_"                  = "Paste file";
 "_paste_files_"                 = "Paste files";
-"_open_internal_view_"          = "Open with internal viewer";
+"_open_quicklook_"              = "Open with Quick Look";
 
 "_search_this_folder_"          = "Search in this folder";
 "_search_all_folders_"          = "Search in all folders";
@@ -710,6 +728,7 @@
 
 // Error
 
+"_unauthorized_"                        = "Unauthorized";
 "_bad_username_password_"               = "Wrong username or password";
 "_cancelled_by_user"                    = "Transfer canceled";
 "_error_folder_destiny_is_the_same_"    = "It is not possible to move the folder into itself";
@@ -796,9 +815,20 @@
 // Voice Memo
 
 "_create_voice_memo_"       = "Create voice memo";
-"_voice_memo_start_"        = "tap to start";
-"_voice_memo_stop_"         = "tap to stop";
-"_voice_memo_filename_"     = "voice memo";
+"_voice_memo_start_"        = "Tap to start";
+"_voice_memo_stop_"         = "Tap to stop";
+"_voice_memo_filename_"     = "Voice memo";
 "_voice_memo_title_"        = "Upload voice memo";
 
+// IM
 
+"_textnote_"                = "Text note";
+"_audionote_"               = "Audio note";
+"_removeaudionote_"         = "Do you want delete the audio note?";
+"_detailpicture_"           = "Detail picture";
+"_creation_archive_error_"  = "Error while creating archive";
+"_read_audio_error_"        = "Error while reading audio file";
+"_create_audio_error_"      = "Error while creating audio file";
+"_create_image_error_"      = "Error while creating image file";
+"_error_open_file_"         = "Error while opening a file";
+"_new_background_im_"       = "Select an image, take a picture or do not select anything for a canvas background. Press 'Done' to complete.";

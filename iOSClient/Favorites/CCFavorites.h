@@ -24,8 +24,6 @@
 #import <UIKit/UIKit.h>
 #import <DZNEmptyDataSet/UIScrollView+EmptyDataSet.h>
 
-#import "CCDetail.h"
-#import "AHKActionSheet.h"
 #import "CCCellMain.h"
 #import "CCCellMainTransfer.h"
 #import "CCUtility.h"
@@ -44,13 +42,10 @@
 @property (nonatomic, strong) NSString *serverUrl;
 @property (nonatomic, strong) NSString *titleViewControl;
 
-@property (nonatomic, weak) CCDetail *detailViewController;
-
 - (void)shouldPerformSegue:(tableMetadata *)metadata selector:(NSString *)selector;
 - (void)reloadDatasource:(NSString *)ocId action:(NSInteger)action;
 - (void)listingFavorites;
 
 - (void)actionDelete:(NSIndexPath *)indexPath;
-- (void)settingFavorite:(tableMetadata *)metadata favorite:(BOOL)favorite;
 
 @end

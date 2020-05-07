@@ -64,7 +64,7 @@
         tableCapabilities *capabilities = [[NCManageDatabase sharedInstance] getCapabilitesWithAccount:tableAccount.account];
 
         // Networking
-        [[NCCommunicationCommon sharedInstance] setupWithUsername:tableAccount.user userID:tableAccount.userID password:[CCUtility getPassword:tableAccount.account] userAgent:[CCUtility getUserAgent] capabilitiesGroup:[NCBrandOptions sharedInstance].capabilitiesGroups nextcloudVersion:capabilities.versionMajor delegate:[NCNetworking sharedInstance]];
+        [[NCCommunicationCommon sharedInstance] setupWithUser:tableAccount.user userId:tableAccount.userID password:[CCUtility getPassword:tableAccount.account] url:tableAccount.url userAgent:[CCUtility getUserAgent] capabilitiesGroup:[NCBrandOptions sharedInstance].capabilitiesGroups nextcloudVersion:capabilities.versionMajor delegate:[NCNetworking sharedInstance]];
        
         _activeAccount = tableAccount.account;
         
@@ -205,7 +205,7 @@
 - (void)moveServerUrlTo:(NSString *)serverUrlTo title:(NSString *)title type:(NSString *)type
 {
     // DENIED e2e
-    if ([CCUtility isFolderEncrypted:serverUrlTo account:self.activeAccount]) {
+    if ([CCUtility isFolderEncrypted:serverUrlTo e2eEncrypted:false account:self.activeAccount]) {
         return;
     }
     
@@ -249,11 +249,29 @@
         [self.hud visibleHudTitle:NSLocalizedString(@"_uploading_", nil) mode:MBProgressHUDModeDeterminate color:NCBrandColor.sharedInstance.brandElement];
         
         NSString *fileName = [self.filesName objectAtIndex:0];
+        NSString *fileNameLocal = [NSTemporaryDirectory() stringByAppendingString:fileName];
+
+        // CONVERSION -->
+        
+        if ([fileName.pathExtension.uppercaseString isEqualToString:@"HEIC"] && [CCUtility getFormatCompatibility]) {
+            UIImage *image = [UIImage imageWithContentsOfFile:fileNameLocal];
+            if (image != nil) {
+                fileName = fileName.stringByDeletingPathExtension;
+                fileName = [NSString stringWithFormat:@"%@.jpg", fileName];
+                [self.filesName replaceObjectAtIndex:0 withObject:fileName];
+                fileNameLocal = [NSTemporaryDirectory() stringByAppendingString:fileName];
+                [UIImageJPEGRepresentation(image, 1.0) writeToFile:fileNameLocal atomically:YES];
+                
+                [self.shareTable reloadData];
+            }
+        }
+        
+        // <--
+        
         NSString *fileNameForUpload = [[NCUtility sharedInstance] createFileName:fileName serverUrl:self.serverUrl account:self.activeAccount];
         NSString *fileNameServer = [NSString stringWithFormat:@"%@/%@", self.serverUrl, fileNameForUpload];
-        NSString *fileNameLocal = [NSTemporaryDirectory() stringByAppendingString:fileName];
         
-        (void)[[NCCommunication sharedInstance] uploadWithServerUrlFileName:fileNameServer fileNameLocalPath:fileNameLocal dateCreationFile:nil dateModificationFile:nil account:self.activeAccount progressHandler:^(NSProgress * progress) {
+        (void)[[NCCommunication sharedInstance] uploadWithServerUrlFileName:fileNameServer fileNameLocalPath:fileNameLocal dateCreationFile:nil dateModificationFile:nil customUserAgent:nil addCustomHeaders:nil account:self.activeAccount progressHandler:^(NSProgress * progress) {
             [self.hud progress:progress.fractionCompleted];
         } completionHandler:^(NSString *account, NSString *ocId, NSString *etag, NSDate *date, int64_t size, NSInteger errorCode, NSString *errorDescription) {
             [self.hud hideHud];
@@ -263,18 +281,13 @@
                
                 [CCUtility copyFileAtPath:fileNameLocal toPath:[CCUtility getDirectoryProviderStorageOcId:ocId fileNameView:fileNameForUpload]];
                
-                tableMetadata *metadata = [tableMetadata new];
-               
-                metadata.account = self.activeAccount;
+                tableMetadata *metadata = [[NCManageDatabase sharedInstance] createMetadataWithAccount:self.activeAccount fileName:fileNameForUpload ocId:ocId serverUrl:self.serverUrl url:@"" contentType:@""];
+                               
                 metadata.date = date;
                 metadata.etag = etag;
-                metadata.ocId = ocId;
-                metadata.fileName = fileNameForUpload;
-                metadata.fileNameView = fileNameForUpload;
                 metadata.serverUrl = self.serverUrl;
                 metadata.size = size;
-                (void)[CCUtility insertTypeFileIconName:fileNameForUpload metadata:metadata];
-               
+                
                 metadata = [[NCManageDatabase sharedInstance] addMetadata:metadata];
                 (void)[[NCManageDatabase sharedInstance] addLocalFileWithMetadata:metadata];
                

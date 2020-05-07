@@ -37,19 +37,10 @@ import NCCommunication
         let instance = NCNetworking()
         return instance
     }()
-    
-    var account = ""
-    
+        
     // Protocol
     var delegate: NCNetworkingDelegate?
-    
-    //MARK: - Setup
-    
-    @objc public func setup(account: String, delegate: NCNetworkingDelegate?) {
-        self.account = account
-        self.delegate = delegate
-    }
-    
+        
     //MARK: - Communication Delegate
        
     func authenticationChallenge(_ challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
@@ -153,55 +144,423 @@ import NCCommunication
         return result
     }
     
-    @objc func convertFiles(_ files: [NCFile], urlString: String, serverUrl : String?, user: String, metadataFolder: UnsafeMutablePointer<tableMetadata>) -> [tableMetadata] {
+    //MARK: - WebDav Read file, folder
+    
+    @objc func readFolder(serverUrl: String, account: String, completion: @escaping (_ account: String, _ metadataFolder: tableMetadata?, _ metadatas: [tableMetadata]?, _ errorCode: Int, _ errorDescription: String)->()) {
         
-        var metadatas = [tableMetadata]()
-        
-        for file in files {
+        NCCommunication.sharedInstance.readFileOrFolder(serverUrlFileName: serverUrl, depth: "1", showHiddenFiles: CCUtility.getShowHiddenFiles(), customUserAgent: nil, addCustomHeaders: nil, account: account) { (account, files, errorCode, errorDescription) in
             
-            if !CCUtility.getShowHiddenFiles() && file.fileName.first == "." { continue }
+            if errorCode == 0 && files != nil {
+                              
+                NCManageDatabase.sharedInstance.convertNCFilesToMetadatas(files!, useMetadataFolder: true, account: account) { (metadataFolder, metadatasFolder, metadatas) in
+                    
+                    // Add directory
+                    NCManageDatabase.sharedInstance.addDirectory(encrypted: metadataFolder.e2eEncrypted, favorite: metadataFolder.favorite, ocId: metadataFolder.ocId, fileId: metadataFolder.fileId, etag: metadataFolder.etag, permissions: metadataFolder.permissions, serverUrl: serverUrl, richWorkspace: metadataFolder.richWorkspace, account: account)
+                    NCManageDatabase.sharedInstance.setDateReadDirectory(serverUrl: serverUrl, account: account)
+                    
+                    // Add other directories
+                    for metadata in metadatasFolder {
+                       let serverUrl = metadata.serverUrl + "/" + metadata.fileName
+                       NCManageDatabase.sharedInstance.addDirectory(encrypted: metadata.e2eEncrypted, favorite: metadata.favorite, ocId: metadata.ocId, fileId: metadata.fileId, etag: nil, permissions: metadata.permissions, serverUrl: serverUrl, richWorkspace: metadata.richWorkspace, account: account)
+                    }
+                    
+                    // Save status transfer metadata
+                    let metadatasInDownload = NCManageDatabase.sharedInstance.getMetadatas(predicate: NSPredicate(format: "account == %@ AND serverUrl == %@ AND (status == %d OR status == %d OR status == %d OR status == %d)", account, serverUrl, k_metadataStatusWaitDownload, k_metadataStatusInDownload, k_metadataStatusDownloading, k_metadataStatusDownloadError), sorted: nil, ascending: false)
+                    
+                    let metadatasInUpload = NCManageDatabase.sharedInstance.getMetadatas(predicate: NSPredicate(format: "account == %@ AND serverUrl == %@ AND (status == %d OR status == %d OR status == %d OR status == %d)", account, serverUrl, k_metadataStatusWaitUpload, k_metadataStatusInUpload, k_metadataStatusUploading, k_metadataStatusUploadError), sorted: nil, ascending: false)
+
+                    // Delete metadata
+                    NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "account == %@ AND serverUrl == %@ AND status == %d", account, serverUrl, k_metadataStatusNormal))
+                    
+                    // Add metadata
+                    let metadataFolderInserted = NCManageDatabase.sharedInstance.addMetadata(metadataFolder)
+                    let metadatasInserted = NCManageDatabase.sharedInstance.addMetadatas(metadatas)
+                     
+                    if metadatasInDownload != nil {
+                        NCManageDatabase.sharedInstance.addMetadatas(metadatasInDownload!)
+                    }
+                    if metadatasInUpload != nil {
+                        NCManageDatabase.sharedInstance.addMetadatas(metadatasInUpload!)
+                    }
+                    
+                    completion(account, metadataFolderInserted, metadatasInserted, errorCode, "")
+                }
             
-            let metadata = tableMetadata()
-            
-            metadata.account = account
-            metadata.commentsUnread = file.commentsUnread
-            metadata.contentType = file.contentType
-            metadata.creationDate = file.creationDate
-            metadata.date = file.date
-            metadata.directory = file.directory
-            metadata.e2eEncrypted = file.e2eEncrypted
-            metadata.etag = file.etag
-            metadata.favorite = file.favorite
-            metadata.fileId = file.fileId
-            metadata.fileName = file.fileName
-            metadata.fileNameView = file.fileName
-            metadata.hasPreview = file.hasPreview
-            metadata.mountType = file.mountType
-            metadata.ocId = file.ocId
-            metadata.ownerId = file.ownerId
-            metadata.ownerDisplayName = file.ownerDisplayName
-            metadata.permissions = file.permissions
-            metadata.quotaUsedBytes = file.quotaUsedBytes
-            metadata.quotaAvailableBytes = file.quotaAvailableBytes
-            metadata.richWorkspace = file.richWorkspace
-            metadata.resourceType = file.resourceType
-            if serverUrl == nil {
-                metadata.serverUrl = urlString + file.path.replacingOccurrences(of: "/remote.php/dav/files/"+user, with: "").dropLast()
             } else {
-                metadata.serverUrl = serverUrl!
-            }
-            metadata.size = file.size
-                        
-            CCUtility.insertTypeFileIconName(file.fileName, metadata: metadata)
-            
-            // Folder
-            if file.fileName.count == 0 {
-                metadataFolder.initialize(to: metadata)
-            } else {
-                metadatas.append(metadata)
+                
+                var errorDescription = errorDescription
+                if errorDescription == nil { errorDescription = "Internal error. Error not found" }
+                
+                #if !EXTENSION
+                NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
+                #endif
+                
+                completion(account, nil, nil, errorCode, errorDescription!)
             }
         }
+    }
+    
+    @objc func readFile(serverUrlFileName: String, account: String, completion: @escaping (_ account: String, _ metadata: tableMetadata?, _ errorCode: Int, _ errorDescription: String)->()) {
         
-        return metadatas
+        NCCommunication.sharedInstance.readFileOrFolder(serverUrlFileName: serverUrlFileName, depth: "0", showHiddenFiles: CCUtility.getShowHiddenFiles(), customUserAgent: nil, addCustomHeaders: nil, account: account) { (account, files, errorCode, errorDescription) in
+
+            if errorCode == 0 && files != nil {
+                if files?.count ?? 0 == 1 {
+                    let file = files![0]
+                    let isEncrypted = CCUtility.isFolderEncrypted(file.serverUrl, e2eEncrypted:file.e2eEncrypted, account: account)
+                    let metadata = NCManageDatabase.sharedInstance.convertNCFileToMetadata(file, isEncrypted: isEncrypted, account: account)
+                    completion(account, metadata, errorCode, "")
+                } else {
+                    completion(account, nil, errorCode, "")
+                }
+            } else {
+
+                completion(account, nil, errorCode, errorDescription!)
+            }
+        }
+    }
+    
+    //MARK: - WebDav Create Folder
+
+    @objc func createFolder(fileName: String, serverUrl: String, account: String, user: String, userID: String, password: String, url: String, completion: @escaping (_ errorCode: Int, _ errorDescription: String)->()) {
+        
+        let isDirectoryEncrypted = CCUtility.isFolderEncrypted(serverUrl, e2eEncrypted: false, account: account)
+               
+        if isDirectoryEncrypted {
+            #if !EXTENSION
+            NCNetworkingE2EE.sharedInstance.createFolder(fileName: fileName, serverUrl: serverUrl, account: account, user: user, userID: userID, password: password, url: url, completion: completion)
+            #endif
+        } else {
+            createFolderPlain(fileName: fileName, serverUrl: serverUrl, account: account, user: user, userID: userID, password: password, url: url, completion: completion)
+        }
+    }
+    
+    @objc func createFolderPlain(fileName: String, serverUrl: String, account: String, user: String, userID: String, password: String, url: String, completion: @escaping (_ errorCode: Int, _ errorDescription: String)->()) {
+        
+        var fileNameFolder = CCUtility.removeForbiddenCharactersServer(fileName)!
+        
+        fileNameFolder = NCUtility.sharedInstance.createFileName(fileNameFolder, serverUrl: serverUrl, account: account)
+        if fileNameFolder.count == 0 {
+            self.NotificationPost(name: k_notificationCenter_createFolder, userInfo: ["fileName": fileName, "serverUrl": serverUrl, "errorCode": Int(0)], errorDescription: "", completion: completion)
+            return
+        }
+        let fileNameFolderUrl = serverUrl + "/" + fileNameFolder
+        
+        NCCommunication.sharedInstance.createFolder(fileNameFolderUrl, customUserAgent: nil, addCustomHeaders: nil, account: account) { (account, ocId, date, errorCode, errorDescription) in
+            if errorCode == 0 {
+                self.readFile(serverUrlFileName: fileNameFolderUrl, account: account) { (account, metadataFolder, errorCode, errorDescription) in
+                    if errorCode == 0 {
+                        // Add Metadata
+                        NCManageDatabase.sharedInstance.addMetadata(metadataFolder!)
+                        // Add folder
+                        NCManageDatabase.sharedInstance.addDirectory(encrypted: metadataFolder!.e2eEncrypted, favorite: metadataFolder!.favorite, ocId: metadataFolder!.ocId, fileId: metadataFolder!.fileId, etag: nil, permissions: metadataFolder!.permissions, serverUrl: fileNameFolderUrl, richWorkspace: metadataFolder!.richWorkspace, account: account)
+                        
+                        self.NotificationPost(name: k_notificationCenter_createFolder, userInfo: ["fileName": fileName, "serverUrl": serverUrl, "errorCode": errorCode], errorDescription: errorDescription, completion: completion)
+                        
+                    } else {
+                        self.NotificationPost(name: k_notificationCenter_createFolder, userInfo: ["fileName": fileName, "serverUrl": serverUrl, "errorCode": errorCode], errorDescription: errorDescription, completion: completion)
+                    }
+                }
+            } else {
+                self.NotificationPost(name: k_notificationCenter_createFolder, userInfo: ["fileName": fileName, "serverUrl": serverUrl, "errorCode": errorCode], errorDescription: errorDescription, completion: completion)
+            }
+        }
+    }
+        
+    //MARK: - WebDav Delete
+
+    @objc func deleteMetadata(_ metadata: tableMetadata, account: String, user: String, userID: String, password: String, url: String, completion: @escaping (_ errorCode: Int, _ errorDescription: String)->()) {
+                
+        let isDirectoryEncrypted = CCUtility.isFolderEncrypted(metadata.serverUrl, e2eEncrypted: metadata.e2eEncrypted, account: metadata.account)
+        let metadataLive = NCUtility.sharedInstance.isLivePhoto(metadata: metadata)
+        
+        if isDirectoryEncrypted {
+            #if !EXTENSION
+            if let directory = NCManageDatabase.sharedInstance.getTableDirectory(predicate: NSPredicate(format: "account == %@ AND serverUrl == %@", metadata.account, metadata.serverUrl)) {
+                if metadataLive == nil {
+                    NCNetworkingE2EE.sharedInstance.deleteMetadata(metadata, directory: directory, account: account, user: user, userID: userID, password: password, url: url, completion: completion)
+                } else {
+                    NCNetworkingE2EE.sharedInstance.deleteMetadata(metadataLive!, directory: directory, account: account, user: user, userID: userID, password: password, url: url) { (errorCode, errorDescription) in
+                        if errorCode == 0 {
+                            NCNetworkingE2EE.sharedInstance.deleteMetadata(metadata, directory: directory, account: account, user: user, userID: userID, password: password, url: url, completion: completion)
+                        } else {
+                            completion(errorCode, errorDescription)
+                        }
+                    }
+                }
+            }
+            #endif
+        } else {
+            if metadataLive == nil {
+                self.deleteMetadataPlain(metadata, addCustomHeaders: nil, completion: completion)
+            } else {
+                self.deleteMetadataPlain(metadataLive!, addCustomHeaders: nil) { (errorCode, errorDescription) in
+                    if errorCode == 0 {
+                        self.deleteMetadataPlain(metadata, addCustomHeaders: nil, completion: completion)
+                    } else {
+                        completion(errorCode, errorDescription)
+                    }
+                }
+            }
+        }
+    }
+    
+    func deleteMetadataPlain(_ metadata: tableMetadata, addCustomHeaders: [String:String]?, completion: @escaping (_ errorCode: Int, _ errorDescription: String)->()) {
+        
+        // verify permission
+        let permission = NCUtility.sharedInstance.permissionsContainsString(metadata.permissions, permissions: k_permission_can_delete)
+        if metadata.permissions != "" && permission == false {
+            
+            self.NotificationPost(name: k_notificationCenter_deleteFile, userInfo: ["metadata": metadata, "errorCode": Int(k_CCErrorNotPermission)], errorDescription: "_no_permission_delete_file_", completion: completion)
+            return
+        }
+                
+        let serverUrlFileName = metadata.serverUrl + "/" + metadata.fileName
+        NCCommunication.sharedInstance.deleteFileOrFolder(serverUrlFileName, customUserAgent: nil, addCustomHeaders: addCustomHeaders, account: metadata.account) { (account, errorCode, errorDescription) in
+        
+            if errorCode == 0 || errorCode == kOCErrorServerPathNotFound {
+                
+                do {
+                    try FileManager.default.removeItem(atPath: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId))
+                } catch { }
+                                       
+                NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
+                NCManageDatabase.sharedInstance.deleteMedia(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
+                NCManageDatabase.sharedInstance.deleteLocalFile(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
+
+                if metadata.directory {
+                    NCManageDatabase.sharedInstance.deleteDirectoryAndSubDirectory(serverUrl: CCUtility.stringAppendServerUrl(metadata.serverUrl, addFileName: metadata.fileName), account: metadata.account)
+                }
+            }
+            
+            self.NotificationPost(name: k_notificationCenter_deleteFile, userInfo: ["metadata": metadata, "errorCode": errorCode], errorDescription: errorDescription, completion: completion)
+        }
+    }
+    
+    //MARK: - WebDav Favorite
+
+    @objc func favoriteMetadata(_ metadata: tableMetadata, url: String, completion: @escaping (_ errorCode: Int, _ errorDescription: String)->()) {
+        
+        if let metadataLive = NCUtility.sharedInstance.isLivePhoto(metadata: metadata) {
+            favoriteMetadataPlain(metadataLive, url: url) { (errorCode, errorDescription) in
+                if errorCode == 0 {
+                    self.favoriteMetadataPlain(metadata, url: url, completion: completion)
+                } else {
+                    completion(errorCode, errorDescription)
+                }
+            }
+        } else {
+            favoriteMetadataPlain(metadata, url: url, completion: completion)
+        }
+    }
+    
+    @objc func favoriteMetadataPlain(_ metadata: tableMetadata, url: String, completion: @escaping (_ errorCode: Int, _ errorDescription: String)->()) {
+        
+        let fileName = CCUtility.returnFileNamePath(fromFileName: metadata.fileName, serverUrl: metadata.serverUrl, activeUrl: url)!
+        let favorite = !metadata.favorite
+        
+        NCCommunication.sharedInstance.setFavorite(serverUrl: url, fileName: fileName, favorite: favorite, customUserAgent: nil, addCustomHeaders: nil, account: metadata.account) { (account, errorCode, errorDescription) in
+    
+            if errorCode == 0 && metadata.account == account {
+                NCManageDatabase.sharedInstance.setMetadataFavorite(ocId: metadata.ocId, favorite: favorite)
+            }
+            
+            self.NotificationPost(name: k_notificationCenter_favoriteFile, userInfo: ["metadata": metadata, "favorite": favorite, "errorCode": errorCode], errorDescription: errorDescription, completion: completion)
+        }
+    }
+    
+    //MARK: - WebDav Rename
+
+    @objc func renameMetadata(_ metadata: tableMetadata, fileNameNew: String, user: String, userID: String, password: String, url: String, viewController: UIViewController?, completion: @escaping (_ errorCode: Int, _ errorDescription: String?)->()) {
+        
+        let isDirectoryEncrypted = CCUtility.isFolderEncrypted(metadata.serverUrl, e2eEncrypted: metadata.e2eEncrypted, account: metadata.account)
+        let metadataLive = NCUtility.sharedInstance.isLivePhoto(metadata: metadata)
+        let fileNameNewLive = (fileNameNew as NSString).deletingPathExtension + ".mov"
+
+        if isDirectoryEncrypted {
+            #if !EXTENSION
+            if let directory = NCManageDatabase.sharedInstance.getTableDirectory(predicate: NSPredicate(format: "account == %@ AND serverUrl == %@", metadata.account, metadata.serverUrl)) {
+                if metadataLive == nil {
+                    NCNetworkingE2EE.sharedInstance.renameMetadata(metadata, fileNameNew: fileNameNew, directory: directory, user: user, userID: userID, password: password, url: url, completion: completion)
+                } else {
+                    NCNetworkingE2EE.sharedInstance.renameMetadata(metadataLive!, fileNameNew: fileNameNewLive, directory: directory, user: user, userID: userID, password: password, url: url) { (errorCode, errorDescription) in
+                        if errorCode == 0 {
+                            NCNetworkingE2EE.sharedInstance.renameMetadata(metadata, fileNameNew: fileNameNew, directory: directory, user: user, userID: userID, password: password, url: url, completion: completion)
+                        } else {
+                            completion(errorCode, errorDescription)
+                        }
+                    }
+                }
+            }
+            #endif
+        } else {
+            if metadataLive == nil {
+                renameMetadataPlain(metadata, fileNameNew: fileNameNew, completion: completion)
+            } else {
+                renameMetadataPlain(metadataLive!, fileNameNew: fileNameNewLive) { (errorCode, errorDescription) in
+                    if errorCode == 0 {
+                        self.renameMetadataPlain(metadata, fileNameNew: fileNameNew, completion: completion)
+                    } else {
+                        completion(errorCode, errorDescription)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func renameMetadataPlain(_ metadata: tableMetadata, fileNameNew: String, completion: @escaping (_ errorCode: Int, _ errorDescription: String?)->()) {
+        
+        let permission = NCUtility.sharedInstance.permissionsContainsString(metadata.permissions, permissions: k_permission_can_rename)
+        if !(metadata.permissions == "") && !permission {
+            self.NotificationPost(name: k_notificationCenter_renameFile, userInfo: ["metadata": metadata, "errorCode": Int(k_CCErrorInternalError)], errorDescription: "_no_permission_modify_file_", completion: completion)
+            return
+        }
+        guard let fileNameNew = CCUtility.removeForbiddenCharactersServer(fileNameNew) else {
+            self.NotificationPost(name: k_notificationCenter_renameFile, userInfo: ["metadata": metadata, "errorCode": Int(0)], errorDescription: "", completion: completion)
+            return
+        }
+        if fileNameNew.count == 0 || fileNameNew == metadata.fileNameView {
+            self.NotificationPost(name: k_notificationCenter_renameFile, userInfo: ["metadata": metadata, "errorCode": Int(0)], errorDescription: "", completion: completion)
+            return
+        }
+        
+        let fileNamePath = metadata.serverUrl + "/" + metadata.fileName
+        let fileNameToPath = metadata.serverUrl + "/" + fileNameNew
+                
+        NCCommunication.sharedInstance.moveFileOrFolder(serverUrlFileNameSource: fileNamePath, serverUrlFileNameDestination: fileNameToPath, overwrite: false, customUserAgent: nil, addCustomHeaders: nil, account: metadata.account) { (account, errorCode, errorDescription) in
+                    
+            if errorCode == 0 {
+                        
+                NCManageDatabase.sharedInstance.renameMetadata(fileNameTo: fileNameNew, ocId: metadata.ocId)
+                NCManageDatabase.sharedInstance.renameMedia(fileNameTo: fileNameNew, ocId: metadata.ocId)
+                        
+                if metadata.directory {
+                            
+                    let serverUrl = CCUtility.stringAppendServerUrl(metadata.serverUrl, addFileName: metadata.fileName)!
+                    let serverUrlTo = CCUtility.stringAppendServerUrl(metadata.serverUrl, addFileName: fileNameNew)!
+                    if let directory = NCManageDatabase.sharedInstance.getTableDirectory(predicate: NSPredicate(format: "account == %@ AND serverUrl == %@", metadata.account, metadata.serverUrl)) {
+                                
+                        NCManageDatabase.sharedInstance.setDirectory(serverUrl: serverUrl, serverUrlTo: serverUrlTo, etag: "", ocId: nil, fileId: nil, encrypted: directory.e2eEncrypted, richWorkspace: nil, account: metadata.account)
+                    }
+                            
+                } else {
+                            
+                    NCManageDatabase.sharedInstance.setLocalFile(ocId: metadata.ocId, date: nil, exifDate: nil, exifLatitude: nil, exifLongitude: nil, fileName: fileNameNew, etag: nil)
+                    // Move file system
+                    let atPath = CCUtility.getDirectoryProviderStorageOcId(metadata.ocId) + "/" + metadata.fileName
+                    let toPath = CCUtility.getDirectoryProviderStorageOcId(metadata.ocId) + "/" + fileNameNew
+                    do {
+                        try FileManager.default.moveItem(atPath: atPath, toPath: toPath)
+                    } catch { }
+                    let atPathIcon = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, fileNameView: metadata.fileName)!
+                    let toPathIcon = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, fileNameView: fileNameNew)!
+                    do {
+                        try FileManager.default.moveItem(atPath: atPathIcon, toPath: toPathIcon)
+                    } catch { }
+                }
+            }
+                    
+            self.NotificationPost(name: k_notificationCenter_renameFile, userInfo: ["metadata": metadata, "errorCode": errorCode], errorDescription: errorDescription, completion: completion)
+        }
+    }
+    
+    //MARK: - WebDav Move
+    
+    @objc func moveMetadata(_ metadata: tableMetadata, serverUrlTo: String, overwrite: Bool, completion: @escaping (_ errorCode: Int, _ errorDescription: String?)->()) {
+        
+        if let metadataLive = NCUtility.sharedInstance.isLivePhoto(metadata: metadata) {
+            moveMetadataPlain(metadataLive, serverUrlTo: serverUrlTo, overwrite: overwrite) { (errorCode, errorDescription) in
+                if errorCode == 0 {
+                    self.moveMetadataPlain(metadata, serverUrlTo: serverUrlTo, overwrite: overwrite, completion: completion)
+                } else {
+                    completion(errorCode, errorDescription)
+                }
+            }
+        } else {
+            moveMetadataPlain(metadata, serverUrlTo: serverUrlTo, overwrite: overwrite, completion: completion)
+        }
+    }
+
+    @objc func moveMetadataPlain(_ metadata: tableMetadata, serverUrlTo: String, overwrite: Bool, completion: @escaping (_ errorCode: Int, _ errorDescription: String?)->()) {
+    
+        let permission = NCUtility.sharedInstance.permissionsContainsString(metadata.permissions, permissions: k_permission_can_rename)
+        if !(metadata.permissions == "") && !permission {
+            self.NotificationPost(name: k_notificationCenter_renameFile, userInfo: ["metadata": metadata, "serverUrlTo": serverUrlTo, "errorCode": Int(k_CCErrorInternalError)], errorDescription: "_no_permission_modify_file_", completion: completion)
+            return
+        }
+        
+        let serverUrlFileNameSource = metadata.serverUrl + "/" + metadata.fileName
+        let serverUrlFileNameDestination = serverUrlTo + "/" + metadata.fileName
+        
+        NCCommunication.sharedInstance.moveFileOrFolder(serverUrlFileNameSource: serverUrlFileNameSource, serverUrlFileNameDestination: serverUrlFileNameDestination, overwrite: overwrite, customUserAgent: nil, addCustomHeaders: nil, account: metadata.account) { (account, errorCode, errorDescription) in
+                    
+            var metadataNew = tableMetadata()
+            
+            if errorCode == 0 {
+    
+                if metadata.directory {
+                    NCManageDatabase.sharedInstance.deleteDirectoryAndSubDirectory(serverUrl: CCUtility.stringAppendServerUrl(metadata.serverUrl, addFileName: metadata.fileName), account: account)
+                }
+                
+                if let metadataMove = NCManageDatabase.sharedInstance.moveMetadata(ocId: metadata.ocId, serverUrlTo: serverUrlTo) {
+                    metadataNew = metadataMove
+                }
+                NCManageDatabase.sharedInstance.moveMedia(ocId: metadata.ocId, serverUrlTo: serverUrlTo)
+                
+                NCManageDatabase.sharedInstance.clearDateRead(serverUrl: metadata.serverUrl, account: account)
+                NCManageDatabase.sharedInstance.clearDateRead(serverUrl: serverUrlTo, account: account)
+            }
+                    
+            self.NotificationPost(name: k_notificationCenter_moveFile, userInfo: ["metadata": metadata, "metadataNew": metadataNew, "errorCode": errorCode], errorDescription: errorDescription, completion: completion)
+        }
+    }
+    
+    //MARK: - WebDav Copy
+    
+    @objc func copyMetadata(_ metadata: tableMetadata, serverUrlTo: String, overwrite: Bool, completion: @escaping (_ errorCode: Int, _ errorDescription: String?)->()) {
+        
+        if let metadataLive = NCUtility.sharedInstance.isLivePhoto(metadata: metadata) {
+            copyMetadataPlain(metadataLive, serverUrlTo: serverUrlTo, overwrite: overwrite) { (errorCode, errorDescription) in
+                if errorCode == 0 {
+                    self.copyMetadataPlain(metadata, serverUrlTo: serverUrlTo, overwrite: overwrite, completion: completion)
+                } else {
+                    completion(errorCode, errorDescription)
+                }
+            }
+        } else {
+            copyMetadataPlain(metadata, serverUrlTo: serverUrlTo, overwrite: overwrite, completion: completion)
+        }
+    }
+
+    @objc func copyMetadataPlain(_ metadata: tableMetadata, serverUrlTo: String, overwrite: Bool, completion: @escaping (_ errorCode: Int, _ errorDescription: String?)->()) {
+    
+        let permission = NCUtility.sharedInstance.permissionsContainsString(metadata.permissions, permissions: k_permission_can_rename)
+        if !(metadata.permissions == "") && !permission {
+            self.NotificationPost(name: k_notificationCenter_renameFile, userInfo: ["metadata": metadata, "serverUrlTo": serverUrlTo, "errorCode": Int(k_CCErrorInternalError)], errorDescription: "_no_permission_modify_file_", completion: completion)
+            return
+        }
+        
+        let serverUrlFileNameSource = metadata.serverUrl + "/" + metadata.fileName
+        let serverUrlFileNameDestination = serverUrlTo + "/" + metadata.fileName
+        
+        NCCommunication.sharedInstance.copyFileOrFolder(serverUrlFileNameSource: serverUrlFileNameSource, serverUrlFileNameDestination: serverUrlFileNameDestination, overwrite: overwrite, customUserAgent: nil, addCustomHeaders: nil, account: metadata.account) { (account, errorCode, errorDescription) in
+                    
+            self.NotificationPost(name: k_notificationCenter_copyFile, userInfo: ["metadata": metadata, "errorCode": errorCode], errorDescription: errorDescription, completion: completion)
+        }
+    }
+    
+    //MARK: - Notification Post
+    
+    private func NotificationPost(name: String, userInfo: [AnyHashable : Any], errorDescription: Any?, completion: @escaping (_ errorCode: Int, _ errorDescription: String)->()) {
+        var userInfo = userInfo
+        DispatchQueue.main.async {
+            
+            if errorDescription == nil { userInfo["errorDescription"] = "" }
+            else { userInfo["errorDescription"] = NSLocalizedString(errorDescription as! String, comment: "") }
+            
+            NotificationCenter.default.post(name: Notification.Name.init(rawValue: name), object: nil, userInfo: userInfo)
+            
+            completion(userInfo["errorCode"] as! Int, userInfo["errorDescription"] as! String)
+        }
     }
 }

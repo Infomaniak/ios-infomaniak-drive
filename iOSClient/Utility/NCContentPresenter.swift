@@ -45,10 +45,25 @@ class NCContentPresenter: NSObject {
         case info
     }
     
+    @objc private var lastErrorCode: Int = 0
+
     //MARK: - Message
     
     @objc func messageNotification(_ title: String, description: String?, delay: TimeInterval, type: messageType, errorCode: Int) {
                        
+        // No notification message
+        if errorCode == -999 { return }         // Cancelled transfer
+        else if errorCode == -1001 { return }   // Time out
+        else if errorCode == -1005 { return }   // Connection lost
+        else if errorCode == 0 { return }
+        
+        // No repeat message 
+        if errorCode == lastErrorCode {
+            if errorCode ==  Int(CFNetworkErrors.cfurlErrorNotConnectedToInternet.rawValue) { return }
+        } else {
+            lastErrorCode = errorCode
+        }
+        
         DispatchQueue.main.async {
             switch errorCode {
             case Int(CFNetworkErrors.cfurlErrorNotConnectedToInternet.rawValue):
@@ -59,7 +74,12 @@ class NCContentPresenter: NSObject {
             default:
                 var description = description
                 if description == nil { description = "" }
-                self.flatTop(title: NSLocalizedString(title, comment: ""), description: NSLocalizedString(description!, comment: ""), delay: delay, imageName: nil, type: type, name: "\(errorCode)")
+                if type == messageType.error {
+                    description = NSLocalizedString("_error_", comment: "") + ": \(errorCode), " + NSLocalizedString(description!, comment: "")
+                } else {
+                    description = NSLocalizedString(description!, comment: "")
+                }
+                self.flatTop(title: NSLocalizedString(title, comment: ""), description: description!, delay: delay, imageName: nil, type: type, name: "\(errorCode)")
             }
         }
     }
@@ -98,7 +118,7 @@ class NCContentPresenter: NSObject {
         DispatchQueue.main.async { SwiftEntryKit.display(entry: contentView, using: attributes) }
     }
    
-    @objc func flatBottom(title: String, description: String, delay: TimeInterval, image: UIImage, type: messageType, name: String?) {
+    @objc func flatBottom(title: String, description: String, delay: TimeInterval, image: UIImage, type: messageType, name: String?, verticalOffset: CGFloat) {
         
         if name != nil && SwiftEntryKit.isCurrentlyDisplaying(entryNamed: name) { return }
            
@@ -111,7 +131,7 @@ class NCContentPresenter: NSObject {
         attributes.popBehavior = .animated(animation: .init(translate: .init(duration: 0.3), scale: .init(from: 1, to: 0.7, duration: 0.7)))
         attributes.shadow = .active(with: .init(color: .black, opacity: 0.5, radius: 10, offset: .zero))
         attributes.scroll = .enabled(swipeable: true, pullbackAnimation: .jolt)
-        attributes.positionConstraints.verticalOffset = 60
+        attributes.positionConstraints.verticalOffset = verticalOffset
         
         let title = EKProperty.LabelContent(text: title, style: .init(font:  MainFont.bold.with(size: 16), color: .white))
         let description = EKProperty.LabelContent(text: description, style: .init(font:  MainFont.medium.with(size: 13), color: .white))

@@ -70,10 +70,10 @@ class CCMore: UIViewController, UITableViewDelegate, UITableViewDataSource {
         themingBackground.addGestureRecognizer(tapImageLogo)
         
         // Notification
-        NotificationCenter.default.addObserver(self, selector: #selector(self.changeUserProfile), name: NSNotification.Name(rawValue: "changeUserProfile"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(changeUserProfile), name: NSNotification.Name(rawValue: k_notificationCenter_changeUserProfile), object: nil)
         
         // Theming view
-        NotificationCenter.default.addObserver(self, selector: #selector(self.changeTheming), name: NSNotification.Name(rawValue: "changeTheming"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(changeTheming), name: NSNotification.Name(rawValue: k_notificationCenter_changeTheming), object: nil)
         changeTheming()
     }
     
@@ -119,13 +119,11 @@ class CCMore: UIViewController, UITableViewDelegate, UITableViewDataSource {
         functionMenu.append(item)
         
         // ITEM : Scan
-        if #available(iOS 11.0, *) {
-            item = OCExternalSites.init()
-            item.name = "_scanned_images_"
-            item.icon = "scan"
-            item.url = "openStoryboardScan"
-            functionMenu.append(item)
-        }
+        item = OCExternalSites.init()
+        item.name = "_scanned_images_"
+        item.icon = "scan"
+        item.url = "openStoryboardScan"
+        functionMenu.append(item)
         
         // ITEM : Trash
         let capabilities = NCManageDatabase.sharedInstance.getCapabilites(account: appDelegate.activeAccount)

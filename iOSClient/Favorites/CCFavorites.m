@@ -64,6 +64,12 @@
     [self.tableView registerNib:[UINib nibWithNibName:@"CCCellMain" bundle:nil] forCellReuseIdentifier:@"CellMain"];
     [self.tableView registerNib:[UINib nibWithNibName:@"CCCellMainTransfer" bundle:nil] forCellReuseIdentifier:@"CellMainTransfer"];
     
+    // Notification
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(triggerProgressTask:) name:k_notificationCenter_progressTask object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changeTheming) name:k_notificationCenter_changeTheming object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(deleteFile:) name:k_notificationCenter_deleteFile object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(favoriteFile:) name:k_notificationCenter_favoriteFile object:nil];
+    
     // Metadata
     self.metadata = [tableMetadata new];
     
@@ -88,11 +94,6 @@
     else
         self.title = NSLocalizedString(@"_favorites_", nil);
     
-    // Notification
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(triggerProgressTask:) name:@"NotificationProgressTask" object:nil];
-
-    // changeTheming
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changeTheming) name:@"changeTheming" object:nil];
     [self changeTheming];
     
     // Query data source
@@ -109,9 +110,49 @@
     [self reloadDatasource:nil action:k_action_NULL];
 }
 
+#pragma --------------------------------------------------------------------------------------------
+#pragma mark ==== NotificationCenter ====
+#pragma --------------------------------------------------------------------------------------------
+
+- (void)triggerProgressTask:(NSNotification *)notification
+{
+    if (sectionDataSource.ocIdIndexPath != nil) {
+        [[NCMainCommon sharedInstance] triggerProgressTask:notification sectionDataSourceocIdIndexPath:sectionDataSource.ocIdIndexPath tableView:self.tableView viewController:self serverUrlViewController:self.serverUrl];
+    }
+}
+
 - (void)changeTheming
 {
     [appDelegate changeTheming:self tableView:self.tableView collectionView:nil form:false];
+}
+
+- (void)deleteFile:(NSNotification *)notification
+{
+    if (self.view.window == nil) { return; }
+
+    NSDictionary *userInfo = notification.userInfo;
+    tableMetadata *metadata = userInfo[@"metadata"];
+    NSInteger errorCode = [userInfo[@"errorCode"] integerValue];
+    NSString *errorDescription = userInfo[@"errorDescription"];
+    
+    if (errorCode == 0 && metadata) {
+        [[NCMainCommon sharedInstance] reloadDatasourceWithServerUrl:metadata.serverUrl ocId:metadata.ocId action:k_action_DEL];
+    } else {
+        [[NCContentPresenter shared] messageNotification:@"_error_" description:errorDescription delay:k_dismissAfterSecond type:messageTypeError errorCode:errorCode];
+    }
+}
+
+- (void)favoriteFile:(NSNotification *)notification
+{
+    if (self.view.window == nil) { return; }
+    
+    NSDictionary *userInfo = notification.userInfo;
+    tableMetadata *metadata = userInfo[@"metadata"];
+    NSInteger errorCode = [userInfo[@"errorCode"] integerValue];
+    
+    if (errorCode == 0) {
+        [[NCMainCommon sharedInstance] reloadDatasourceWithServerUrl:metadata.serverUrl ocId:metadata.ocId action:k_action_MOD];
+    }
 }
 
 #pragma --------------------------------------------------------------------------------------------
@@ -151,27 +192,6 @@
 }
 
 #pragma --------------------------------------------------------------------------------------------
-#pragma mark ===== Favorite =====
-#pragma--------------------------------------------------------------------------------------------
-
-- (void)settingFavorite:(tableMetadata *)metadata favorite:(BOOL)favorite
-{
-    NSString *fileNameServerUrl = [CCUtility returnFileNamePathFromFileName:metadata.fileName serverUrl:metadata.serverUrl activeUrl:appDelegate.activeUrl];
-    
-    [[NCCommunication sharedInstance] setFavoriteWithUrlString:appDelegate.activeUrl fileName:fileNameServerUrl favorite:favorite account:appDelegate.activeAccount completionHandler:^(NSString *account, NSInteger errorCode, NSString *errorDecription) {
-        
-        if (errorCode == 0 && [account isEqualToString:appDelegate.activeAccount]) {
-            [[NCManageDatabase sharedInstance] setMetadataFavoriteWithOcId:metadata.ocId favorite:favorite];
-            [[NCMainCommon sharedInstance] reloadDatasourceWithServerUrl:metadata.serverUrl ocId:metadata.ocId action:k_action_MOD];
-        } else if (errorCode != 0) {
-            [[NCContentPresenter shared] messageNotification:@"_error_" description:errorDecription delay:k_dismissAfterSecond type:messageTypeError errorCode:errorCode];
-        } else {
-            NSLog(@"[LOG] It has been changed user during networking process, error.");
-        }
-    }];
-}
-
-#pragma --------------------------------------------------------------------------------------------
 #pragma mark ===== listingFavorites =====
 #pragma--------------------------------------------------------------------------------------------
 
@@ -181,54 +201,54 @@
     if (appDelegate.activeAccount.length == 0)
         return;
     
-    [[NCCommunication sharedInstance]listingFavoritesWithUrlString:appDelegate.activeUrl account:appDelegate.activeAccount completionHandler:^(NSString *account, NSArray *files, NSInteger errorCode, NSString *errorMessage) {
+    [[NCCommunication sharedInstance] listingFavoritesWithServerUrl:appDelegate.activeUrl showHiddenFiles:[CCUtility getShowHiddenFiles] customUserAgent:nil addCustomHeaders:nil account:appDelegate.activeAccount completionHandler:^(NSString *account, NSArray *files, NSInteger errorCode, NSString *errorMessage) {
         
-         if (errorCode == 0 && [account isEqualToString:appDelegate.activeAccount]) {
+         if (errorCode == 0 && [account isEqualToString:appDelegate.activeAccount] && files != nil) {
              
-             tableMetadata *metadataFolder = [tableMetadata new];
-             NSArray *metadatas = [[NCNetworking sharedInstance] convertFiles:files urlString:appDelegate.activeUrl serverUrl:self.serverUrl user:appDelegate.activeUser metadataFolder:&metadataFolder];
-             
-             NSString *father = @"";
-             NSMutableArray *filesOcId = [NSMutableArray new];
-             
-             for (tableMetadata *metadata in metadatas) {
+             [[NCManageDatabase sharedInstance] convertNCFilesToMetadatas:files useMetadataFolder:false account:account completion:^(tableMetadata *metadataFolder, NSArray<tableMetadata *> *metadatasFolder, NSArray<tableMetadata *> *metadatas) {
                  
-                 // insert for test NOT favorite
-                 [filesOcId addObject:metadata.ocId];
+                 NSString *father = @"";
+                 NSMutableArray *filesOcId = [NSMutableArray new];
                  
-                 NSString *serverUrl = metadata.serverUrl;
-                 NSString *serverUrlSon = [CCUtility stringAppendServerUrl:serverUrl addFileName:metadata.fileName];
-                 
-                 if (![serverUrlSon containsString:father]) {
+                 for (tableMetadata *metadata in metadatas) {
                      
-                     if (metadata.directory) {
+                     // insert for test NOT favorite
+                     [filesOcId addObject:metadata.ocId];
+                     
+                     NSString *serverUrl = metadata.serverUrl;
+                     NSString *serverUrlSon = [CCUtility stringAppendServerUrl:serverUrl addFileName:metadata.fileName];
+                     
+                     if (![serverUrlSon containsString:father]) {
                          
-                         if ([CCUtility getFavoriteOffline])
-                             [[CCSynchronize sharedSynchronize] readFolder:[CCUtility stringAppendServerUrl:serverUrl addFileName:metadata.fileName] selector:selectorReadFolderWithDownload account:account];
-                         else
-                             [[CCSynchronize sharedSynchronize] readFolder:[CCUtility stringAppendServerUrl:serverUrl addFileName:metadata.fileName] selector:selectorReadFolder account:account];
+                         if (metadata.directory) {
+                             
+                             if ([CCUtility getFavoriteOffline])
+                                 [[CCSynchronize sharedSynchronize] readFolder:[CCUtility stringAppendServerUrl:serverUrl addFileName:metadata.fileName] selector:selectorReadFolderWithDownload account:account];
+                             else
+                                 [[CCSynchronize sharedSynchronize] readFolder:[CCUtility stringAppendServerUrl:serverUrl addFileName:metadata.fileName] selector:selectorReadFolder account:account];
+                             
+                         } else {
+                             
+                             if ([CCUtility getFavoriteOffline])
+                                 [[CCSynchronize sharedSynchronize] readFile:metadata.ocId fileName:metadata.fileName serverUrl:serverUrl selector:selectorReadFileWithDownload account:account];
+                             else
+                                 [[CCSynchronize sharedSynchronize] readFile:metadata.ocId fileName:metadata.fileName serverUrl:serverUrl selector:selectorReadFile account:account];
+                         }
                          
-                     } else {
-                         
-                         if ([CCUtility getFavoriteOffline])
-                             [[CCSynchronize sharedSynchronize] readFile:metadata.ocId fileName:metadata.fileName serverUrl:serverUrl selector:selectorReadFileWithDownload account:account];
-                         else
-                             [[CCSynchronize sharedSynchronize] readFile:metadata.ocId fileName:metadata.fileName serverUrl:serverUrl selector:selectorReadFile account:account];
+                         father = serverUrlSon;
                      }
-                     
-                     father = serverUrlSon;
                  }
-             }
-             
-             // Verify remove favorite
-             NSArray *allRecordFavorite = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND favorite == true", account] sorted:nil ascending:NO];
-             
-             for (tableMetadata *metadata in allRecordFavorite)
-                 if (![filesOcId containsObject:metadata.ocId])
-                     [[NCManageDatabase sharedInstance] setMetadataFavoriteWithOcId:metadata.ocId favorite:NO];
-             
-             [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:@"clearDateReadDataSource" object:nil];
-             
+                 
+                 // Verify remove favorite
+                 NSArray *allRecordFavorite = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND favorite == true", account] sorted:nil ascending:NO];
+                 
+                 for (tableMetadata *metadata in allRecordFavorite)
+                     if (![filesOcId containsObject:metadata.ocId])
+                         [[NCManageDatabase sharedInstance] setMetadataFavoriteWithOcId:metadata.ocId favorite:NO];
+                 
+                 [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_clearDateReadDataSource object:nil];
+             }];
+        
          } else if (errorCode != 0) {
              [[NCContentPresenter shared] messageNotification:@"_error_" description:errorMessage delay:k_dismissAfterSecond type:messageTypeError errorCode:errorCode];
          } else {
@@ -264,13 +284,6 @@
 #pragma --------------------------------------------------------------------------------------------
 #pragma mark ===== Progress & Task Button =====
 #pragma --------------------------------------------------------------------------------------------
-
-- (void)triggerProgressTask:(NSNotification *)notification
-{
-    if (sectionDataSource.ocIdIndexPath != nil) {
-        [[NCMainCommon sharedInstance] triggerProgressTask:notification sectionDataSourceocIdIndexPath:sectionDataSource.ocIdIndexPath tableView:self.tableView viewController:self serverUrlViewController:self.serverUrl];
-    }
-}
 
 - (void)cancelTaskButton:(id)sender withEvent:(UIEvent *)event
 {
@@ -337,10 +350,8 @@
         viewController.imageFile = cell.file.image;
         viewController.showOpenIn = true;
         viewController.showShare = false;
-        if ([metadata.typeFile isEqualToString: k_metadataTypeFile_document]) {
-            viewController.showOpenInternalViewer = true;
-        }
-        
+        viewController.showOpenQuickLook = [[NCUtility sharedInstance] isQuickLookDisplayableWithMetadata:metadata];
+       
         return viewController;
     }
     
@@ -384,8 +395,7 @@
     if (direction == MGSwipeDirectionLeftToRight) {
         
         tableMetadata *metadata = [[NCMainCommon sharedInstance] getMetadataFromSectionDataSourceIndexPath:indexPath sectionDataSource:sectionDataSource];
-        
-        [self settingFavorite:metadata favorite:NO];
+        [[NCNetworking sharedInstance] favoriteMetadata:metadata url:appDelegate.activeUrl completion:^(NSInteger errorCode, NSString *errorDescription) { }];
     }
     
     return YES;
@@ -394,26 +404,13 @@
 - (void)actionDelete:(NSIndexPath *)indexPath
 {
     tableMetadata *metadata = [[NCMainCommon sharedInstance] getMetadataFromSectionDataSourceIndexPath:indexPath sectionDataSource:sectionDataSource];
-    tableLocalFile *localFile = [[NCManageDatabase sharedInstance] getTableLocalFileWithPredicate:[NSPredicate predicateWithFormat:@"ocId == %@", metadata.ocId]];
     UIAlertController *alertController = [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:UIAlertControllerStyleActionSheet];
     
     [alertController addAction: [UIAlertAction actionWithTitle:NSLocalizedString(@"_delete_", nil) style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
-        
-        tableDirectory *tableDirectory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND e2eEncrypted == 1 AND serverUrl == %@", appDelegate.activeAccount, metadata.serverUrl]];
-        
-        [[NCMainCommon sharedInstance ] deleteFileWithMetadatas:[[NSArray alloc] initWithObjects:metadata, nil] e2ee:tableDirectory.e2eEncrypted serverUrl:metadata.serverUrl folderocId:tableDirectory.ocId completion:^(NSInteger errorCode, NSString *message) {
-            [[NCMainCommon sharedInstance] reloadDatasourceWithServerUrl:metadata.serverUrl ocId:metadata.ocId action:k_action_DEL];
-        }];
+        [[NCNetworking sharedInstance] deleteMetadata:metadata account:appDelegate.activeAccount user:appDelegate.activeUser userID:appDelegate.activeUserID password:appDelegate.activePassword url:appDelegate.activeUrl completion:^(NSInteger errorCode, NSString *errorDescription) { }];
     }]];
     
-    if (localFile) {
-        [alertController addAction: [UIAlertAction actionWithTitle:NSLocalizedString(@"_remove_local_file_", nil) style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
-            [[NCManageDatabase sharedInstance] deleteLocalFileWithPredicate:[NSPredicate predicateWithFormat:@"ocId == %@", metadata.ocId]];
-            [[NSFileManager defaultManager] removeItemAtPath:[CCUtility getDirectoryProviderStorageOcId:metadata.ocId] error:nil];
-            [[NCMainCommon sharedInstance] reloadDatasourceWithServerUrl:metadata.serverUrl ocId:metadata.ocId action:k_action_MOD];
-        }]];
-    }
-    
+   
     [alertController addAction: [UIAlertAction actionWithTitle:NSLocalizedString(@"_cancel_", nil) style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) {
     }]];
     
@@ -480,7 +477,7 @@
         recordsTableMetadata = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", appDelegate.activeAccount, _serverUrl] sorted:nil ascending:NO];
     }
     
-    sectionDataSource = [CCSectionMetadata creataDataSourseSectionMetadata:recordsTableMetadata listProgressMetadata:nil groupByField:nil filterocId:appDelegate.filterocId filterTypeFileImage:NO filterTypeFileVideo:NO sorted:sorted ascending:[CCUtility getAscendingSettings] activeAccount:appDelegate.activeAccount];
+    sectionDataSource = [CCSectionMetadata creataDataSourseSectionMetadata:recordsTableMetadata listProgressMetadata:nil groupByField:nil filterTypeFileImage:NO filterTypeFileVideo:NO sorted:sorted ascending:[CCUtility getAscendingSettings] activeAccount:appDelegate.activeAccount];
     
     [self.tableView reloadData];
 }
@@ -611,8 +608,8 @@
         // File do not exists
         if ([CCUtility fileProviderStorageExists:self.metadata.ocId fileNameView:self.metadata.fileNameView]) {
             
-            [[NCNetworkingMain sharedInstance] downloadFileSuccessFailure:self.metadata.fileName ocId:self.metadata.ocId serverUrl:self.metadata.serverUrl selector:selectorLoadFileView errorMessage:@"" errorCode:0];
-                            
+            [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_downloadedFile object:nil userInfo:@{@"metadata": self.metadata, @"selector": selectorLoadFileView, @"errorCode": @(0), @"errorDescription": @""}];
+                                        
         } else {
             
             tableDirectory *tableDirectory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", appDelegate.activeAccount, self.metadata.serverUrl]];
@@ -623,26 +620,45 @@
                     
             } else {
                     
-                if (([self.metadata.typeFile isEqualToString: k_metadataTypeFile_video] || [self.metadata.typeFile isEqualToString: k_metadataTypeFile_audio] || [_metadata.typeFile isEqualToString: k_metadataTypeFile_image]) && self.metadata.e2eEncrypted == NO) {
+                if (([self.metadata.typeFile isEqualToString: k_metadataTypeFile_video] || [self.metadata.typeFile isEqualToString: k_metadataTypeFile_audio]) && self.metadata.e2eEncrypted == NO) {
                         
                     [self shouldPerformSegue:self.metadata selector:@""];
+                
+                    } else if ([self.metadata.typeFile isEqualToString: k_metadataTypeFile_document] && [[NCUtility sharedInstance] isDirectEditing:self.metadata] != nil) {
+                        
+                        if (appDelegate.reachability.isReachable) {
+                            [self shouldPerformSegue:self.metadata selector:@""];
+                        } else {
+                            [[NCContentPresenter shared] messageNotification:@"_info_" description:@"_go_online_" delay:k_dismissAfterSecond type:messageTypeInfo errorCode:0];
+                        }
+                        
+                    } else if ([self.metadata.typeFile isEqualToString: k_metadataTypeFile_document] && [[NCUtility sharedInstance] isRichDocument:self.metadata]) {
+                        
+                        if (appDelegate.reachability.isReachable) {
+                            [self shouldPerformSegue:self.metadata selector:@""];
+                        } else {
+                            [[NCContentPresenter shared] messageNotification:@"_info_" description:@"_go_online_" delay:k_dismissAfterSecond type:messageTypeInfo errorCode:0];
+                        }
                         
                 } else {
                         
+                    if ([self.metadata.typeFile isEqualToString: k_metadataTypeFile_image]) {
+                        [self shouldPerformSegue:self.metadata selector:selectorLoadFileView];
+                    }
+                    
                     self.metadata.session = k_download_session;
                     self.metadata.sessionError = @"";
-                    self.metadata.sessionSelector = selectorLoadFileView;
+                    self.metadata.sessionSelector = selectorLoadFileViewFavorite;
                     self.metadata.status = k_metadataStatusWaitDownload;
                         
                     // Add Metadata for Download
-                    tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:self.metadata];
-                    [[CCNetworking sharedNetworking] downloadFile:metadata taskStatus:k_taskStatusResume];
-                        
+                    [[NCManageDatabase sharedInstance] addMetadata:self.metadata];
                     [[NCMainCommon sharedInstance] reloadDatasourceWithServerUrl:self.metadata.serverUrl ocId:self.metadata.ocId action:k_action_MOD];
+                    
+                    [appDelegate startLoadAutoDownloadUpload];
                 }
             }
         }
-        
     }
     
     // Directory
@@ -674,8 +690,9 @@
         return;
     
     // Collapsed but i am in detail -> exit
-    if (self.splitViewController.isCollapsed)
-        if (self.detailViewController.isViewLoaded && self.detailViewController.view.window) return;
+    if (self.splitViewController.isCollapsed) {
+        if (appDelegate.activeDetail.isViewLoaded && appDelegate.activeDetail.view.window) return;
+    }
     
     // Metadata for push detail
     self.metadataForPushDetail = metadata;
@@ -686,14 +703,8 @@
 
 -(void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
 {
-    id viewController = segue.destinationViewController;
-    
-    if ([viewController isKindOfClass:[UINavigationController class]]) {
-        UINavigationController *nav = viewController;
-        _detailViewController = (CCDetail *)nav.topViewController;
-    } else {
-        _detailViewController = segue.destinationViewController;
-    }
+    UINavigationController *navigationController = segue.destinationViewController;
+    NCDetailViewController *detailViewController = (NCDetailViewController *)navigationController.topViewController;
     
     NSMutableArray *photoDataSource = [NSMutableArray new];
     
@@ -703,12 +714,11 @@
             [photoDataSource addObject:metadata];
     }
     
-    _detailViewController.metadataDetail = self.metadataForPushDetail;
-    _detailViewController.selectorDetail = self.selectorForPushDetail;
-    _detailViewController.dateFilterQuery = nil;
-    _detailViewController.photoDataSource = photoDataSource;
+    detailViewController.metadata = self.metadataForPushDetail;
+    detailViewController.selector = self.selectorForPushDetail;
+    detailViewController.favoriteFilterImage = true;
     
-    [_detailViewController setTitle:self.metadata.fileNameView];
+    [detailViewController setTitle:self.metadata.fileNameView];
 }
 
 @end

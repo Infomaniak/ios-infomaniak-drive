@@ -55,12 +55,12 @@ class NCService: NSObject {
             return
         }
         
-        OCNetworking.sharedManager().getUserProfile(withAccount: appDelegate.activeAccount, completion: { (account, userProfile, message, errorCode) in
-            
+        NCCommunication.sharedInstance.getUserProfile(serverUrl: appDelegate.activeUrl, customUserAgent: nil, addCustomHeaders: nil, account: appDelegate.activeAccount) { (account, userProfile, errorCode, errorDescription) in
+                 
             if errorCode == 0 && account == self.appDelegate.activeAccount {
                 
                 // Update User (+ userProfile.id) & active account & account network
-                guard let tableAccount = NCManageDatabase.sharedInstance.setAccountUserProfile(userProfile!, HCProperties: false) else {
+                guard let tableAccount = NCManageDatabase.sharedInstance.setAccountUserProfile(userProfile!) else {
                     NCContentPresenter.shared.messageNotification("Accopunt", description: "Internal error : account not found on DB",  delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: Int(k_CCErrorInternalError))
                     return
                 }
@@ -72,7 +72,7 @@ class NCService: NSObject {
                 
                 // Call func thath required the userdID
                 self.appDelegate.activeFavorites.listingFavorites()
-                self.appDelegate.activeMedia.reloadDataSource(loadNetworkDatasource: true)
+                self.appDelegate.activeMedia.reloadDataSource(loadNetworkDatasource: true) { }
                 NCFunctionMain.sharedInstance.synchronizeOffline()
                 
                 DispatchQueue.global().async {
@@ -80,7 +80,7 @@ class NCService: NSObject {
                     let avatarUrl = "\(self.appDelegate.activeUrl!)/index.php/avatar/\(self.appDelegate.activeUser!)/\(k_avatar_size)".addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed)!
                     let fileNamePath = CCUtility.getDirectoryUserData() + "/" + CCUtility.getStringUser(user, activeUrl: url) + "-" + self.appDelegate.activeUser + ".png"
                     
-                    NCCommunication.sharedInstance.downloadContent(urlString: avatarUrl, account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
+                    NCCommunication.sharedInstance.downloadContent(serverUrl: avatarUrl, customUserAgent: nil, addCustomHeaders: nil, account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
                         if errorCode == 0 {
                             if let image = UIImage(data: data!) {
                                 try? FileManager.default.removeItem(atPath: fileNamePath)
@@ -104,7 +104,7 @@ class NCService: NSObject {
                     */
                     
                     DispatchQueue.main.async {
-                        NotificationCenter.default.post(name: NSNotification.Name(rawValue: "changeUserProfile"), object: nil)
+                        NotificationCenter.default.post(name: NSNotification.Name(rawValue: k_notificationCenter_changeUserProfile), object: nil)
                     }
                 }
                 
@@ -119,12 +119,12 @@ class NCService: NSObject {
                 
                 print("[LOG] It has been changed user during networking process, error.")
             }
-        })
+        }
     }
     
     private func requestServerStatus() {
         
-        NCCommunication.sharedInstance.getServerStatus(urlString: appDelegate.activeUrl) { (serverProductName, serverVersion, versionMajor, versionMinor, versionMicro, extendedSupport, errorCode, errorMessage) in
+        NCCommunication.sharedInstance.getServerStatus(serverUrl: appDelegate.activeUrl, customUserAgent: nil, addCustomHeaders: nil) { (serverProductName, serverVersion, versionMajor, versionMinor, versionMicro, extendedSupport, errorCode, errorMessage) in
             if errorCode == 0 {
                 if extendedSupport == false {
                     if serverProductName == "owncloud" {
@@ -149,6 +149,9 @@ class NCService: NSObject {
                 
                 // Update capabilities db
                 NCManageDatabase.sharedInstance.addCapabilities(capabilities!, account: account!)
+                
+                // Update webDavRoot
+                self.appDelegate.settingWebDavRoot(capabilities?.coreWebDavRoot)
                 
                 // ------ THEMING -----------------------------------------------------------------------
                 self.appDelegate.settingThemingColorBrand()
@@ -231,7 +234,7 @@ class NCService: NSObject {
                                     
                                     if (new != old) {
                                         self.appDelegate.listOfNotifications = NSMutableArray.init(array: sortedListOfNotifications)
-                                        NotificationCenter.default.post(name: NSNotification.Name(rawValue: "notificationReloadData"), object: nil)
+                                        NotificationCenter.default.post(name: NSNotification.Name(rawValue: k_notificationCenter_reloadDataNotification), object: nil)
                                     }
                                     
                                     // Update Main NavigationBar
@@ -254,7 +257,7 @@ class NCService: NSObject {
                     
                     // Remove all Notification
                     self.appDelegate.listOfNotifications.removeAllObjects()
-                    NotificationCenter.default.post(name: NSNotification.Name(rawValue: "notificationReloadData"), object: nil)
+                    NotificationCenter.default.post(name: NSNotification.Name(rawValue: k_notificationCenter_reloadDataNotification), object: nil)
                     // Update Main NavigationBar
                     if (self.appDelegate.activeMain != nil && self.appDelegate.activeMain.isSelectedMode == false) {
                         self.appDelegate.activeMain.setUINavigationBarDefault()
@@ -301,7 +304,7 @@ class NCService: NSObject {
                 
                 // NCTextObtainEditorDetails
                 if capabilities!.versionMajor >= k_nextcloud_version_18_0 {
-                    NCCommunication.sharedInstance.NCTextObtainEditorDetails(urlString: self.appDelegate.activeUrl, account: self.appDelegate.activeAccount) { (account, editors, creators, errorCode, errorMessage) in
+                    NCCommunication.sharedInstance.NCTextObtainEditorDetails(serverUrl: self.appDelegate.activeUrl, customUserAgent: nil, addCustomHeaders: nil, account: self.appDelegate.activeAccount) { (account, editors, creators, errorCode, errorMessage) in
                         if errorCode == 0 && account == self.appDelegate.activeAccount {
                             NCManageDatabase.sharedInstance.addDirectEditing(account: account, editors: editors, creators: creators)
                         }
@@ -343,7 +346,7 @@ class NCService: NSObject {
                     CCUtility.setHCBusinessType(nil)
                     OCNetworking.sharedManager()?.getHCUserProfile(withAccount: self.appDelegate.activeAccount, serverUrl: self.appDelegate.activeUrl, completion: { (account, userProfile, message, errorCode) in
                         if errorCode == 0 && account == self.appDelegate.activeAccount {
-                            _ = NCManageDatabase.sharedInstance.setAccountUserProfile(userProfile!, HCProperties: true)
+                            _ = NCManageDatabase.sharedInstance.setAccountUserProfileHC(businessSize: userProfile!.businessSize, businessType: userProfile!.businessType, city: userProfile!.city, company: userProfile!.company, country: userProfile!.country, role: userProfile!.role, zip: userProfile!.zip)
                         }
                     })
                 }
@@ -351,7 +354,7 @@ class NCService: NSObject {
         } else {
             OCNetworking.sharedManager()?.getHCUserProfile(withAccount: appDelegate.activeAccount, serverUrl: appDelegate.activeUrl, completion: { (account, userProfile, message, errorCode) in
                 if errorCode == 0 && account == self.appDelegate.activeAccount {
-                    _ = NCManageDatabase.sharedInstance.setAccountUserProfile(userProfile!, HCProperties: true)
+                    _ = NCManageDatabase.sharedInstance.setAccountUserProfileHC(businessSize: userProfile!.businessSize, businessType: userProfile!.businessType, city: userProfile!.city, company: userProfile!.company, country: userProfile!.country, role: userProfile!.role, zip: userProfile!.zip)
                 }
             })
         }

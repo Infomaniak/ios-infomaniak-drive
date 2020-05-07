@@ -508,122 +508,7 @@
 #pragma --------------------------------------------------------------------------------------------
 #pragma mark ===== WebDav =====
 #pragma --------------------------------------------------------------------------------------------
-
-- (void)readFolderWithAccount:(NSString *)account serverUrl:(NSString *)serverUrl  depth:(NSString *)depth completion:(void(^)(NSString *account, NSArray *metadatas, tableMetadata *metadataFolder, NSString *message, NSInteger errorCode))completion
-{
-    tableAccount *tableAccount = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", account]];
-    if (tableAccount == nil) {
-        completion(account, nil, nil, NSLocalizedString(@"_error_user_not_available_", nil), k_CCErrorUserNotAvailble);
-    } else if ([CCUtility getPassword:account].length == 0) {
-        completion(account, nil, nil, NSLocalizedString(@"_bad_username_password_", nil), kOCErrorServerUnauthorized);
-    } else if ([CCUtility getCertificateError:account]) {
-        completion(account, nil, nil, NSLocalizedString(@"_ssl_certificate_untrusted_", nil), NSURLErrorServerCertificateUntrusted);
-    }
-    
-    NSString *url = tableAccount.url;
-    NSString *autoUploadFileName = [[NCManageDatabase sharedInstance] getAccountAutoUploadFileName];
-    NSString *autoUploadDirectory = [[NCManageDatabase sharedInstance] getAccountAutoUploadDirectory:url];
-    
-    OCCommunication *communication = [OCNetworking sharedManager].sharedOCCommunication;
-
-    [communication setCredentialsWithUser:tableAccount.user andUserID:tableAccount.userID andPassword:[CCUtility getPassword:account]];
-    [communication setUserAgent:[CCUtility getUserAgent]];
-    [communication readFolder:serverUrl depth:depth withUserSessionToken:nil onCommunication:communication successRequest:^(NSHTTPURLResponse *response, NSArray *items, NSString *redirectedServer, NSString *token) {
-        
-        // Check items > 0
-        if ([items count] == 0) {
-                
-            [[NCContentPresenter shared] messageNotification:@"Server error" description:@"Read Folder WebDAV : [items NULL] please fix" delay:k_dismissAfterSecond type:messageTypeError errorCode:k_CCErrorInternalError];
-            completion(account, nil, nil, NSLocalizedString(@"Read Folder WebDAV : [items NULL] please fix", nil), k_CCErrorInternalError);
-
-        } else {
-            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-                BOOL showHiddenFiles = [CCUtility getShowHiddenFiles];
-                BOOL isFolderEncrypted = [CCUtility isFolderEncrypted:serverUrl account:account];
-                
-                // directory [0]
-                OCFileDto *itemDtoFolder = [items objectAtIndex:0];
-                //NSDate *date = [NSDate dateWithTimeIntervalSince1970:itemDtoDirectory.date];
-                
-                NSMutableArray *metadatas = [NSMutableArray new];
-                tableMetadata *metadataFolder = [tableMetadata new];
-                
-                NSString *serverUrlFolder;
-
-                // Metadata . (self Folder)
-                if ([serverUrl isEqualToString:[CCUtility getHomeServerUrlActiveUrl:url]]) {
-                    
-                    // root folder
-                    serverUrlFolder = k_serverUrl_root;
-                    metadataFolder = [CCUtility trasformedOCFileToCCMetadata:itemDtoFolder fileName:@"." serverUrl:serverUrlFolder autoUploadFileName:autoUploadFileName autoUploadDirectory:autoUploadDirectory account:account isFolderEncrypted:isFolderEncrypted];
-                    
-                } else {
-                    
-                    serverUrlFolder = [CCUtility deletingLastPathComponentFromServerUrl:serverUrl];
-                    metadataFolder = [CCUtility trasformedOCFileToCCMetadata:itemDtoFolder fileName:[serverUrl lastPathComponent] serverUrl:serverUrlFolder autoUploadFileName:autoUploadFileName autoUploadDirectory:autoUploadDirectory account:account isFolderEncrypted:isFolderEncrypted];
-                }
-                
-                // Add metadata folder
-                (void)[[NCManageDatabase sharedInstance] addDirectoryWithEncrypted:itemDtoFolder.isEncrypted favorite:itemDtoFolder.isFavorite ocId:itemDtoFolder.ocId permissions:itemDtoFolder.permissions serverUrl:serverUrl richWorkspace:nil account:account];
-
-                NSArray *itemsSortedArray = [items sortedArrayUsingComparator:^NSComparisonResult(id a, id b) {
-                    
-                    NSString *first = [(OCFileDto*)a fileName];
-                    NSString *second = [(OCFileDto*)b fileName];
-                    return [[first lowercaseString] compare:[second lowercaseString]];
-                }];
-                
-                for (NSUInteger i=1; i < [itemsSortedArray count]; i++) {
-                    
-                    OCFileDto *itemDto = [itemsSortedArray objectAtIndex:i];
-                    NSString *fileName = [itemDto.fileName stringByReplacingOccurrencesOfString:@"/" withString:@""];
-                    
-                    // Skip hidden files
-                    if (fileName.length > 0) {
-                        if (!showHiddenFiles && [[fileName substringToIndex:1] isEqualToString:@"."])
-                            continue;
-                    } else {
-                        continue;
-                    }
-                    
-                    if (itemDto.isDirectory) {
-                        (void)[[NCManageDatabase sharedInstance] addDirectoryWithEncrypted:itemDto.isEncrypted favorite:itemDto.isFavorite ocId:itemDto.ocId permissions:itemDto.permissions serverUrl:[CCUtility stringAppendServerUrl:serverUrl addFileName:fileName] richWorkspace: nil account:account];
-                    }
-                    
-                    [metadatas addObject:[CCUtility trasformedOCFileToCCMetadata:itemDto fileName:itemDto.fileName serverUrl:serverUrl autoUploadFileName:autoUploadFileName autoUploadDirectory:autoUploadDirectory account:account isFolderEncrypted:isFolderEncrypted]];
-                }
-                
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    completion(account, metadatas, metadataFolder, nil, 0);
-                });
-            });
-        }
-    
-    } failureRequest:^(NSHTTPURLResponse *response, NSError *error, NSString *token, NSString *redirectedServer) {
-        
-        NSString *message;
-        NSInteger errorCode = response.statusCode;
-        
-        if (errorCode == 0 || (errorCode >= 200 && errorCode < 300))
-            errorCode = error.code;
-        
-        // Server Unauthorized
-        if (errorCode == kOCErrorServerUnauthorized || errorCode == kOCErrorServerForbidden) {
-            [[OCNetworking sharedManager] checkRemoteUser:account function:@"read file or folder" errorCode:errorCode];
-        } else if (errorCode == NSURLErrorServerCertificateUntrusted) {
-            [CCUtility setCertificateError:account error:YES];
-        }
-        
-        // Error
-        if (errorCode == 503)
-            message = NSLocalizedString(@"_server_error_retry_", nil);
-        else
-            message = [error.userInfo valueForKey:@"NSLocalizedDescription"];
-        
-        completion(account, nil, nil, message, errorCode);
-    }];
-}
-
+/*
 - (void)readFileWithAccount:(NSString *)account serverUrl:(NSString *)serverUrl fileName:(NSString *)fileName completion:(void(^)(NSString *account, tableMetadata *metadata, NSString *message, NSInteger errorCode))completion
 {
     tableAccount *tableAccount = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", account]];
@@ -635,8 +520,6 @@
         completion(account, nil, NSLocalizedString(@"_ssl_certificate_untrusted_", nil), NSURLErrorServerCertificateUntrusted);
     }
     
-    NSString *autoUploadFileName = [[NCManageDatabase sharedInstance] getAccountAutoUploadFileName];
-    NSString *autoUploadDirectory = [[NCManageDatabase sharedInstance] getAccountAutoUploadDirectory:tableAccount.url];
     NSString *fileNamePath;
 
     if (fileName) {
@@ -660,7 +543,7 @@
                 
                 OCFileDto *itemDto = [items objectAtIndex:0];
                 
-                metadata = [CCUtility trasformedOCFileToCCMetadata:itemDto fileName:fileName serverUrl:serverUrl autoUploadFileName:autoUploadFileName autoUploadDirectory:autoUploadDirectory account:account isFolderEncrypted:isFolderEncrypted];
+                metadata = [CCUtility trasformedOCFileToCCMetadata:itemDto fileName:fileName serverUrl:serverUrl account:account isFolderEncrypted:isFolderEncrypted];
                 
                 dispatch_async(dispatch_get_main_queue(), ^{
                     completion(account, metadata, nil, 0);
@@ -698,7 +581,7 @@
     }];
 }
 
-- (void)createFolderWithAccount:(NSString *)account serverUrl:(NSString *)serverUrl fileName:(NSString *)fileName completion:(void(^)(NSString *account, NSString *ocId, NSDate *date, NSString *message, NSInteger errorCode))completion
+- (void)readFolderWithAccount:(NSString *)account serverUrl:(NSString *)serverUrl  depth:(NSString *)depth completion:(void(^)(NSString *account, NSArray *metadatas, tableMetadata *metadataFolder, NSString *message, NSInteger errorCode))completion
 {
     tableAccount *tableAccount = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", account]];
     if (tableAccount == nil) {
@@ -709,246 +592,83 @@
         completion(account, nil, nil, NSLocalizedString(@"_ssl_certificate_untrusted_", nil), NSURLErrorServerCertificateUntrusted);
     }
     
-    NSString *path = [NSString stringWithFormat:@"%@/%@", serverUrl, fileName];
-    NSString *autoUploadFileName = [[NCManageDatabase sharedInstance] getAccountAutoUploadFileName];
-    NSString *autoUploadDirectory = [[NCManageDatabase sharedInstance] getAccountAutoUploadDirectory:tableAccount.url];
-    
-    OCCommunication *communication = [OCNetworking sharedManager].sharedOCCommunication;
-    
-    [communication setCredentialsWithUser:tableAccount.user andUserID:tableAccount.userID andPassword:[CCUtility getPassword:account]];
-    [communication setUserAgent:[CCUtility getUserAgent]];
-    [communication createFolder:path onCommunication:communication withForbiddenCharactersSupported:YES successRequest:^(NSHTTPURLResponse *response, NSString *redirectedServer) {
-        
-        NSDictionary *fields = [response allHeaderFields];
-        
-        NSString *ocId = [CCUtility removeForbiddenCharactersFileSystem:[fields objectForKey:@"OC-FileId"]];
-        NSDate *date = [CCUtility dateEnUsPosixFromCloud:[fields objectForKey:@"Date"]];
-        
-        completion(account, ocId, date, nil, 0);
-        
-    } failureRequest:^(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer) {
-        
-        NSString *message;
-        
-        if (([fileName isEqualToString:autoUploadFileName] && [serverUrl isEqualToString:autoUploadDirectory]))
-            message = nil;
-        else
-            message = [CCError manageErrorOC:response.statusCode error:error];
-        
-        NSInteger errorCode = response.statusCode;
-        
-        if (errorCode == 0 || (errorCode >= 200 && errorCode < 300))
-            errorCode = error.code;
-        
-        // Server Unauthorized
-        if (errorCode == kOCErrorServerUnauthorized || errorCode == kOCErrorServerForbidden) {
-            [[OCNetworking sharedManager] checkRemoteUser:account function:@"create folder" errorCode:errorCode];
-        } else if (errorCode == NSURLErrorServerCertificateUntrusted) {
-            [CCUtility setCertificateError:account error:YES];
-        }
-        
-        completion(account, nil, nil, message, errorCode);
-        
-    } errorBeforeRequest:^(NSError *error) {
-        
-        NSString *message;
-        
-        if (([fileName isEqualToString:autoUploadFileName] && [serverUrl isEqualToString:autoUploadDirectory]))
-            message = nil;
-        else {
-            if (error.code == OCErrorForbidenCharacters)
-                message = NSLocalizedString(@"_forbidden_characters_from_server_", nil);
-            else
-                message = NSLocalizedString(@"_unknow_response_server_", nil);
-        }
-        
-        completion(account, nil, nil, message, error.code);
-    }];
-}
-
-- (void)deleteFileOrFolderWithAccount:(NSString *)account path:(NSString *)path completion:(void (^)(NSString *account, NSString *message, NSInteger errorCode))completion
-{
-    tableAccount *tableAccount = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", account]];
-    if (tableAccount == nil) {
-        completion(account, NSLocalizedString(@"_error_user_not_available_", nil), k_CCErrorUserNotAvailble);
-    } else if ([CCUtility getPassword:account].length == 0) {
-        completion(account, NSLocalizedString(@"_bad_username_password_", nil), kOCErrorServerUnauthorized);
-    }  else if ([CCUtility getCertificateError:account]) {
-        completion(account, NSLocalizedString(@"_ssl_certificate_untrusted_", nil), NSURLErrorServerCertificateUntrusted);
-    }
-    
-    OCCommunication *communication = [OCNetworking sharedManager].sharedOCCommunication;
-    
-    [communication setCredentialsWithUser:tableAccount.user andUserID:tableAccount.userID andPassword:[CCUtility getPassword:account]];
-    [communication setUserAgent:[CCUtility getUserAgent]];
-    [communication deleteFileOrFolder:path onCommunication:communication successRequest:^(NSHTTPURLResponse *response, NSString *redirectedServer) {
-        
-        completion(account, nil, 0);
-        
-    } failureRquest:^(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer) {
-        
-        NSString *message;
-        NSInteger errorCode = response.statusCode;
-        
-        if (errorCode == 0 || (errorCode >= 200 && errorCode < 300))
-            errorCode = error.code;
-        
-        // Server Unauthorized
-        if (errorCode == kOCErrorServerUnauthorized || errorCode == kOCErrorServerForbidden) {
-            [[OCNetworking sharedManager] checkRemoteUser:account function:@"delete file or folder" errorCode:errorCode];
-        } else if (errorCode == NSURLErrorServerCertificateUntrusted) {
-            [CCUtility setCertificateError:account error:YES];
-        }
-        
-        // Error
-        if (errorCode == 503)
-            message = NSLocalizedString(@"_server_error_retry_", nil);
-        else
-            message = [error.userInfo valueForKey:@"NSLocalizedDescription"];
-        
-        completion(account, message, errorCode);
-    }];
-}
-
-- (void)moveFileOrFolderWithAccount:(NSString *)account fileName:(NSString *)fileName fileNameTo:(NSString *)fileNameTo completion:(void (^)(NSString *account, NSString *message, NSInteger errorCode))completion
-{
-    tableAccount *tableAccount = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", account]];
-    if (tableAccount == nil) {
-        completion(account, NSLocalizedString(@"_error_user_not_available_", nil), k_CCErrorUserNotAvailble);
-    } else if ([CCUtility getPassword:account].length == 0) {
-        completion(account, NSLocalizedString(@"_bad_username_password_", nil), kOCErrorServerUnauthorized);
-    }  else if ([CCUtility getCertificateError:account]) {
-        completion(account, NSLocalizedString(@"_ssl_certificate_untrusted_", nil), NSURLErrorServerCertificateUntrusted);
-    }
-    
-    OCCommunication *communication = [OCNetworking sharedManager].sharedOCCommunication;
-    
-    [communication setCredentialsWithUser:tableAccount.user andUserID:tableAccount.userID andPassword:[CCUtility getPassword:account]];
-    [communication setUserAgent:[CCUtility getUserAgent]];
-    [communication moveFileOrFolder:fileName toDestiny:fileNameTo onCommunication:communication withForbiddenCharactersSupported:YES successRequest:^(NSHTTPURLResponse *response, NSString *redirectedServer) {
-        
-        completion(account, nil, 0);
-        
-    } failureRequest:^(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer) {
-        
-        NSString *message;
-        NSInteger errorCode = response.statusCode;
-        
-        if (errorCode == 0 || (errorCode >= 200 && errorCode < 300))
-            errorCode = error.code;
-        
-        // Server Unauthorized
-        if (errorCode == kOCErrorServerUnauthorized || errorCode == kOCErrorServerForbidden) {
-            [[OCNetworking sharedManager] checkRemoteUser:account function:@"move file or folder" errorCode:errorCode];
-        } else if (errorCode == NSURLErrorServerCertificateUntrusted) {
-            [CCUtility setCertificateError:account error:YES];
-        }
-        
-        // Error
-        if (errorCode == 503) {
-            message = NSLocalizedString(@"_server_error_retry_", nil);
-        } else {
-            message = [error.userInfo valueForKey:@"NSLocalizedDescription"];
-        }
-        
-        completion(account, message, errorCode);
-        
-    } errorBeforeRequest:^(NSError *error) {
-        
-        NSString *message;
-        
-        if (error.code == OCErrorMovingTheDestinyAndOriginAreTheSame) {
-            message = NSLocalizedString(@"_error_folder_destiny_is_the_same_", nil);
-        } else if (error.code == OCErrorMovingFolderInsideHimself) {
-            message = NSLocalizedString(@"_error_folder_destiny_is_the_same_", nil);
-        } else if (error.code == OCErrorMovingDestinyNameHaveForbiddenCharacters) {
-            message = NSLocalizedString(@"_forbidden_characters_from_server_", nil);
-        } else {
-            message = NSLocalizedString(@"_unknow_response_server_", nil);
-        }
-        
-        completion(account, message, error.code);
-    }];
-}
-
-- (void)searchWithAccount:(NSString *)account fileName:(NSString *)fileName serverUrl:(NSString *)serverUrl contentType:(NSArray *)contentType lteDateLastModified:(NSDate *)lteDateLastModified gteDateLastModified:(NSDate *)gteDateLastModified depth:(NSString *)depth completion:(void(^)(NSString *account, NSArray *metadatas, NSString *message, NSInteger errorCode))completion
-{
-    tableAccount *tableAccount = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", account]];
-    if (tableAccount == nil) {
-        completion(account, nil, NSLocalizedString(@"_error_user_not_available_", nil), k_CCErrorUserNotAvailble);
-    } else if ([CCUtility getPassword:account].length == 0) {
-        completion(account, nil, NSLocalizedString(@"_bad_username_password_", nil), kOCErrorServerUnauthorized);
-    }  else if ([CCUtility getCertificateError:account]) {
-        completion(account, nil, NSLocalizedString(@"_ssl_certificate_untrusted_", nil), NSURLErrorServerCertificateUntrusted);
-    }
-    
-    NSString *path = [tableAccount.url stringByAppendingString:k_dav];
-    NSString *folder = [serverUrl stringByReplacingOccurrencesOfString:[CCUtility getHomeServerUrlActiveUrl:tableAccount.url] withString:@""];
-    NSString *lteDateLastModifiedString;
-    NSString *gteDateLastModifiedString;
-    NSString *autoUploadFileName = [[NCManageDatabase sharedInstance] getAccountAutoUploadFileName];
-    NSString *autoUploadDirectory = [[NCManageDatabase sharedInstance] getAccountAutoUploadDirectory:tableAccount.url];
     NSString *url = tableAccount.url;
-    NSString *userID = tableAccount.userID;
-
-    if (lteDateLastModified) {
-        NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
-        NSLocale *enUSPOSIXLocale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
-        [dateFormatter setLocale:enUSPOSIXLocale];
-        [dateFormatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZZZZZ"];
-        lteDateLastModifiedString = [dateFormatter stringFromDate:lteDateLastModified];
-    }
-    
-    if (gteDateLastModified) {
-        NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
-        NSLocale *enUSPOSIXLocale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
-        [dateFormatter setLocale:enUSPOSIXLocale];
-        [dateFormatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZZZZZ"];
-        gteDateLastModifiedString = [dateFormatter stringFromDate:gteDateLastModified];
-    }
     
     OCCommunication *communication = [OCNetworking sharedManager].sharedOCCommunication;
-    
+
     [communication setCredentialsWithUser:tableAccount.user andUserID:tableAccount.userID andPassword:[CCUtility getPassword:account]];
     [communication setUserAgent:[CCUtility getUserAgent]];
-    [communication search:path folder:folder fileName: [NSString stringWithFormat:@"%%%@%%", fileName] depth:depth lteDateLastModified:lteDateLastModifiedString gteDateLastModified:gteDateLastModifiedString contentType:contentType withUserSessionToken:nil onCommunication:communication successRequest:^(NSHTTPURLResponse *response, NSArray *items, NSString *redirectedServer, NSString *token) {
+    [communication readFolder:serverUrl depth:depth withUserSessionToken:nil onCommunication:communication successRequest:^(NSHTTPURLResponse *response, NSArray *items, NSString *redirectedServer, NSString *token) {
         
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            NSMutableArray *metadatas = [NSMutableArray new];
-            BOOL showHiddenFiles = [CCUtility getShowHiddenFiles];
-            
-            for (OCFileDto *itemDto in items) {
+        // Check items > 0
+        if ([items count] == 0) {
                 
-                NSString *serverUrl;
-                BOOL isFolderEncrypted;
+            [[NCContentPresenter shared] messageNotification:@"Server error" description:@"Read Folder WebDAV : [items NULL] please fix" delay:k_dismissAfterSecond type:messageTypeError errorCode:k_CCErrorInternalError];
+            completion(account, nil, nil, NSLocalizedString(@"Read Folder WebDAV : [items NULL] please fix", nil), k_CCErrorInternalError);
+
+        } else {
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                BOOL showHiddenFiles = [CCUtility getShowHiddenFiles];
+                BOOL isFolderEncrypted = [CCUtility isFolderEncrypted:serverUrl account:account];
                 
-                NSString *fileName = [itemDto.fileName stringByReplacingOccurrencesOfString:@"/" withString:@""];
+                // directory [0]
+                OCFileDto *itemDtoFolder = [items objectAtIndex:0];
+                //NSDate *date = [NSDate dateWithTimeIntervalSince1970:itemDtoDirectory.date];
                 
-                // Skip hidden files
-                if (fileName.length > 0) {
-                    if (!showHiddenFiles && [[fileName substringToIndex:1] isEqualToString:@"."])
-                        continue;
-                } else
-                    continue;
+                NSMutableArray *metadatas = [NSMutableArray new];
+                tableMetadata *metadataFolder = [tableMetadata new];
                 
-                NSRange firstInstance = [itemDto.filePath rangeOfString:[NSString stringWithFormat:@"%@/files/%@", k_dav, userID]];
-                NSString *serverPath = [itemDto.filePath substringFromIndex:firstInstance.length+firstInstance.location+1];
-                if ([serverPath hasSuffix:@"/"]) serverPath = [serverPath substringToIndex:[serverPath length] - 1];
-                serverUrl = [CCUtility stringAppendServerUrl:[url stringByAppendingString:k_webDAV] addFileName:serverPath];
-                
-                if (itemDto.isDirectory) {
-                    (void)[[NCManageDatabase sharedInstance] addDirectoryWithEncrypted:itemDto.isEncrypted favorite:itemDto.isFavorite ocId:itemDto.ocId permissions:itemDto.permissions serverUrl:[NSString stringWithFormat:@"%@/%@", serverUrl, fileName] richWorkspace:nil account:account];
+                NSString *serverUrlFolder;
+
+                // Metadata . (self Folder)
+                if ([serverUrl isEqualToString:[CCUtility getHomeServerUrlActiveUrl:url]]) {
+                    
+                    // root folder
+                    serverUrlFolder = k_serverUrl_root;
+                    metadataFolder = [CCUtility trasformedOCFileToCCMetadata:itemDtoFolder fileName:@"." serverUrl:serverUrlFolder  account:account isFolderEncrypted:isFolderEncrypted];
+                    
+                } else {
+                    
+                    serverUrlFolder = [CCUtility deletingLastPathComponentFromServerUrl:serverUrl];
+                    metadataFolder = [CCUtility trasformedOCFileToCCMetadata:itemDtoFolder fileName:[serverUrl lastPathComponent] serverUrl:serverUrlFolder  account:account isFolderEncrypted:isFolderEncrypted];
                 }
                 
-                isFolderEncrypted = [CCUtility isFolderEncrypted:serverUrl account:account];
+                // Add metadata folder
+                (void)[[NCManageDatabase sharedInstance] addDirectoryWithEncrypted:itemDtoFolder.isEncrypted favorite:itemDtoFolder.isFavorite ocId:itemDtoFolder.ocId permissions:itemDtoFolder.permissions serverUrl:serverUrl richWorkspace:nil account:account];
+
+                NSArray *itemsSortedArray = [items sortedArrayUsingComparator:^NSComparisonResult(id a, id b) {
+                    
+                    NSString *first = [(OCFileDto*)a fileName];
+                    NSString *second = [(OCFileDto*)b fileName];
+                    return [[first lowercaseString] compare:[second lowercaseString]];
+                }];
                 
-                [metadatas addObject:[CCUtility trasformedOCFileToCCMetadata:itemDto fileName:itemDto.fileName serverUrl:serverUrl autoUploadFileName:autoUploadFileName autoUploadDirectory:autoUploadDirectory account:account isFolderEncrypted:isFolderEncrypted]];
-            }
-            
-            dispatch_async(dispatch_get_main_queue(), ^{
-                completion(account, metadatas, nil, 0);
+                for (NSUInteger i=1; i < [itemsSortedArray count]; i++) {
+                    
+                    OCFileDto *itemDto = [itemsSortedArray objectAtIndex:i];
+                    NSString *fileName = [itemDto.fileName stringByReplacingOccurrencesOfString:@"/" withString:@""];
+                    
+                    // Skip hidden files
+                    if (fileName.length > 0) {
+                        if (!showHiddenFiles && [[fileName substringToIndex:1] isEqualToString:@"."])
+                            continue;
+                    } else {
+                        continue;
+                    }
+                    
+                    if (itemDto.isDirectory) {
+                        (void)[[NCManageDatabase sharedInstance] addDirectoryWithEncrypted:itemDto.isEncrypted favorite:itemDto.isFavorite ocId:itemDto.ocId permissions:itemDto.permissions serverUrl:[CCUtility stringAppendServerUrl:serverUrl addFileName:fileName] richWorkspace: nil account:account];
+                    }
+                    
+                    [metadatas addObject:[CCUtility trasformedOCFileToCCMetadata:itemDto fileName:itemDto.fileName serverUrl:serverUrl  account:account isFolderEncrypted:isFolderEncrypted]];
+                }
+                
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    completion(account, metadatas, metadataFolder, nil, 0);
+                });
             });
-        });
+        }
+    
     } failureRequest:^(NSHTTPURLResponse *response, NSError *error, NSString *token, NSString *redirectedServer) {
         
         NSString *message;
@@ -958,155 +678,11 @@
             errorCode = error.code;
         
         // Server Unauthorized
-        //if (errorCode == kOCErrorServerUnauthorized || errorCode == kOCErrorServerForbidden) {
-        //    [[OCNetworking sharedManager] checkRemoteUser:account function:@"search" errorCode:errorCode];
-        //} else if (errorCode == NSURLErrorServerCertificateUntrusted) {
-        //    [CCUtility setCertificateError:account error:YES];
-        //}
-        
-        // Error
-        if (errorCode == 503) {
-            message = NSLocalizedString(@"_server_error_retry_", nil);
-        } else {
-            message = [error.userInfo valueForKey:@"NSLocalizedDescription"];
+        if (errorCode == kOCErrorServerUnauthorized || errorCode == kOCErrorServerForbidden) {
+            [[OCNetworking sharedManager] checkRemoteUser:account function:@"read file or folder" errorCode:errorCode];
+        } else if (errorCode == NSURLErrorServerCertificateUntrusted) {
+            [CCUtility setCertificateError:account error:YES];
         }
-        
-        completion(account, nil, message, errorCode);
-    }];
-}
-
-- (void)searchWithAccount:(NSString *)account folder:(NSString *)folder fileName:(NSString *)fileName dateLastModified:(NSDate *)dateLastModified numberOfItem:(NSInteger)numberOfItem completion:(void(^)(NSString *account, NSArray *metadatas, NSString *message, NSInteger errorCode))completion
-{
-    tableAccount *tableAccount = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", account]];
-    if (tableAccount == nil) {
-        completion(account, nil, NSLocalizedString(@"_error_user_not_available_", nil), k_CCErrorUserNotAvailble);
-    } else if ([CCUtility getPassword:account].length == 0) {
-        completion(account, nil, NSLocalizedString(@"_bad_username_password_", nil), kOCErrorServerUnauthorized);
-    }  else if ([CCUtility getCertificateError:account]) {
-        completion(account, nil, NSLocalizedString(@"_ssl_certificate_untrusted_", nil), NSURLErrorServerCertificateUntrusted);
-    }
-    
-    NSString *path = [tableAccount.url stringByAppendingString:k_dav];
-    
-    folder = [folder stringByReplacingOccurrencesOfString:[CCUtility getHomeServerUrlActiveUrl:tableAccount.url] withString:@""];
-    fileName = [fileName stringByAppendingString:@"%"];
-    
-    NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
-    NSLocale *enUSPOSIXLocale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
-    [dateFormatter setLocale:enUSPOSIXLocale];
-    [dateFormatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZZZZZ"];
-    NSString *dateLastModifiedString = [dateFormatter stringFromDate:dateLastModified];
-    
-    OCCommunication *communication = [OCNetworking sharedManager].sharedOCCommunication;
-    
-    [communication setCredentialsWithUser:tableAccount.user andUserID:tableAccount.userID andPassword:[CCUtility getPassword:account]];
-    [communication setUserAgent:[CCUtility getUserAgent]];
-    [communication search:path folder:folder fileName:fileName dateLastModified:dateLastModifiedString numberOfItem:numberOfItem withUserSessionToken:nil onCommunication:communication successRequest:^(NSHTTPURLResponse *response, NSArray *items, NSString *redirectedServer, NSString *token) {
-        
-        completion(account, nil, nil, 0);
-
-    } failureRequest:^(NSHTTPURLResponse *response, NSError *error, NSString *token, NSString *redirectedServer) {
-        
-        NSString *message;
-        NSInteger errorCode = response.statusCode;
-        
-        if (errorCode == 0 || (errorCode >= 200 && errorCode < 300))
-            errorCode = error.code;
-        
-        // Server Unauthorized
-        //if (errorCode == kOCErrorServerUnauthorized || errorCode == kOCErrorServerForbidden) {
-        //    [[OCNetworking sharedManager] checkRemoteUser:account function:@"search" errorCode:errorCode];
-        //} else if (errorCode == NSURLErrorServerCertificateUntrusted) {
-        //    [CCUtility setCertificateError:account error:YES];
-        //}
-        
-        // Error
-        if (errorCode == 503) {
-            message = NSLocalizedString(@"_server_error_retry_", nil);
-        } else {
-            message = [error.userInfo valueForKey:@"NSLocalizedDescription"];
-        }
-        
-        completion(account, nil, message, errorCode);
-    }];
-}
-
-#pragma --------------------------------------------------------------------------------------------
-#pragma mark ===== downloadPreview =====
-#pragma --------------------------------------------------------------------------------------------
-
-/*
- - (void)downloadThumbnailWithMetadata:(tableMetadata*)metadata withWidth:(CGFloat)width andHeight:(CGFloat)height completion:(void (^)(NSString *message, NSInteger errorCode))completion
- {
- NSString *file = [NSString stringWithFormat:@"%@/%@.ico", [CCUtility getDirectoryProviderStorageocId:metadata.ocId], metadata.fileNameView];
- 
- if ([[NSFileManager defaultManager] fileExistsAtPath:file]) {
- 
- completion(nil, 0);
- 
- } else {
- 
- OCCommunication *communication = [CCNetworking sharedNetworking].sharedOCCommunication;
- 
- [communication setCredentialsWithUser:_activeUser andUserID:_activeUserID andPassword:_activePassword];
- [communication setUserAgent:[CCUtility getUserAgent]];
- 
- [communication getRemoteThumbnailByServer:_activeUrl ofFilePath:[CCUtility returnFileNamePathFromFileName:metadata.fileName serverUrl:metadata.serverUrl activeUrl:_activeUrl] withWidth:width andHeight:height onCommunication:communication successRequest:^(NSHTTPURLResponse *response, NSData *thumbnail, NSString *redirectedServer) {
- 
- [thumbnail writeToFile:file atomically:YES];
- 
- completion(nil, 0);
- 
- } failureRequest:^(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer) {
- 
- NSString *message;
- 
- NSInteger errorCode = response.statusCode;
- if (errorCode == 0 || (errorCode >= 200 && errorCode < 300))
- errorCode = error.code;
- 
- // Error
- if (errorCode == 503)
- message = NSLocalizedString(@"_server_error_retry_", nil);
- else
- message = [error.userInfo valueForKey:@"NSLocalizedDescription"];
- 
- completion(message, errorCode);
- }];
- }
- }
- */
-
-- (void)downloadPreviewWithAccount:(NSString *)account metadata:(tableMetadata*)metadata withWidth:(CGFloat)width andHeight:(CGFloat)height completion:(void (^)(NSString *account, UIImage *image, NSString *message, NSInteger errorCode))completion
-{
-    tableAccount *tableAccount = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", account]];
-    if (tableAccount == nil) {
-        completion(account, nil, NSLocalizedString(@"_error_user_not_available_", nil), k_CCErrorUserNotAvailble);
-    } else if ([CCUtility getPassword:account].length == 0) {
-        completion(account, nil, NSLocalizedString(@"_bad_username_password_", nil), kOCErrorServerUnauthorized);
-    } else if ([CCUtility getCertificateError:account]) {
-        completion(account, nil, NSLocalizedString(@"_ssl_certificate_untrusted_", nil), NSURLErrorServerCertificateUntrusted);
-    }
-    
-    NSString *file = [NSString stringWithFormat:@"%@/%@.ico", [CCUtility getDirectoryProviderStorageOcId:metadata.ocId], metadata.fileNameView];
-    
-    OCCommunication *communication = [OCNetworking sharedManager].sharedOCCommunication;
-    
-    [communication setCredentialsWithUser:tableAccount.user andUserID:tableAccount.userID andPassword:[CCUtility getPassword:account]];
-    [communication setUserAgent:[CCUtility getUserAgent]];
-    [communication getRemotePreviewByServer:tableAccount.url ofFilePath:[CCUtility returnFileNamePathFromFileName:metadata.fileName serverUrl:metadata.serverUrl activeUrl:tableAccount.url] withWidth:width andHeight:height andA:1 andMode:@"cover" path:@"" onCommunication:communication successRequest:^(NSHTTPURLResponse *response, NSData *preview, NSString *redirectedServer) {
-        
-        [preview writeToFile:file atomically:YES];
-        
-        completion(account, [UIImage imageWithData:preview], nil, 0);
-        
-    } failureRequest:^(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer) {
-        
-        NSString *message;
-        NSInteger errorCode = response.statusCode;
-        
-        if (errorCode == 0 || (errorCode >= 200 && errorCode < 300))
-            errorCode = error.code;
         
         // Error
         if (errorCode == 503)
@@ -1114,96 +690,10 @@
         else
             message = [error.userInfo valueForKey:@"NSLocalizedDescription"];
         
-        completion(account, nil, message, errorCode);
+        completion(account, nil, nil, message, errorCode);
     }];
 }
-
-- (void)downloadPreviewWithAccount:(NSString *)account serverPath:(NSString *)serverPath fileNamePath:(NSString *)fileNamePath completion:(void (^)(NSString *account,  UIImage *image, NSString *message, NSInteger errorCode))completion
-{
-    tableAccount *tableAccount = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", account]];
-    if (tableAccount == nil) {
-        completion(account, nil, NSLocalizedString(@"_error_user_not_available_", nil), k_CCErrorUserNotAvailble);
-    } else if ([CCUtility getPassword:account].length == 0) {
-        completion(account, nil, NSLocalizedString(@"_bad_username_password_", nil), kOCErrorServerUnauthorized);
-    } else if ([CCUtility getCertificateError:account]) {
-        completion(account, nil, NSLocalizedString(@"_ssl_certificate_untrusted_", nil), NSURLErrorServerCertificateUntrusted);
-    }
-    
-    OCCommunication *communication = [OCNetworking sharedManager].sharedOCCommunication;
-    
-    [communication setCredentialsWithUser:tableAccount.user andUserID:tableAccount.userID andPassword:[CCUtility getPassword:account]];
-    [communication setUserAgent:[CCUtility getUserAgent]];
-    [communication getRemotePreviewByServer:tableAccount.url ofFilePath:@"" withWidth:0 andHeight:0 andA:0 andMode:@"" path:serverPath onCommunication:communication successRequest:^(NSHTTPURLResponse *response, NSData *preview, NSString *redirectedServer) {
-        
-        [preview writeToFile:fileNamePath atomically:YES];
-        
-        completion(account, [UIImage imageWithData:preview], nil, 0);
-        
-    } failureRequest:^(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer) {
-        
-        NSString *message;
-        NSInteger errorCode = response.statusCode;
-        
-        if (errorCode == 0 || (errorCode >= 200 && errorCode < 300))
-            errorCode = error.code;
-        
-        // Error
-        if (errorCode == 503)
-            message = NSLocalizedString(@"_server_error_retry_", nil);
-        else
-            message = [error.userInfo valueForKey:@"NSLocalizedDescription"];
-        
-        completion(account, nil, message, errorCode);
-    }];
-}
-
-- (void)downloadPreviewTrashWithAccount:(NSString *)account fileId:(NSString *)fileId size:(NSString *)size fileName:(NSString *)fileName completion:(void (^)(NSString *account,  UIImage *image, NSString *message, NSInteger errorCode))completion
-{
-    tableAccount *tableAccount = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", account]];
-    if (tableAccount == nil) {
-        completion(account, nil, NSLocalizedString(@"_error_user_not_available_", nil), k_CCErrorUserNotAvailble);
-    } else if ([CCUtility getPassword:account].length == 0) {
-        completion(account, nil, NSLocalizedString(@"_bad_username_password_", nil), kOCErrorServerUnauthorized);
-    } else if ([CCUtility getCertificateError:account]) {
-        completion(account, nil, NSLocalizedString(@"_ssl_certificate_untrusted_", nil), NSURLErrorServerCertificateUntrusted);
-    }
-    
-    NSString *file = [NSString stringWithFormat:@"%@/%@.ico", [CCUtility getDirectoryProviderStorageOcId:fileId], fileName];
-    
-    if ([[NSFileManager defaultManager] fileExistsAtPath:file]) {
-        
-        completion(account, [UIImage imageWithContentsOfFile:file], nil, 0);
-        
-    } else {
-        
-        OCCommunication *communication = [OCNetworking sharedManager].sharedOCCommunication;
-        
-        [communication setCredentialsWithUser:tableAccount.user andUserID:tableAccount.userID andPassword:[CCUtility getPassword:account]];
-        [communication setUserAgent:[CCUtility getUserAgent]];
-        [communication getRemotePreviewTrashByServer:tableAccount.url ofFileId:fileId size:size onCommunication:communication successRequest:^(NSHTTPURLResponse *response, NSData *preview, NSString *redirectedServer) {
-            
-            [preview writeToFile:file atomically:YES];
-            
-            completion(account, [UIImage imageWithData:preview], nil, 0);
-            
-        } failureRequest:^(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer) {
-            
-            NSString *message;
-            NSInteger errorCode = response.statusCode;
-            
-            if (errorCode == 0 || (errorCode >= 200 && errorCode < 300))
-                errorCode = error.code;
-            
-            // Error
-            if (errorCode == 503)
-                message = NSLocalizedString(@"_server_error_retry_", nil);
-            else
-                message = [error.userInfo valueForKey:@"NSLocalizedDescription"];
-            
-            completion(account, nil, message, errorCode);
-        }];
-    }
-}
+*/
 
 #pragma --------------------------------------------------------------------------------------------
 #pragma mark ===== Share =====
@@ -2230,7 +1720,8 @@
                 } else {
                     
                     if ([UIApplication sharedApplication].applicationState == UIApplicationStateActive && [appDelegate.reachability isReachable]) {
-                        [[NCContentPresenter shared] messageNotification:@"_error_" description:[NSString stringWithFormat:@"During the function request: %@ the server responded with error %ld password re-entry is required", function, (long)errorCode] delay:k_dismissAfterSecond*2 type:messageTypeError errorCode:errorCode];
+                        NSString *description = [NSString stringWithFormat: NSLocalizedString(@"_error_check_remote_user_", nil), tableAccount.user, tableAccount.url];
+                        [[NCContentPresenter shared] messageNotification:@"_error_" description:description delay:k_dismissAfterSecond*2 type:messageTypeError errorCode:errorCode];
                         [CCUtility setPassword:account password:nil];
                     }
                 }
@@ -2241,7 +1732,8 @@
         } else if ([CCUtility getPassword:account] != nil) {
             
             if ([UIApplication sharedApplication].applicationState == UIApplicationStateActive && [appDelegate.reachability isReachable]) {
-                [[NCContentPresenter shared] messageNotification:@"_error_" description:[NSString stringWithFormat:@"During the function request: %@ the server responded with error %ld password re-entry is required", function, (long)errorCode] delay:k_dismissAfterSecond*2 type:messageTypeError errorCode:errorCode];
+                NSString *description = [NSString stringWithFormat: NSLocalizedString(@"_error_check_remote_user_", nil), tableAccount.user, tableAccount.url];
+                [[NCContentPresenter shared] messageNotification:@"_error_" description:description delay:k_dismissAfterSecond*2 type:messageTypeError errorCode:errorCode];
                 [CCUtility setPassword:account password:nil];
             }
         }
@@ -2374,8 +1866,12 @@
                         trash.trashbinOriginalLocation = itemDto.trashbinOriginalLocation;
                         trash.trashbinDeletionTime = [NSDate dateWithTimeIntervalSince1970:itemDto.trashbinDeletionTime];
 
-                        [CCUtility insertTypeFileIconName:trash.trashbinFileName metadata:(tableMetadata *)trash];
-
+                        NSDictionary *results = [[NCCommunicationCommon sharedInstance] objcGetInternalContenTypeWithFileName:trash.trashbinFileName contentType:@"" directory:itemDto.isDirectory];
+                        
+                        trash.contentType = results[@"contentType"];
+                        trash.iconName = results[@"iconName"];
+                        trash.typeFile = results[@"typeFile"];
+                        
                         [listTrash addObject:trash];
                     }
                 }

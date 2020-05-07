@@ -41,6 +41,7 @@ class NCIntroViewController: UIViewController, UICollectionViewDataSource, UICol
         super.viewDidLoad()
         self.navigationController?.navigationBar.tintColor = NCBrandColor.sharedInstance.customer
         self.navigationController?.navigationBar.barTintColor = NCBrandColor.sharedInstance.introBackground
+        self.navigationController?.navigationBar.shadowImage = UIImage()
                 
         if #available(iOS 13.0, *) {
             self.pageControl.currentPageIndicatorTintColor = .systemGray

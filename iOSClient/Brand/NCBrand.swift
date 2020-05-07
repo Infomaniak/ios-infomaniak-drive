@@ -78,9 +78,9 @@ import UIKit
     @objc public var use_themingLogo:                   Bool = false
     @objc public var use_middlewarePing:                Bool = false
     @objc public var use_storeLocalAutoUploadAll:       Bool = false
-    @objc public var use_imi_viewer:                    Bool = false                                                // Don't touch me !!
     @objc public var use_configuration:                 Bool = false                                                // Don't touch me !!
-    
+    @objc public var use_loginflowv2:                   Bool = false                                                // Don't touch me !!
+
     @objc public var disable_intro:                     Bool = false
     @objc public var disable_request_login_url:         Bool = true
     @objc public var disable_multiaccount:              Bool = false
@@ -174,7 +174,6 @@ class NCBrandColor: NSObject {
         return instance
     }()
 
-    @objc public let directEditing: Bool = true
-    @objc public let iOSHelper: Bool = false
+    //@objc public let iOSHelper: Bool = false
 }
 

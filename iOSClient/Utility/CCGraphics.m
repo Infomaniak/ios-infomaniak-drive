@@ -115,7 +115,7 @@
     return newImage;
 }
 
-+ (UIImage *)createNewImageFrom:(NSString *)fileName ocId:(NSString *)ocId extension:(NSString *)extension filterGrayScale:(BOOL)filterGrayScale typeFile:(NSString *)typeFile writeImage:(BOOL)writeImage
++ (UIImage *)createNewImageFrom:(NSString *)fileName ocId:(NSString *)ocId filterGrayScale:(BOOL)filterGrayScale typeFile:(NSString *)typeFile writeImage:(BOOL)writeImage
 {
     UIImage *originalImage;
     UIImage *scaleImage;
@@ -139,11 +139,8 @@
         
         originalImage = [self generateImageFromVideo:[NSTemporaryDirectory() stringByAppendingString:@"tempvideo.mp4"]];
     }
-    
-    CGFloat width = [[NCUtility sharedInstance] getScreenWidthForPreview];
-    CGFloat height = [[NCUtility sharedInstance] getScreenHeightForPreview];
-    
-    scaleImage = [self scaleImage:originalImage toSize:CGSizeMake(width, height) isAspectRation:YES];
+
+    scaleImage = [self scaleImage:originalImage toSize:CGSizeMake(k_sizePreview, k_sizePreview) isAspectRation:YES];
     scaleImage = [UIImage imageWithData:UIImageJPEGRepresentation(scaleImage, 0.5f)];
     
     // it is request write photo  ?

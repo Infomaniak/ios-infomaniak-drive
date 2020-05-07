@@ -31,18 +31,24 @@ class NCMasterNavigationController: UINavigationController {
         super.viewDidLoad()
         self.delegate = self
         
-        NotificationCenter.default.addObserver(self, selector: #selector(self.changeTheming), name: NSNotification.Name(rawValue: "changeTheming"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(changeTheming), name: NSNotification.Name(rawValue: k_notificationCenter_changeTheming), object: nil)
         changeTheming()
     }
     
     override func viewWillLayoutSubviews() {
         super.viewWillLayoutSubviews()
         
-        if self.splitViewController?.isCollapsed == false {
-            if (self.splitViewController != nil) {
-                if let navigationController = self.splitViewController!.viewControllers[self.splitViewController!.viewControllers.count-1] as? UINavigationController {
-                    navigationController.topViewController!.navigationItem.leftBarButtonItem = self.splitViewController!.displayModeButtonItem
-                }
+        guard let splitViewController = self.splitViewController else { return }
+        
+        if let navigationController = splitViewController.viewControllers[splitViewController.viewControllers.count-1] as? UINavigationController {
+            
+            if splitViewController.isCollapsed {
+                
+                navigationController.topViewController?.navigationItem.backBarButtonItem = UIBarButtonItem(title: NSLocalizedString("_back_", comment: ""), style: UIBarButtonItem.Style.plain, target: nil, action: nil)
+                
+            } else {
+                
+                navigationController.topViewController?.navigationItem.leftBarButtonItem = splitViewController.displayModeButtonItem
             }
         }
     }

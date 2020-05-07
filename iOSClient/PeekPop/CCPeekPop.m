@@ -78,9 +78,9 @@
         [items addObject:item];
     }
     
-    if (self.showOpenInternalViewer) {
-        UIPreviewAction *item = [UIPreviewAction actionWithTitle:NSLocalizedString(@"_open_internal_view_", nil) style:UIPreviewActionStyleDefault handler:^(UIPreviewAction *action,  UIViewController *previewViewController) {
-            [[NCMainCommon sharedInstance] downloadOpenWithMetadata:self.metadata selector:selectorLoadFileInternalView];
+    if (self.showOpenQuickLook) {
+        UIPreviewAction *item = [UIPreviewAction actionWithTitle:NSLocalizedString(@"_open_quicklook_", nil) style:UIPreviewActionStyleDefault handler:^(UIPreviewAction *action,  UIViewController *previewViewController) {
+            [[NCMainCommon sharedInstance] downloadOpenWithMetadata:self.metadata selector:selectorLoadFileQuickLook];
         }];
         [items addObject:item];
     }
@@ -101,12 +101,13 @@
 
 - (void)downloadThumbnail
 {
-    CGFloat width = [[NCUtility sharedInstance] getScreenWidthForPreview];
-    CGFloat height = [[NCUtility sharedInstance] getScreenHeightForPreview];
+    NSString *fileNamePath = [CCUtility returnFileNamePathFromFileName:self.metadata.fileName serverUrl:self.metadata.serverUrl activeUrl:appDelegate.activeUrl];
+    NSString *fileNameLocalPath = [CCUtility getDirectoryProviderStorageOcId:self.metadata.ocId fileNameView:self.metadata.fileNameView];
     
-    [[OCNetworking sharedManager] downloadPreviewWithAccount:appDelegate.activeAccount metadata:self.metadata withWidth:width andHeight:height completion:^(NSString *account, UIImage *image, NSString *message, NSInteger errorCode) {
-     
-        if (errorCode == 0 && [account isEqualToString:appDelegate.activeAccount]) {
+    [[NCCommunication sharedInstance] downloadPreviewWithServerUrl:appDelegate.activeUrl fileNamePath:fileNamePath fileNameLocalPath:fileNameLocalPath width:k_sizePreview height:k_sizePreview customUserAgent:nil addCustomHeaders:nil account:self.metadata.account completionHandler:^(NSString *account, NSData *data, NSInteger errorCode, NSString *errorDescription) {
+
+        if (errorCode == 0) {
+            UIImage *image = [UIImage imageWithData:data];
             self.imagePreview.image = [CCGraphics scaleImage:image toSize:CGSizeMake(self.view.bounds.size.width, self.view.bounds.size.height) isAspectRation:true];
             self.preferredContentSize = CGSizeMake(self.imagePreview.image.size.width, self.imagePreview.image.size.height + highLabelFileName);
         }

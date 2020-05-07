@@ -23,8 +23,6 @@
 
 import UIKit
 
-@available(iOS 11, *)
-
 class DragDropViewController: UIViewController {
     
     //Data Source for collectionViewSource
@@ -87,7 +85,7 @@ class DragDropViewController: UIViewController {
         add.addGestureRecognizer(longPressRecognizer)
         
         // changeTheming
-        NotificationCenter.default.addObserver(self, selector: #selector(self.changeTheming), name: NSNotification.Name(rawValue: "changeTheming"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(changeTheming), name: NSNotification.Name(rawValue: k_notificationCenter_changeTheming), object: nil)
         changeTheming()
         
         labelTitlePDFzone.textColor = NCBrandColor.sharedInstance.brandText
@@ -369,8 +367,6 @@ class DragDropViewController: UIViewController {
 
 // MARK: - UICollectionViewDataSource Methods
 
-@available(iOS 11, *)
-
 extension DragDropViewController : UICollectionViewDataSource {
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -498,8 +494,6 @@ extension UIImage {
 
 // MARK: - UICollectionViewDragDelegate Methods
 
-@available(iOS 11, *)
-
 extension DragDropViewController : UICollectionViewDragDelegate
 {
     func collectionView(_ collectionView: UICollectionView, itemsForBeginning session: UIDragSession, at indexPath: IndexPath) -> [UIDragItem] {
@@ -560,8 +554,6 @@ extension DragDropViewController : UICollectionViewDragDelegate
 }
 
 // MARK: - UICollectionViewDropDelegate Methods
-
-@available(iOS 11, *)
 
 extension DragDropViewController : UICollectionViewDropDelegate {
     

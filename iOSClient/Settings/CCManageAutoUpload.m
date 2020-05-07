@@ -190,7 +190,7 @@
     appDelegate = (AppDelegate *)[[UIApplication sharedApplication] delegate];
     
     // changeTheming
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changeTheming) name:@"changeTheming" object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changeTheming) name:k_notificationCenter_changeTheming object:nil];
     [self changeTheming];
 }
 
@@ -450,7 +450,7 @@
     return sectionName;
 }
 
-- (void)dismissSelectWithServerUrl:(NSString *)serverUrl metadata:(tableMetadata *)metadata type:(NSString *)type
+- (void)dismissSelectWithServerUrl:(NSString *)serverUrl metadata:(tableMetadata *)metadata type:(NSString *)type buttonType:(NSString *)buttonType overwrite:(BOOL)overwrite
 {
     if (serverUrl != nil) {
         

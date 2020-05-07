@@ -36,6 +36,7 @@
     _sections = [[NSMutableArray alloc] init];
     _sectionArrayRow = [[NSMutableDictionary alloc] init];
     _ocIdIndexPath = [[NSMutableDictionary alloc] init];
+    _metadatas = [NSMutableArray new];
     
     _image = 0;
     _video = 0;
@@ -55,7 +56,8 @@
     [sectionDataSourceMetadata setSections: self.sections];
     [sectionDataSourceMetadata setSectionArrayRow: self.sectionArrayRow];
     [sectionDataSourceMetadata setOcIdIndexPath: self.ocIdIndexPath];
-    
+    [sectionDataSourceMetadata setMetadatas: self.metadatas];
+
     [sectionDataSourceMetadata setVideo: self.video];
     [sectionDataSourceMetadata setImage: self.image];
     
@@ -74,19 +76,41 @@
 //
 // orderByField : nil, date, typeFile
 //
-+ (CCSectionDataSourceMetadata *)creataDataSourseSectionMetadata:(NSArray *)arrayMetadatas listProgressMetadata:(NSMutableDictionary *)listProgressMetadata groupByField:(NSString *)groupByField filterocId:(NSArray *)filterocId filterTypeFileImage:(BOOL)filterTypeFileImage filterTypeFileVideo:(BOOL)filterTypeFileVideo sorted:(NSString *)sorted ascending:(BOOL)ascending activeAccount:(NSString *)activeAccount
++ (CCSectionDataSourceMetadata *)creataDataSourseSectionMetadata:(NSArray *)arrayMetadatas listProgressMetadata:(NSMutableDictionary *)listProgressMetadata groupByField:(NSString *)groupByField filterTypeFileImage:(BOOL)filterTypeFileImage filterTypeFileVideo:(BOOL)filterTypeFileVideo sorted:(NSString *)sorted ascending:(BOOL)ascending activeAccount:(NSString *)activeAccount
 {
     id dataSection;
     
-    NSMutableArray *metadatas = [NSMutableArray new];
     NSMutableDictionary *dictionaryEtagMetadataForIndexPath = [NSMutableDictionary new];
     CCSectionDataSourceMetadata *sectionDataSource = [CCSectionDataSourceMetadata new];
+    NSArray *arraySoprtedMetadatas;
+    NSMutableArray *filterocId = [NSMutableArray new];
+    
+    /*
+     Live Photo
+    */
+    
+    if ([CCUtility getLivePhoto]) {
+        arraySoprtedMetadatas = [arrayMetadatas sortedArrayUsingComparator:^NSComparisonResult(tableMetadata *obj1, tableMetadata *obj2) {
+            return [obj1.fileName compare:obj2.fileName options:NSCaseInsensitiveSearch range:NSMakeRange(0,[obj1.fileName length]) locale:[NSLocale currentLocale]];
+        }];
+        NSString *prevFileNameImage;
+        for (tableMetadata *metadata in arraySoprtedMetadatas) {
+            if ([metadata.typeFile isEqualToString:k_metadataTypeFile_image]) {
+                prevFileNameImage = metadata.fileNameView.stringByDeletingPathExtension;
+            }
+            if ([metadata.typeFile isEqualToString:k_metadataTypeFile_video]) {
+                if ([metadata.fileNameView.stringByDeletingPathExtension isEqualToString:prevFileNameImage]) {
+                    [filterocId addObject:metadata.ocId];
+                }
+            }
+        }
+    }
     
     /*
      Metadata order
     */
     
-    NSArray *arraySoprtedMetadatas = [arrayMetadatas sortedArrayUsingComparator:^NSComparisonResult(tableMetadata *obj1, tableMetadata *obj2) {
+    arraySoprtedMetadatas = [arrayMetadatas sortedArrayUsingComparator:^NSComparisonResult(tableMetadata *obj1, tableMetadata *obj2) {
         // Sort with Locale
         if ([sorted isEqualToString:@"date"]) {
             if (ascending) return [obj1.date compare:obj2.date];
@@ -114,40 +138,41 @@
     for (tableMetadata *metadata in arraySoprtedMetadatas) {
         
         // *** LIST : DO NOT INSERT ***
-        if (metadata.status == k_metadataStatusHide || [filterocId containsObject: metadata.ocId] || (filterTypeFileImage == YES && [metadata.typeFile isEqualToString: k_metadataTypeFile_image]) || (filterTypeFileVideo == YES && [metadata.typeFile isEqualToString: k_metadataTypeFile_video])) {
+        if ([filterocId containsObject: metadata.ocId] || (filterTypeFileImage == YES && [metadata.typeFile isEqualToString: k_metadataTypeFile_image]) || (filterTypeFileVideo == YES && [metadata.typeFile isEqualToString: k_metadataTypeFile_video])) {
             continue;
         }
         
         if ([listProgressMetadata objectForKey:metadata.ocId] && [groupByField isEqualToString:@"session"]) {
             
-            [metadatas insertObject:metadata atIndex:0];
+            [sectionDataSource.metadatas insertObject:metadata atIndex:0];
             
         } else {
             
             if (metadata.directory && directoryOnTop) {
                 if (metadata.favorite) {
-                    [metadatas insertObject:metadata atIndex:numDirectoryFavorite++];
+                    [sectionDataSource.metadatas insertObject:metadata atIndex:numDirectoryFavorite++];
                     numDirectory++;
                 } else {
-                    [metadatas insertObject:metadata atIndex:numDirectory++];
+                    [sectionDataSource.metadatas insertObject:metadata atIndex:numDirectory++];
                 }
             } else {
                 if (metadata.favorite && directoryOnTop) {
                     [metadataFilesFavorite addObject:metadata];
                 } else {
-                    [metadatas addObject:metadata];
+                    [sectionDataSource.metadatas addObject:metadata];
                 }
             }
         }
     }
-    if (directoryOnTop && metadataFilesFavorite.count > 0)
-        [metadatas insertObjects:metadataFilesFavorite atIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(numDirectoryFavorite, metadataFilesFavorite.count)]]; // Add Favorite files at end of favorite folders
+    if (directoryOnTop && metadataFilesFavorite.count > 0) {
+        [sectionDataSource.metadatas insertObjects:metadataFilesFavorite atIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(numDirectoryFavorite, metadataFilesFavorite.count)]]; // Add Favorite files at end of favorite folders
+    }
     
     /*
      sectionArrayRow
     */
     
-    for (tableMetadata *metadata in metadatas) {
+    for (tableMetadata *metadata in  sectionDataSource.metadatas) {
         
         if ([metadata.session length] > 0 && [groupByField isEqualToString:@"session"]) {
             

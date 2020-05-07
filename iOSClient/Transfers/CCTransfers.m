@@ -24,7 +24,6 @@
 #import "CCTransfers.h"
 #import "AppDelegate.h"
 #import "CCMain.h"
-#import "CCDetail.h"
 #import "CCSection.h"
 #import "CCCellMainTransfer.h"
 #import "NCBridgeSwift.h"
@@ -82,7 +81,7 @@
     [self.tableView addGestureRecognizer:longPressRecognizer];
     
     // changeTheming
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(triggerProgressTask:) name:@"NotificationProgressTask" object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(triggerProgressTask:) name:k_notificationCenter_progressTask object:nil];
     [self changeTheming];
     
     [self reloadDatasource:nil action:k_action_NULL];
@@ -274,7 +273,7 @@
         
         CCSectionDataSourceMetadata *sectionDataSourceTemp = [CCSectionDataSourceMetadata new];
         
-        sectionDataSourceTemp  = [CCSectionMetadata creataDataSourseSectionMetadata:recordsTableMetadata listProgressMetadata:appDelegate.listProgressMetadata groupByField:@"session" filterocId:appDelegate.filterocId filterTypeFileImage:NO filterTypeFileVideo:NO sorted:@"sessionTaskIdentifier" ascending:NO activeAccount:appDelegate.activeAccount];
+        sectionDataSourceTemp  = [CCSectionMetadata creataDataSourseSectionMetadata:recordsTableMetadata listProgressMetadata:appDelegate.listProgressMetadata groupByField:@"session" filterTypeFileImage:NO filterTypeFileVideo:NO sorted:@"sessionTaskIdentifier" ascending:NO activeAccount:appDelegate.activeAccount];
         
         dispatch_async(dispatch_get_main_queue(), ^{
             sectionDataSource = sectionDataSourceTemp;

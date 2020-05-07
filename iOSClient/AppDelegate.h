@@ -24,12 +24,12 @@
 #import <Foundation/Foundation.h>
 #import <UserNotifications/UserNotifications.h>
 #import <PushKit/PushKit.h>
+#import <AVKit/AVKit.h>
 
 #import "BKPasscodeLockScreenManager.h"
 #import "Reachability.h"
 #import "CCBKPasscode.h"
 #import "CCUtility.h"
-#import "CCDetail.h"
 #import "CCMain.h"
 #import "CCSettings.h"
 #import "CCFavorites.h"
@@ -40,8 +40,9 @@
 @class NCOffline;
 @class NCAppConfigView;
 @class IMImagemeterViewer;
+@class NCDetailViewController;
 
-@interface AppDelegate : UIResponder <UIApplicationDelegate, BKPasscodeLockScreenManagerDelegate, BKPasscodeViewControllerDelegate, CCNetworkingDelegate, UNUserNotificationCenterDelegate>
+@interface AppDelegate : UIResponder <UIApplicationDelegate, BKPasscodeLockScreenManagerDelegate, BKPasscodeViewControllerDelegate, UNUserNotificationCenterDelegate>
 
 // Timer Process
 @property (nonatomic, strong) NSTimer *timerProcessAutoDownloadUpload;
@@ -78,9 +79,13 @@
 // Audio Video
 @property (nonatomic, strong) AVPlayer *player;
 @property (nonatomic, strong) AVPlayerViewController *playerController;
+@property BOOL isMediaObserver;
 
 // Push Norification Token
 @property (nonatomic, strong) NSString *pushKitToken;
+
+// ProgressView Detail
+@property (nonatomic, strong) UIProgressView *progressViewDetail;
 
 // Reachability
 @property (nonatomic, strong) Reachability *reachability;
@@ -90,7 +95,7 @@
 @property (nonatomic, strong) CCMain *homeMain;
 @property (nonatomic, strong) CCFavorites *activeFavorites;
 @property (nonatomic, strong) NCMedia *activeMedia;
-@property (nonatomic, retain) CCDetail *activeDetail;
+@property (nonatomic, retain) NCDetailViewController *activeDetail;
 @property (nonatomic, retain) CCTransfers *activeTransfers;
 @property (nonatomic, retain) CCLogin *activeLogin;
 @property (nonatomic, retain) NCLoginWeb *activeLoginWeb;
@@ -102,11 +107,15 @@
 @property (nonatomic, strong) NSMutableDictionary *listMainVC;
 @property (nonatomic, strong) NSMutableDictionary *listProgressMetadata;
 
-@property (nonatomic, strong) NSMutableArray *filterocId;
-
-@property (nonatomic, strong) NSMutableArray *sessionPendingStatusInUpload;
+@property (nonatomic, strong) NSMutableArray *arrayDeleteMetadata;
+@property (nonatomic, strong) NSMutableArray *arrayMoveMetadata;
+@property (nonatomic, strong) NSMutableArray *arrayMoveServerUrlTo;
+@property (nonatomic, strong) NSMutableArray *arrayCopyMetadata;
+@property (nonatomic, strong) NSMutableArray *arrayCopyServerUrlTo;
 
 @property (nonatomic) UIUserInterfaceStyle preferredUserInterfaceStyle API_AVAILABLE(ios(12.0));
+
+@property (nonatomic, strong) NSMutableArray *sessionPendingStatusInUpload;
 
 // Shares
 @property (nonatomic, strong) NSArray *shares;
@@ -123,6 +132,7 @@
 
 // Setting Account
 - (void)settingActiveAccount:(NSString *)activeAccount activeUrl:(NSString *)activeUrl activeUser:(NSString *)activeUser activeUserID:(NSString *)activeUserID activePassword:(NSString *)activePassword;
+- (void)settingWebDavRoot:(NSString *)webdavRoot;
 - (void)deleteAccount:(NSString *)account wipe:(BOOL)wipe;
 
 // Quick Actions - ShotcutItem

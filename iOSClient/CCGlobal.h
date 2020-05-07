@@ -80,9 +80,11 @@
 
 #define k_maxErrorAutoUploadAll                         100
 
+#define k_sizePreview                                   1024
+
 // Database Realm
 #define k_databaseDefault                               @"nextcloud.realm"
-#define k_databaseSchemaVersion                         87
+#define k_databaseSchemaVersion                         97
 
 // Intro selector
 #define k_intro_login                                   0
@@ -150,7 +152,6 @@
 // 4) done or error
 //
 #define k_metadataStatusNormal                          0
-#define k_metadataStatusHide                            1
 
 #define k_metadataStatusWaitDownload                    2
 #define k_metadataStatusInDownload                      3
@@ -185,19 +186,20 @@
 #define k_CCErrorInternalError                          -9996
 #define k_CCErrorFileAlreadyInDownload                  -9995
 #define k_CCErrorWebdavResponseError                    -9994
+#define k_CCErrorNotPermission                          -9993
 
 // Search
 #define k_minCharsSearch                                2
 
 // Selector
 #define selectorDownloadSynchronize                     @"downloadSynchronize"
-#define selectorDownloadEditPhoto                       @"downloadEditPhoto"
 #define selectorLoadFileView                            @"loadFileView"
-#define selectorLoadFileInternalView                    @"loadFileInternalView"
-#define selectorLoadViewImage                           @"loadViewImage"
+#define selectorLoadFileViewFavorite                    @"loadFileViewFavorite"
+#define selectorLoadFileQuickLook                       @"loadFileQuickLook"
 #define selectorLoadCopy                                @"loadCopy"
 #define selectorLoadOffline                             @"loadOffline"
 #define selectorOpenIn                                  @"openIn"
+#define selectorOpenInDetail                            @"openInDetail"
 #define selectorReadFile                                @"readFile"
 #define selectorReadFileWithDownload                    @"readFileWithDownload"
 #define selectorReadFolder                              @"readFolder"
@@ -316,6 +318,38 @@
 #define k_nextcloud_version_16_0                        16
 #define k_nextcloud_version_17_0                        17
 #define k_nextcloud_version_18_0                        18
+#define k_nextcloud_version_19_0                        19
+
+// Notification Center
+
+#define k_notificationCenter_initializeMain             @"initializeMain"
+#define k_notificationCenter_setTitleMain               @"setTitleMain"
+#define k_notificationCenter_clearDateReadDataSource    @"clearDateReadDataSource"
+#define k_notificationCenter_changeTheming              @"changeTheming"
+#define k_notificationCenter_splitViewChangeDisplayMode @"splitViewChangeDisplayMode"
+#define k_notificationCenter_synchronizationMedia       @"synchronizationMedia"             // userInfo: metadata, type
+#define k_notificationCenter_changeUserProfile          @"changeUserProfile"
+#define k_notificationCenter_richdocumentGrabFocus      @"richdocumentGrabFocus"
+#define k_notificationCenter_reloadDataNCShare          @"reloadDataNCShare"
+#define k_notificationCenter_reloadDataNotification     @"reloadDataNotification"
+
+#define k_notificationCenter_uploadFileStart            @"uploadFileStart"                  // userInfo: ocId, task, serverUrl, account
+#define k_notificationCenter_uploadedFile               @"uploadedFile"                     // userInfo: metadata, errorCode, errorDescription
+#define k_notificationCenter_downloadFileStart          @"downloadFileStart"                // userInfo: ocId, task, serverUrl, account
+#define k_notificationCenter_downloadedFile             @"downloadedFile"                   // userInfo: metadata, selector, errorCode, errorDescription
+#define k_notificationCenter_progressTask               @"progressTask"                     // userInfo: account, ocId, serverUrl, status, progress, totalBytes, totalBytesExpected
+#define k_notificationCenter_createFolder               @"createFolder"                     // userInfo: fileName, serverUrl, errorCode, errorDescription
+#define k_notificationCenter_deleteFile                 @"deleteFile"                       // userInfo: metadata, errorCode, errorDescription
+#define k_notificationCenter_renameFile                 @"renameFile"                       // userInfo: metadata, errorCode, errorDescription
+#define k_notificationCenter_moveFile                   @"moveFile"                         // userInfo: metadata, metadataNew, errorCode, errorDescription
+#define k_notificationCenter_copyFile                   @"copyFile"                         // userInfo: metadata, serverUrlTo, errorCode, errorDescription
+#define k_notificationCenter_favoriteFile               @"favoriteFile"                     // userInfo: metadata, favorite, errorCode, errorDescription
+
+#define k_notificationCenter_menuSearchTextPDF          @"menuSearchTextPDF"
+#define k_notificationCenter_menuDownloadImage          @"menuDownloadImage"                // userInfo: metadata
+#define k_notificationCenter_menuSaveLivePhoto          @"menuSaveLivePhoto"                // UserInfo: metadata, metadataMov
+#define k_notificationCenter_menuDetailClose            @"menuDetailClose"
+
 
 // -----------------------------------------------------------------------------------------------------------
 // INTERNAL

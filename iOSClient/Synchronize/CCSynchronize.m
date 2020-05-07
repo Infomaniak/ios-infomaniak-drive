@@ -93,8 +93,8 @@
     }
     
     // Add metadata and update etag Directory
-    (void)[[NCManageDatabase sharedInstance] addMetadata:metadataFolder];
-    [[NCManageDatabase sharedInstance] setDirectoryWithServerUrl:serverUrl serverUrlTo:nil etag:metadataFolder.etag ocId:metadataFolder.ocId encrypted:metadataFolder.e2eEncrypted richWorkspace:nil account:appDelegate.activeAccount];
+    [[NCManageDatabase sharedInstance] addMetadata:metadataFolder];
+    [[NCManageDatabase sharedInstance] setDirectoryWithServerUrl:serverUrl serverUrlTo:nil etag:metadataFolder.etag ocId:metadataFolder.ocId fileId:metadataFolder.fileId encrypted:metadataFolder.e2eEncrypted richWorkspace:nil account:appDelegate.activeAccount];
     
     // reload folder ../ *
     [[NCMainCommon sharedInstance] reloadDatasourceWithServerUrl:metadataFolder.serverUrl ocId:nil action:k_action_NULL];
@@ -160,7 +160,7 @@
                 tableMetadata *result = [[NCManageDatabase sharedInstance] getMetadataWithPredicate:[NSPredicate predicateWithFormat:@"ocId == %@", metadata.ocId]];
                 
                 if (!result)
-                    (void)[[NCManageDatabase sharedInstance] addMetadata:metadata];
+                    [[NCManageDatabase sharedInstance] addMetadata:metadata];
                 
                 [self readFolder:[CCUtility stringAppendServerUrl:serverUrl addFileName:metadata.fileName] selector:selector account:account];
                 
@@ -196,7 +196,7 @@
         }
         
         if ([addMetadatas count] > 0)
-            (void)[[NCManageDatabase sharedInstance] addMetadatas:addMetadatas];
+            [[NCManageDatabase sharedInstance] addMetadatas:addMetadatas];
         
         if ([metadatasForVerifyChange count] > 0)
             [self verifyChangeMedatas:metadatasForVerifyChange serverUrl:serverUrl account:account withDownload:YES];
@@ -209,9 +209,9 @@
 
 - (void)readFile:(NSString *)ocId fileName:(NSString *)fileName serverUrl:(NSString *)serverUrl selector:(NSString *)selector account:(NSString *)account
 {
-    //AppDelegate *appDelegate = (AppDelegate *)[[UIApplication sharedApplication] delegate];
+    NSString *serverUrlFileName = [NSString stringWithFormat:@"%@/%@", serverUrl, fileName];
 
-    [[OCNetworking sharedManager] readFileWithAccount:account serverUrl:serverUrl fileName:fileName completion:^(NSString *account, tableMetadata *metadata, NSString *message, NSInteger errorCode) {
+    [[NCNetworking sharedInstance] readFileWithServerUrlFileName:serverUrlFileName account:account completion:^(NSString *account, tableMetadata *metadata, NSInteger errorCode, NSString *errorDescription) {
         
         if (errorCode == 0 && [account isEqualToString:account]) {
             
@@ -224,16 +224,15 @@
                 
                 //Add/Update Metadata
                 tableMetadata *addMetadata = [[NCManageDatabase sharedInstance] addMetadata:metadata];
-                
                 if (addMetadata)
                     [self verifyChangeMedatas:[[NSArray alloc] initWithObjects:addMetadata, nil] serverUrl:serverUrl account:account withDownload:withDownload];
             });
             
         } else if (errorCode == kOCErrorServerPathNotFound) {
-            
+                
             [[NCManageDatabase sharedInstance] deleteMetadataWithPredicate:[NSPredicate predicateWithFormat:@"ocId == %@", ocId]];
             [[NCManageDatabase sharedInstance] deleteLocalFileWithPredicate:[NSPredicate predicateWithFormat:@"ocId == %@", ocId]];
-            
+                
             [[NCMainCommon sharedInstance] reloadDatasourceWithServerUrl:serverUrl ocId:nil action:k_action_NULL];
         }
     }];
@@ -312,7 +311,7 @@
         [metadataToAdd addObject:metadata];
     }
     
-    (void)[[NCManageDatabase sharedInstance] addMetadatas:metadataToAdd];
+    [[NCManageDatabase sharedInstance] addMetadatas:metadataToAdd];
     
     for (NSString *serverUrl in serverUrlToReload) {
         [[NCMainCommon sharedInstance] reloadDatasourceWithServerUrl:serverUrl ocId:nil action:k_action_NULL];
@@ -384,12 +383,15 @@
 {
     [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:YES];
     
-    [[OCNetworking sharedManager] readFolderWithAccount:self.account serverUrl:self.serverUrl depth:@"1" completion:^(NSString *account, NSArray *metadatas, tableMetadata *metadataFolder, NSString *message, NSInteger errorCode) {
-       
-        if ([self.delegate respondsToSelector:@selector(readFolderSuccessFailureWithAccount:serverUrl:metadataFolder:metadatas:selector:message:errorCode:)])
-            [self.delegate readFolderSuccessFailureWithAccount:self.account serverUrl:self.serverUrl metadataFolder:metadataFolder metadatas:metadatas selector:self.selector message:message errorCode:errorCode];
-        
-        [self complete];
+    [[NCCommunication sharedInstance] readFileOrFolderWithServerUrlFileName:self.serverUrl depth:@"1" showHiddenFiles:[CCUtility getShowHiddenFiles] customUserAgent:nil addCustomHeaders:nil account:self.account completionHandler:^(NSString *account, NSArray *files, NSInteger errorCode, NSString *errorDescription) {
+               
+        [[NCManageDatabase sharedInstance] convertNCFilesToMetadatas:files useMetadataFolder:true account:account completion:^(tableMetadata *metadataFolder, NSArray<tableMetadata *> *metadatasFolder, NSArray<tableMetadata *> *metadatas) {
+            
+            if ([self.delegate respondsToSelector:@selector(readFolderSuccessFailureWithAccount:serverUrl:metadataFolder:metadatas:selector:message:errorCode:)])
+                [self.delegate readFolderSuccessFailureWithAccount:self.account serverUrl:self.serverUrl metadataFolder:metadataFolder metadatas:metadatas selector:self.selector message:errorDescription errorCode:errorCode];
+            
+            [self complete];
+        }];
     }];
 }
 

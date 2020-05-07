@@ -59,7 +59,7 @@ class NCActivity: UIViewController, DZNEmptyDataSetSource, DZNEmptyDataSetDelega
         tableView.contentInset = insets
         
         // changeTheming
-        NotificationCenter.default.addObserver(self, selector: #selector(self.changeTheming), name: NSNotification.Name(rawValue: "changeTheming"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(self.changeTheming), name: NSNotification.Name(rawValue: k_notificationCenter_changeTheming), object: nil)
         changeTheming()
     }
     
@@ -211,7 +211,7 @@ extension NCActivity: UITableViewDataSource {
                     if let image = UIImage(contentsOfFile: fileNameLocalPath) { cell.icon.image = image }
                 } else {
                     DispatchQueue.global().async {
-                        NCCommunication.sharedInstance.downloadContent(urlString: activity.icon, account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
+                        NCCommunication.sharedInstance.downloadContent(serverUrl: activity.icon, customUserAgent: nil, addCustomHeaders: nil, account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
                             if errorCode == 0 {
                                 do {
                                     try data!.write(to: NSURL(fileURLWithPath: fileNameLocalPath) as URL, options: .atomic)
@@ -236,7 +236,7 @@ extension NCActivity: UITableViewDataSource {
                     }
                 } else {
                     DispatchQueue.global().async {
-                        NCCommunication.sharedInstance.downloadAvatar(urlString: self.appDelegate.activeUrl, userID: activity.user, fileNameLocalPath: fileNameLocalPath, size: Int(k_avatar_size), account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
+                        NCCommunication.sharedInstance.downloadAvatar(serverUrl: self.appDelegate.activeUrl, userID: activity.user, fileNameLocalPath: fileNameLocalPath, size: Int(k_avatar_size), customUserAgent: nil, addCustomHeaders: nil, account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
                             if errorCode == 0 && account == self.appDelegate.activeAccount && UIImage(data: data!) != nil {
                                 cell.avatar.image = UIImage(data: data!)
                             }
@@ -400,25 +400,25 @@ extension activityTableViewCell: UICollectionViewDelegate {
                     
                     let serverUrl = (url as NSString).deletingLastPathComponent
                     let fileName = (url as NSString).lastPathComponent
+                    let serverUrlFileName = serverUrl + "/" + fileName
                     
-                    OCNetworking.sharedManager()?.readFile(withAccount: activityPreview.account, serverUrl: serverUrl, fileName: fileName, completion: { (account, metadata, message, errorCode) in
+                    NCNetworking.sharedInstance.readFile(serverUrlFileName: serverUrlFileName, account: activityPreview.account) { (account, metadata, errorCode, errorDescription) in
                         
                         NCUtility.sharedInstance.stopActivityIndicator()
                         
-                        if account == self.appDelegate.activeAccount && errorCode == 0 {
+                        if account == self.appDelegate.activeAccount && errorCode == 0  {
                             
                             // move from id to oc:id + instanceid (ocId)
-                            
                             let atPath = CCUtility.getDirectoryProviderStorage()! + "/" + activitySubjectRich.id
                             let toPath = CCUtility.getDirectoryProviderStorage()! + "/" + metadata!.ocId
-                            
+                                                       
                             CCUtility.moveFile(atPath: atPath, toPath: toPath)
-                            
+                                                       
                             if let metadata = NCManageDatabase.sharedInstance.addMetadata(metadata!) {
                                 self.appDelegate.activeMain.performSegue(withIdentifier: "segueDetail", sender: metadata)
                             }
                         }
-                    })
+                    }
                     
                 } else {
                     
@@ -489,11 +489,11 @@ extension activityTableViewCell: UICollectionViewDataSource {
                             
                         } else {
                             
-                            OCNetworking.sharedManager()?.downloadPreview(withAccount: appDelegate.activeAccount, serverPath: activityPreview.source, fileNamePath: fileNamePath, completion: { (account, image, message, errorCode) in
-                                if errorCode == 0 {
-                                    cell.imageView.image = image
+                            NCCommunication.sharedInstance.downloadPreview(serverUrlPath: activityPreview.source, fileNameLocalPath: fileNamePath, customUserAgent: nil, addCustomHeaders: nil, account: appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
+                                if errorCode == 0 && data != nil {
+                                    cell.imageView.image = UIImage.init(data: data!)
                                 }
-                            })
+                            }
                         }
                     }
                 }

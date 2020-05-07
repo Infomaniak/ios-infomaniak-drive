@@ -41,10 +41,12 @@
         self.richdocumentsMimetypes = [NSArray new];
         
         self.HCShopUrl = @"";
+        
+        self.paginationEndponit = @"";
+        
+        self.coreWebDavRoot = @"remote.php/webdav";
     }
     return self;
 }
-
-
 
 @end
