@@ -140,11 +140,11 @@
     self.definesPresentationContext = YES;
     self.searchController.searchResultsUpdater = self;
     self.searchController.dimsBackgroundDuringPresentation = NO;
-
     self.navigationItem.hidesSearchBarWhenScrolling = true;
     self.navigationItem.searchController = self.searchController;
     [self.searchController.searchBar sizeToFit];
-    heightSearchBar = 0;
+    
+    heightSearchBar = 48;
     
     self.navigationController.navigationBar.prefersLargeTitles = true;
     if(!_isRoot) {
@@ -158,9 +158,11 @@
     viewRichWorkspaceTapped.delegate = self;
     [self.viewRichWorkspace addGestureRecognizer:viewRichWorkspaceTapped];
     heightRichWorkspace = UIScreen.mainScreen.bounds.size.height/4 + heightSearchBar;
-    self.viewRichWorkspace.textViewTopConstraint.constant = heightSearchBar;
     [self.viewRichWorkspace setFrame:CGRectMake(0, 0, self.tableView.frame.size.width, heightRichWorkspace)];
-    
+    self.sortButton = self.viewRichWorkspace.sortButton;
+    [self.sortButton setTitle: [NSString stringWithFormat:@"Sorted by %@ ", [CCUtility getOrderSettings]] forState:UIControlStateNormal];
+    [self.sortButton addTarget:self action:@selector(toggleReMainMenu) forControlEvents:UIControlEventTouchUpInside];
+
     // Table Header View
     [self.tableView setTableHeaderView:self.viewRichWorkspace];
     
@@ -196,10 +198,21 @@
     [self changeTheming];
 }
 
+- (void)willPresentSearchController:(UISearchController *)searchController
+{
+    [self updateNavBarShadow:self.tableView force:true];
+}
+
+- (void)willDismissSearchController:(UISearchController *)searchController
+{
+    [self updateNavBarShadow:self.tableView force:false];
+}
+
 - (void)viewWillAppear:(BOOL)animated
 {
     [super viewWillAppear:animated];
-    
+    [self updateNavBarShadow:self.tableView force:false];
+
     // test
     if (appDelegate.activeAccount.length == 0)
         return;
@@ -272,19 +285,10 @@
 - (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator
 {
     [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
-
-    [coordinator animateAlongsideTransition:nil completion:^(id<UIViewControllerTransitionCoordinatorContext> context) {
-        
-        if (self.view.frame.size.width == ([[UIScreen mainScreen] bounds].size.width*([[UIScreen mainScreen] bounds].size.width<[[UIScreen mainScreen] bounds].size.height))+([[UIScreen mainScreen] bounds].size.height*([[UIScreen mainScreen] bounds].size.width>[[UIScreen mainScreen] bounds].size.height))) {
-            
-            // Portrait
-            
-        } else {
-            
-            // Landscape
-        }
-        
+    
+    [self.transitionCoordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext>  _Nonnull context) {
         [self setTableViewHeader];
+    } completion:^(id<UIViewControllerTransitionCoordinatorContext>  _Nonnull context) {
     }];
 }
 
@@ -305,6 +309,10 @@
         
         [self.searchController.searchBar endEditing:YES];
     }
+}
+
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+    [self updateNavBarShadow:self.tableView force:false];
 }
 
 - (void)changeTheming
@@ -714,13 +722,9 @@
 
 - (void)setUINavigationBarDefault
 {
-    UIBarButtonItem *buttonMore, *buttonNotification, *buttonSelect;
+    UIBarButtonItem *buttonNotification, *buttonSelect;
     
-    // =
-    buttonMore = [[UIBarButtonItem alloc] initWithImage:[CCGraphics changeThemingColorImage:[UIImage imageNamed:@"navigationSort"] width:50 height:50 color:NCBrandColor.sharedInstance.textView] style:UIBarButtonItemStylePlain target:self action:@selector(toggleReMainMenu)];
-    buttonMore.enabled = true;
-    
-    buttonSelect = [[UIBarButtonItem alloc] initWithImage:[CCGraphics changeThemingColorImage:[UIImage imageNamed:@"select"] width:50 height:50 color:NCBrandColor.sharedInstance.textView] style:UIBarButtonItemStylePlain target:self action:@selector(tableViewToggle)];
+    buttonSelect = [[UIBarButtonItem alloc] initWithTitle:NSLocalizedString(@"_select_", @"") style:UIBarButtonItemStylePlain target:self action:@selector(tableViewToggle)];
     buttonSelect.enabled = true;
     
     // <
@@ -735,9 +739,9 @@
     }
     
     if (buttonNotification)
-        self.navigationItem.rightBarButtonItems = [[NSArray alloc] initWithObjects:buttonMore, buttonSelect, buttonNotification, nil];
+        self.navigationItem.rightBarButtonItems = [[NSArray alloc] initWithObjects:buttonSelect, buttonNotification, nil];
     else
-        self.navigationItem.rightBarButtonItems = [[NSArray alloc] initWithObjects:buttonMore, buttonSelect, nil];
+        self.navigationItem.rightBarButtonItems = [[NSArray alloc] initWithObjects:buttonSelect, nil];
     
     self.navigationItem.leftBarButtonItem = nil;
 }
@@ -2785,7 +2789,9 @@
   
     NSString *trimmedRichWorkspaceText = [self.richWorkspaceText stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     
-    if (capabilities.versionMajor < k_nextcloud_version_18_0 || trimmedRichWorkspaceText.length == 0 || self.searchController.isActive) {
+    if (self.searchController.isActive == true) {
+        [self.tableView.tableHeaderView setFrame:CGRectMake(self.tableView.tableHeaderView.frame.origin.x, self.tableView.tableHeaderView.frame.origin.y, self.tableView.frame.size.width, 0)];
+    } else if (capabilities.versionMajor < k_nextcloud_version_18_0 || trimmedRichWorkspaceText.length == 0) {
                 
         [self.tableView.tableHeaderView setFrame:CGRectMake(self.tableView.tableHeaderView.frame.origin.x, self.tableView.tableHeaderView.frame.origin.y, self.tableView.frame.size.width, heightSearchBar)];
         
@@ -2794,8 +2800,10 @@
         [self.viewRichWorkspace setFrame:CGRectMake(self.tableView.tableHeaderView.frame.origin.x, self.tableView.tableHeaderView.frame.origin.y, self.tableView.frame.size.width, heightRichWorkspace)];
     }
     
+    
+    
+    [self.viewRichWorkspace setNeedsLayout];
     [self.viewRichWorkspace loadWithRichWorkspaceText:self.richWorkspaceText];
-    [self.tableView reloadData];
 }
 
 - (void)setTableViewFooter

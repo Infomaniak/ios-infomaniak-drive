@@ -1007,39 +1007,35 @@
         appearance.largeTitleTextAttributes = @{NSForegroundColorAttributeName : NCBrandColor.sharedInstance.textView};
         UINavigationBar.appearance.scrollEdgeAppearance = appearance;
         UINavigationBar.appearance.standardAppearance = appearance;
-        UINavigationBar.appearance.tintColor = NCBrandColor.sharedInstance.brand;
     } else {
-        UINavigationBar.appearance.tintColor = NCBrandColor.sharedInstance.brand;
         UINavigationBar.appearance.titleTextAttributes = @{NSForegroundColorAttributeName : NCBrandColor.sharedInstance.textView};
         UINavigationBar.appearance.largeTitleTextAttributes = @{NSForegroundColorAttributeName : NCBrandColor.sharedInstance.textView};
         UINavigationBar.appearance.translucent = false;
     }
-    // Refresh UIAppearance after application loaded
-    NSArray *windows = [UIApplication sharedApplication].windows;
-    for (UIWindow *window in windows) {
-        for (UIView *view in window.subviews) {
-            [view removeFromSuperview];
-            [window addSubview:view];
-        }
-    }
+    UINavigationBar.appearance.tintColor = NCBrandColor.sharedInstance.brand;
     
     // View
     if (form) viewController.view.backgroundColor = NCBrandColor.sharedInstance.backgroundForm;
     else viewController.view.backgroundColor = NCBrandColor.sharedInstance.backgroundView;
         
     // NavigationBar
-    /*if (viewController.navigationController.navigationBar) {
-        viewController.navigationController.navigationBar.translucent = NO;
-        viewController.navigationController.navigationBar.barTintColor = NCBrandColor.sharedInstance.brand;
-        viewController.navigationController.navigationBar.tintColor = NCBrandColor.sharedInstance.brandText;
-        if ([self.reachability isReachable]) {
-            [viewController.navigationController.navigationBar setTitleTextAttributes:@{NSForegroundColorAttributeName : NCBrandColor.sharedInstance.brandText}];
+    if (viewController.navigationController.navigationBar) {
+        UINavigationBar *navigationBar = viewController.navigationController.navigationBar;
+        UIColor *titleColor = [self.reachability isReachable] ? NCBrandColor.sharedInstance.textView : NCBrandColor.sharedInstance.connectionNo;
+        if (@available(iOS 13.0, *)) {
+            UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
+            [appearance configureWithOpaqueBackground];
+            appearance.titleTextAttributes = @{NSForegroundColorAttributeName : titleColor};
+            appearance.largeTitleTextAttributes = @{NSForegroundColorAttributeName : titleColor};
+            navigationBar.scrollEdgeAppearance = appearance;
+            navigationBar.standardAppearance = appearance;
         } else {
-            [viewController.navigationController.navigationBar setTitleTextAttributes:@{NSForegroundColorAttributeName : NCBrandColor.sharedInstance.connectionNo}];
+            navigationBar.translucent = false;
+            navigationBar.titleTextAttributes = @{NSForegroundColorAttributeName : titleColor};
+            navigationBar.largeTitleTextAttributes = @{NSForegroundColorAttributeName : titleColor};
         }
-        viewController.navigationController.navigationBar.shadowImage = [CCGraphics generateSinglePixelImageWithColor:NCBrandColor.sharedInstance.brand];
-        [viewController.navigationController.navigationBar setAlpha:1];
-    }*/
+        navigationBar.tintColor = NCBrandColor.sharedInstance.brand;
+    }
     
     //tabBar
     if (viewController.tabBarController.tabBar) {

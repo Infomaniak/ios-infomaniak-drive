@@ -17,6 +17,7 @@
 		371B5A2E23D0B04500FAFAE9 /* NCMainMenuTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 371B5A2D23D0B04500FAFAE9 /* NCMainMenuTableViewController.swift */; };
 		371B5A3323D0BD5500FAFAE9 /* FloatingPanel.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 371B5A3223D0BD5500FAFAE9 /* FloatingPanel.framework */; };
 		3757A35523D9D76300EC369E /* NCMenuPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3757A35423D9D76300EC369E /* NCMenuPanelController.swift */; };
+		3770320B24656C4F008DA76A /* CCMain+Swift.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3770320A24656C4F008DA76A /* CCMain+Swift.swift */; };
 		3781B9B023DB2B7E006B4B1D /* AppDelegate+Menu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3781B9AF23DB2B7E006B4B1D /* AppDelegate+Menu.swift */; };
 		3781B9B223DB2B9F006B4B1D /* CCMain+Menu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3781B9B123DB2B9F006B4B1D /* CCMain+Menu.swift */; };
 		3781B9B423DB2BC9006B4B1D /* CCFavorites+Menu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3781B9B323DB2BC9006B4B1D /* CCFavorites+Menu.swift */; };
@@ -486,6 +487,7 @@
 		371B5A2D23D0B04500FAFAE9 /* NCMainMenuTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NCMainMenuTableViewController.swift; sourceTree = "<group>"; };
 		371B5A3223D0BD5500FAFAE9 /* FloatingPanel.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FloatingPanel.framework; path = Carthage/Build/iOS/FloatingPanel.framework; sourceTree = "<group>"; };
 		3757A35423D9D76300EC369E /* NCMenuPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NCMenuPanelController.swift; sourceTree = "<group>"; };
+		3770320A24656C4F008DA76A /* CCMain+Swift.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "CCMain+Swift.swift"; sourceTree = "<group>"; };
 		3781B9AF23DB2B7E006B4B1D /* AppDelegate+Menu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppDelegate+Menu.swift"; sourceTree = "<group>"; };
 		3781B9B123DB2B9F006B4B1D /* CCMain+Menu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CCMain+Menu.swift"; sourceTree = "<group>"; };
 		3781B9B323DB2BC9006B4B1D /* CCFavorites+Menu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CCFavorites+Menu.swift"; sourceTree = "<group>"; };
@@ -1234,6 +1236,7 @@
 				F7226EDB1EE4089300EBECB1 /* Main.storyboard */,
 				371B5A2F23D0B04B00FAFAE9 /* Menu */,
 				F710D1F624057C9400A6033D /* NCDetailNavigationController.swift */,
+				3770320A24656C4F008DA76A /* CCMain+Swift.swift */,
 				F710D1F824057C9D00A6033D /* NCDetailViewController.swift */,
 				F7D6650620FF341600BFBA9E /* NCMainCommon.swift */,
 				F7E09CE223E3087F00FB3E9E /* NCMainRefreshControl.swift */,
@@ -2778,6 +2781,7 @@
 				F76673ED22C901F6007ED366 /* FileProviderDomain.swift in Sources */,
 				F70022E91EC4C9100080073F /* OCXMLShareByLinkParser.m in Sources */,
 				F77B0E311D118A16002130FE /* CCExifGeo.m in Sources */,
+				3770320B24656C4F008DA76A /* CCMain+Swift.swift in Sources */,
 				F73B4F0E1F470D9100BBEE4B /* nsMBCSGroupProber.cpp in Sources */,
 				F73B4F171F470D9100BBEE4B /* uchardet.cpp in Sources */,
 				F7B6ACDB22FC2D15008AB646 /* NCComments.m in Sources */,

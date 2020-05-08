@@ -26,8 +26,9 @@ import MarkdownKit
 
 @objc class NCViewRichWorkspace: UIView {
     
+    @IBOutlet weak var topView: UIView!
+    @objc @IBOutlet weak var sortButton: UIButton!
     @objc @IBOutlet weak var textView: UITextView!
-    @objc @IBOutlet weak var textViewTopConstraint: NSLayoutConstraint!
 
     private var markdownParser = MarkdownParser()
     private var richWorkspaceText: String?
@@ -41,15 +42,16 @@ import MarkdownKit
         // Gradient
         gradient.startPoint = CGPoint(x: 0, y: 0.60)
         gradient.endPoint = CGPoint(x: 0, y: 1)
-        layer.addSublayer(gradient)
+        textView.layer.addSublayer(gradient)
     }
     
     override func layoutSublayers(of layer: CALayer) {
         super.layoutSublayers(of: layer)
-        gradient.frame = self.bounds
+        gradient.frame = textView.bounds
     }
 
     @objc func changeTheming() {
+        sortButton.setTitleColor(NCBrandColor.sharedInstance.brand, for: .normal)
         if textViewColor != NCBrandColor.sharedInstance.textView {
             markdownParser = MarkdownParser(font: UIFont.systemFont(ofSize: 15), color: NCBrandColor.sharedInstance.textView)
             markdownParser.header.font = UIFont.systemFont(ofSize: 25)

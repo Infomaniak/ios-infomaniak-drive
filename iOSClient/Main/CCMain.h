@@ -47,6 +47,7 @@
 
 @property (nonatomic, weak) IBOutlet UITableView *tableView;
 @property (nonatomic, strong) NCViewRichWorkspace *viewRichWorkspace;
+@property (nonatomic, strong) UIButton *sortButton;
 
 @property (nonatomic, strong) tableMetadata *metadata;
 @property (nonatomic, strong) tableMetadata *metadataForPushDetail;
