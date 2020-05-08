@@ -160,7 +160,7 @@
     heightRichWorkspace = UIScreen.mainScreen.bounds.size.height/4 + heightSearchBar;
     [self.viewRichWorkspace setFrame:CGRectMake(0, 0, self.tableView.frame.size.width, heightRichWorkspace)];
     self.sortButton = self.viewRichWorkspace.sortButton;
-    [self.sortButton setTitle: [NSString stringWithFormat:@"Sorted by %@ ", [CCUtility getOrderSettings]] forState:UIControlStateNormal];
+    [self.sortButton setTitle:[NSBundle.mainBundle localizedStringForKey:@"_sorted_size_" value:@"" table:@"InfomaniakLocalizable"] forState:UIControlStateNormal];
     [self.sortButton addTarget:self action:@selector(toggleReMainMenu) forControlEvents:UIControlEventTouchUpInside];
 
     // Table Header View

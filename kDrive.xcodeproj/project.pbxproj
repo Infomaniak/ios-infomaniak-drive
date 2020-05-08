@@ -2469,7 +2469,6 @@
 				F7FCFFD81D70798C000E6E29 /* CCPeekPop.storyboard in Resources */,
 				F78F74342163757000C2ADAD /* NCTrash.storyboard in Resources */,
 				37D8ACFE242E0590004BAD24 /* InfomaniakLocalizable.strings in Resources */,
-
 				F79A65C32191D90F00FF6DCC /* NCSelect.storyboard in Resources */,
 				F7169A1E1EE590930086BD69 /* NCSharesCell.xib in Resources */,
 				F7226EDC1EE4089300EBECB1 /* Main.storyboard in Resources */,
@@ -2959,14 +2958,6 @@
 			name = InfomaniakLocalizable.strings;
 			sourceTree = "<group>";
 		};
-		F760F76221F21F61006B1A73 /* LaunchScreen.storyboard */ = {
-			isa = PBXVariantGroup;
-			children = (
-				F760F76321F21F61006B1A73 /* Base */,
-			);
-			name = LaunchScreen.storyboard;
-			sourceTree = "<group>";
-		};
 		F7E70DE91A24DE4100E1B66A /* Localizable.strings */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -3038,7 +3029,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 45;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -3089,7 +3080,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 45;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -3132,7 +3123,7 @@
 				CODE_SIGN_ENTITLEMENTS = iOSClient/Brand/Share.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 45;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -3176,7 +3167,7 @@
 				CODE_SIGN_ENTITLEMENTS = iOSClient/Brand/Share.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 45;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -3226,7 +3217,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 45;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -3276,7 +3267,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 45;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -3318,7 +3309,7 @@
 				CODE_SIGN_ENTITLEMENTS = iOSClient/Brand/iOSClient.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 45;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				ENABLE_BITCODE = YES;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -3365,7 +3356,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 45;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				ENABLE_BITCODE = YES;
 				FRAMEWORK_SEARCH_PATHS = (
