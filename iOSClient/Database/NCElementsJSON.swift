@@ -1,9 +1,9 @@
 //
-//  CCSettings.h
+//  NCElementsJSON.swift
 //  Nextcloud
 //
-//  Created by Marino Faggiana on 24/11/14.
-//  Copyright (c) 2017 Marino Faggiana. All rights reserved.
+//  Created by Marino Faggiana on 14/05/2020.
+//  Copyright © 2020 Marino Faggiana. All rights reserved.
 //
 //  Author Marino Faggiana <marino.faggiana@nextcloud.com>
 //
@@ -21,14 +21,16 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#import <UIKit/UIKit.h>
-#import <MessageUI/MessageUI.h>
-#import <XLForm/XLForm.h>
-#import "CCUtility.h"
-#import "CCHud.h"
+import Foundation
 
-@interface CCSettings : XLFormViewController
-
-- (void)reloadForm;
-
-@end
+@objc class NCElementsJSON: NSObject {
+    @objc static let shared: NCElementsJSON = {
+        let instance = NCElementsJSON()
+        return instance
+    }()
+    
+    @objc public let capabilitiesVersionString:     Array = ["ocs","data","version","string"]
+    
+    @objc public let capabilitiesThemingName:       Array = ["ocs","data","capabilities","theming","name"]
+    @objc public let capabilitiesThemingSlogan:     Array = ["ocs","data","capabilities","theming","slogan"]
+}

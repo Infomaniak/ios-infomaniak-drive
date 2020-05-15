@@ -61,10 +61,11 @@
         
     } else {
         
-        tableCapabilities *capabilities = [[NCManageDatabase sharedInstance] getCapabilitesWithAccount:tableAccount.account];
-
+        NSInteger serverVersionMajor = [[NCManageDatabase sharedInstance] getCapabilitiesServerVersionWithAccount:tableAccount.account element:@"major"];
+        NSString *webDavRoot = [[NCManageDatabase sharedInstance] getCapabilitiesWebDavRootWithAccount:tableAccount.account];
+        
         // Networking
-        [[NCCommunicationCommon sharedInstance] setupWithUser:tableAccount.user userId:tableAccount.userID password:[CCUtility getPassword:tableAccount.account] url:tableAccount.url userAgent:[CCUtility getUserAgent] capabilitiesGroup:[NCBrandOptions sharedInstance].capabilitiesGroups nextcloudVersion:capabilities.versionMajor delegate:[NCNetworking sharedInstance]];
+        [[NCCommunicationCommon sharedInstance] setupWithUser:tableAccount.user userId:tableAccount.userID password:[CCUtility getPassword:tableAccount.account] url:tableAccount.url userAgent:[CCUtility getUserAgent] capabilitiesGroup:[NCBrandOptions sharedInstance].capabilitiesGroups webDavRoot:webDavRoot davRoot:nil nextcloudVersion:serverVersionMajor delegate:[NCNetworking sharedInstance]];
        
         _activeAccount = tableAccount.account;
         
@@ -105,9 +106,6 @@
 {
     [super viewWillAppear:animated];
         
-    if ([[CCUtility getBlockCode] length] > 0 && [CCUtility getOnlyLockDir] == NO)
-        [self openBKPasscode];
-    
     self.view.backgroundColor = NCBrandColor.sharedInstance.backgroundView;
     self.shareTable.backgroundColor = NCBrandColor.sharedInstance.backgroundView;
 }
@@ -178,8 +176,10 @@
 {
     // Theming
     if ([NCBrandOptions sharedInstance].use_themingColor) {
-        tableCapabilities *capabilities = [[NCManageDatabase sharedInstance] getCapabilitesWithAccount:self.activeAccount];
-        [CCGraphics settingThemingColor:capabilities.themingColor themingColorElement:capabilities.themingColorElement themingColorText:capabilities.themingColorText];
+        NSString *themingColor = [[NCManageDatabase sharedInstance] getCapabilitiesServerThemingWithAccount:self.activeAccount element:@"color"];
+        NSString *themingColorElement = [[NCManageDatabase sharedInstance] getCapabilitiesServerThemingWithAccount:self.activeAccount element:@"color-element"];
+        NSString *themingColorText = [[NCManageDatabase sharedInstance] getCapabilitiesServerThemingWithAccount:self.activeAccount element:@"color-text"];
+        [CCGraphics settingThemingColor:themingColor themingColorElement:themingColorElement themingColorText:themingColorText];
     }
     self.navigationController.navigationBar.barTintColor = NCBrandColor.sharedInstance.brand;
     self.navigationController.navigationBar.tintColor = NCBrandColor.sharedInstance.brandText;
@@ -322,71 +322,6 @@
     }
     
     [self closeShareViewController];
-}
-
-#pragma --------------------------------------------------------------------------------------------
-#pragma mark ===== Lock Password =====
-#pragma --------------------------------------------------------------------------------------------
-
-- (void)openBKPasscode
-{
-    CCBKPasscode *viewController = [[CCBKPasscode alloc] initWithNibName:nil bundle:nil];
-    viewController.delegate = self;
-    viewController.type = BKPasscodeViewControllerCheckPasscodeType;
-    viewController.inputViewTitlePassword = YES;
-    
-    if ([CCUtility getSimplyBlockCode]) {
-        
-        viewController.passcodeStyle = BKPasscodeInputViewNumericPasscodeStyle;
-        viewController.passcodeInputView.maximumLength = 6;
-        
-    } else {
-        
-        viewController.passcodeStyle = BKPasscodeInputViewNormalPasscodeStyle;
-        viewController.passcodeInputView.maximumLength = 64;
-    }
-    
-    BKTouchIDManager *touchIDManager = [[BKTouchIDManager alloc] initWithKeychainServiceName:k_serviceShareKeyChain];
-    touchIDManager.promptText = NSLocalizedString(@"_scan_fingerprint_", nil);
-    viewController.touchIDManager = touchIDManager;
-    viewController.title = [NCBrandOptions sharedInstance].brand;
-    viewController.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self action:@selector(passcodeViewCloseButtonPressed:)];
-    viewController.navigationItem.leftBarButtonItem.tintColor = [UIColor blackColor];
-    
-    UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:viewController];
-    navigationController.modalPresentationStyle = UIModalPresentationFullScreen;
-    [self presentViewController:navigationController animated:YES completion:nil];
-}
-
-- (NSUInteger)passcodeViewControllerNumberOfFailedAttempts:(CCBKPasscode *)aViewController
-{
-    return self.failedAttempts;
-}
-
-- (NSDate *)passcodeViewControllerLockUntilDate:(CCBKPasscode *)aViewController
-{
-    return self.lockUntilDate;
-}
-
-- (void)passcodeViewCloseButtonPressed:(id)sender
-{
-    [self dismissViewControllerAnimated:YES completion:^{
-        [self performSelector:@selector(closeShareViewController) withObject:nil];
-    }];
-}
-
-- (void)passcodeViewController:(CCBKPasscode *)aViewController authenticatePasscode:(NSString *)aPasscode resultHandler:(void (^)(BOOL))aResultHandler
-{
-    if ([aPasscode isEqualToString:[CCUtility getBlockCode]]) {
-        self.lockUntilDate = nil;
-        self.failedAttempts = 0;
-        aResultHandler(YES);
-    } else aResultHandler(NO);
-}
-
-- (void)passcodeViewController:(CCBKPasscode *)aViewController didFinishWithPasscode:(NSString *)aPasscode
-{
-    [aViewController dismissViewControllerAnimated:YES completion:nil];
 }
 
 #pragma --------------------------------------------------------------------------------------------

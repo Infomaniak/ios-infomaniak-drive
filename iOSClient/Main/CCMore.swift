@@ -97,6 +97,13 @@ class CCMore: UIViewController, UITableViewDelegate, UITableViewDataSource {
         item.url = "segueTransfers"
         functionMenu.append(item)
         
+        // ITEM : Notification
+        item = OCExternalSites.init()
+        item.name = "_notification_"
+        item.icon = "notification"
+        item.url = "segueNotification"
+        functionMenu.append(item)
+        
         // ITEM : Activity
         item = OCExternalSites.init()
         item.name = "_activity_"
@@ -126,8 +133,8 @@ class CCMore: UIViewController, UITableViewDelegate, UITableViewDataSource {
         functionMenu.append(item)
         
         // ITEM : Trash
-        let capabilities = NCManageDatabase.sharedInstance.getCapabilites(account: appDelegate.activeAccount)
-        if capabilities != nil && capabilities!.versionMajor >= Int(k_trash_version_available) {
+        let serverVersionMajor = NCManageDatabase.sharedInstance.getCapabilitiesServerVersion(account: appDelegate.activeAccount, element: "major")        
+        if serverVersionMajor >= Int(k_trash_version_available) {
             
             item = OCExternalSites.init()
             item.name = "_trash_view_"
@@ -184,10 +191,8 @@ class CCMore: UIViewController, UITableViewDelegate, UITableViewDataSource {
     }
     
     @objc func changeTheming() {
-        
         appDelegate.changeTheming(self, tableView: tableView, collectionView: nil, form: false)
 
-        self.view.backgroundColor = NCBrandColor.sharedInstance.brand
         viewQuota.backgroundColor = NCBrandColor.sharedInstance.backgroundView;
         progressQuota.progressTintColor = NCBrandColor.sharedInstance.brandElement
         themingBackground.backgroundColor = NCBrandColor.sharedInstance.backgroundView;

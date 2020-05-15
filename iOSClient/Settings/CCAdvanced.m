@@ -37,7 +37,7 @@
 
 - (void)initializeForm
 {
-    XLFormDescriptor *form = [XLFormDescriptor formDescriptorWithTitle:NSLocalizedString(@"_advanced_", nil)];
+    XLFormDescriptor *form = [XLFormDescriptor formDescriptor];
     XLFormSectionDescriptor *section;
     XLFormRowDescriptor *row;
     
@@ -166,9 +166,9 @@
 {
     [super viewDidLoad];
     
+    self.title = NSLocalizedString(@"_advanced_", nil);
     appDelegate = (AppDelegate *)[[UIApplication sharedApplication] delegate];
     
-    // changeTheming
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changeTheming) name:k_notificationCenter_changeTheming object:nil];
     [self changeTheming];
 }
@@ -241,11 +241,11 @@
     
     [[NCManageDatabase sharedInstance] clearDatabaseWithAccount:appDelegate.activeAccount removeAccount:false];
     
-    [CCUtility emptyGroupDirectoryProviderStorage];
-    [CCUtility emptyGroupLibraryDirectory];
+    [CCUtility removeGroupDirectoryProviderStorage];
+    [CCUtility removeGroupLibraryDirectory];
     
-    [CCUtility emptyDocumentsDirectory];
-    [CCUtility emptyTemporaryDirectory];
+    [CCUtility removeDocumentsDirectory];
+    [CCUtility removeTemporaryDirectory];
     
     [CCUtility createDirectoryStandard];
 
@@ -298,11 +298,11 @@
         [[NSURLCache sharedURLCache] setDiskCapacity:0];
         [KTVHTTPCache cacheDeleteAllCaches];
 
-        [CCUtility emptyGroupDirectoryProviderStorage];
-        [CCUtility emptyGroupApplicationSupport];
+        [CCUtility removeGroupDirectoryProviderStorage];
+        [CCUtility removeGroupApplicationSupport];
         
-        [CCUtility emptyDocumentsDirectory];
-        [CCUtility emptyTemporaryDirectory];
+        [CCUtility removeDocumentsDirectory];
+        [CCUtility removeTemporaryDirectory];
         
         [CCUtility deleteAllChainStore];
         

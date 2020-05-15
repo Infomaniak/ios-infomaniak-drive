@@ -77,7 +77,8 @@
     self.tableView.emptyDataSetDelegate = self;
     self.tableView.emptyDataSetSource = self;
     self.tableView.delegate = self;
-    
+    self.tableView.contentInset = UIEdgeInsetsMake(0, 0, 35, 0);
+
     // Register for 3D Touch Previewing if available
     if ([self.traitCollection respondsToSelector:@selector(forceTouchCapability)] && (self.traitCollection.forceTouchCapability == UIForceTouchCapabilityAvailable))
     {
@@ -662,18 +663,15 @@
     }
     
     // Directory
-    if (self.metadata.directory)
-        [self performSegueDirectoryWithControlPasscode];
-}
-
--(void)performSegueDirectoryWithControlPasscode
-{
-    CCFavorites *vc = [[UIStoryboard storyboardWithName:@"Main" bundle:nil] instantiateViewControllerWithIdentifier:@"CCFavorites"];
-    
-    vc.serverUrl = [CCUtility stringAppendServerUrl:self.metadata.serverUrl addFileName:self.metadata.fileName];
-    vc.titleViewControl = self.metadata.fileNameView;
-    
-    [self.navigationController pushViewController:vc animated:YES];
+    if (self.metadata.directory) {
+        
+        CCFavorites *vc = [[UIStoryboard storyboardWithName:@"Main" bundle:nil] instantiateViewControllerWithIdentifier:@"CCFavorites"];
+        
+        vc.serverUrl = [CCUtility stringAppendServerUrl:self.metadata.serverUrl addFileName:self.metadata.fileName];
+        vc.titleViewControl = self.metadata.fileNameView;
+        
+        [self.navigationController pushViewController:vc animated:YES];
+    }
 }
 
 #pragma --------------------------------------------------------------------------------------------

@@ -83,7 +83,7 @@
 #pragma --------------------------------------------------------------------------------------------
 
 -  (id)initWithCoder:(NSCoder *)aDecoder
-{    
+{
     if (self = [super initWithCoder:aDecoder])  {
         
         appDelegate = (AppDelegate *)[[UIApplication sharedApplication] delegate];
@@ -140,45 +140,50 @@
     self.definesPresentationContext = YES;
     self.searchController.searchResultsUpdater = self;
     self.searchController.dimsBackgroundDuringPresentation = NO;
-    self.navigationItem.hidesSearchBarWhenScrolling = true;
-    self.navigationItem.searchController = self.searchController;
-    [self.searchController.searchBar sizeToFit];
-    
-    heightSearchBar = 48;
-    
-    self.navigationController.navigationBar.prefersLargeTitles = true;
-    if(!_isRoot) {
-        self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
+    UIButton *searchButton = self.searchController.searchBar.subviews.firstObject.subviews.lastObject;
+    if (searchButton && [searchButton isKindOfClass:[UIButton class]]) {
+        [searchButton setTitleColor:NCBrandColor.sharedInstance.brand forState:UIControlStateNormal];
     }
-    
+    UITextField *searchTextField = [self.searchController.searchBar valueForKey:@"searchField"];
+    if (searchTextField && [searchTextField isKindOfClass:[UITextField class]]) {
+        searchTextField.textColor = NCBrandColor.sharedInstance.textView;
+    }
+            
     // Load Rich Workspace
     self.viewRichWorkspace = [[[NSBundle mainBundle] loadNibNamed:@"NCRichWorkspace" owner:self options:nil] firstObject];
     UITapGestureRecognizer *viewRichWorkspaceTapped = [[UITapGestureRecognizer alloc]initWithTarget:self action:@selector(viewRichWorkspaceTapAction:)];
     viewRichWorkspaceTapped.numberOfTapsRequired = 1;
     viewRichWorkspaceTapped.delegate = self;
-    [self.viewRichWorkspace addGestureRecognizer:viewRichWorkspaceTapped];
-    heightRichWorkspace = UIScreen.mainScreen.bounds.size.height/4 + heightSearchBar;
-    [self.viewRichWorkspace setFrame:CGRectMake(0, 0, self.tableView.frame.size.width, heightRichWorkspace)];
+    [self.viewRichWorkspace.richView addGestureRecognizer:viewRichWorkspaceTapped];
+    
     self.sortButton = self.viewRichWorkspace.sortButton;
-    [self.sortButton setTitle:[NSBundle.mainBundle localizedStringForKey:@"_sorted_size_" value:@"" table:@"InfomaniakLocalizable"] forState:UIControlStateNormal];
+    heightSearchBar = self.viewRichWorkspace.topView.frame.size.height;
+
+    [self.sortButton setTitleColor:NCBrandColor.sharedInstance.brand forState:UIControlStateNormal];
     [self.sortButton addTarget:self action:@selector(toggleReMainMenu) forControlEvents:UIControlEventTouchUpInside];
+    
+    heightRichWorkspace = UIScreen.mainScreen.bounds.size.height / 4 + heightSearchBar;
+    [self.viewRichWorkspace setFrame:CGRectMake(0, 0, self.tableView.frame.size.width, heightRichWorkspace)];
+    self.navigationItem.searchController = self.searchController;
+    self.searchController.hidesNavigationBarDuringPresentation = true;
+    self.navigationController.navigationBar.prefersLargeTitles = true;
+    self.navigationItem.hidesSearchBarWhenScrolling = true;
+    [self.navigationController.navigationBar sizeToFit];
 
     // Table Header View
     [self.tableView setTableHeaderView:self.viewRichWorkspace];
-    
+
     // Register cell
     [self.tableView registerNib:[UINib nibWithNibName:@"CCCellMain" bundle:nil] forCellReuseIdentifier:@"CellMain"];
     [self.tableView registerNib:[UINib nibWithNibName:@"CCCellMainTransfer" bundle:nil] forCellReuseIdentifier:@"CellMainTransfer"];
-    
+    self.tableView.contentInset = UIEdgeInsetsMake(0, 0, 35, 0);
+
     // long press recognizer TableView
     UILongPressGestureRecognizer* longPressRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(onLongPressTableView:)];
     [self.tableView addGestureRecognizer:longPressRecognizer];
     
     // Pull-to-Refresh
-    refreshControl = [[UIRefreshControl alloc] init];
-    [refreshControl addTarget:self action:@selector(refreshControlTarget) forControlEvents:UIControlEventValueChanged];
-    self.tableView.refreshControl = refreshControl;
-
+    [self createRefreshControl];
     
     // Register for 3D Touch Previewing if available
     if ([self.traitCollection respondsToSelector:@selector(forceTouchCapability)] && (self.traitCollection.forceTouchCapability == UIForceTouchCapabilityAvailable)) {
@@ -193,9 +198,13 @@
     
     // Title
     [self setTitle];
-
     // changeTheming
     [self changeTheming];
+}
+
+- (void)willDismissSearchController:(UISearchController *)searchController
+{
+    [self.tableView scrollRectToVisible:CGRectMake(0, 0, 1, 1) animated:YES];
 }
 
 - (void)willPresentSearchController:(UISearchController *)searchController
@@ -203,16 +212,13 @@
     [self updateNavBarShadow:self.tableView force:true];
 }
 
-- (void)willDismissSearchController:(UISearchController *)searchController
-{
-    [self updateNavBarShadow:self.tableView force:false];
-}
-
 - (void)viewWillAppear:(BOOL)animated
 {
     [super viewWillAppear:animated];
     [self updateNavBarShadow:self.tableView force:false];
-
+    if(_isViewDidLoad) {
+        self.navigationItem.hidesSearchBarWhenScrolling = false;
+    }
     // test
     if (appDelegate.activeAccount.length == 0)
         return;
@@ -240,7 +246,9 @@
 - (void)viewDidAppear:(BOOL)animated
 {
     [super viewDidAppear:animated];
-    
+    if(_isViewDidLoad) {
+        self.navigationItem.hidesSearchBarWhenScrolling = true;
+    }
     // Active Main
     appDelegate.activeMain = self;
     
@@ -285,11 +293,9 @@
 - (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator
 {
     [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
-    
-    [self.transitionCoordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext>  _Nonnull context) {
+    [coordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext> context) {
         [self setTableViewHeader];
-    } completion:^(id<UIViewControllerTransitionCoordinatorContext>  _Nonnull context) {
-    }];
+    } completion:nil];
 }
 
 - (void)presentationControllerWillDismiss:(UIPresentationController *)presentationController
@@ -322,8 +328,24 @@
     // createImagesThemingColor
     [[NCMainCommon sharedInstance] createImagesThemingColor];
     
-    [[UIBarButtonItem appearanceWhenContainedInInstancesOfClasses:@[[UISearchBar class]]] setTintColor:NCBrandColor.sharedInstance.brand];
+    // Refresh control
+    refreshControl.tintColor = UIColor.lightGrayColor;
+    refreshControl.backgroundColor = NCBrandColor.sharedInstance.backgroundView;
 
+    [self.sortButton setTitleColor:NCBrandColor.sharedInstance.brand forState:UIControlStateNormal];
+    // color searchbar
+    self.searchController.searchBar.tintColor = NCBrandColor.sharedInstance.brand;
+    // color searchbbar button text (cancel)
+    UIButton *searchButton = self.searchController.searchBar.subviews.firstObject.subviews.lastObject;
+    if (searchButton && [searchButton isKindOfClass:[UIButton class]]) {
+        [searchButton setTitleColor:NCBrandColor.sharedInstance.brand forState:UIControlStateNormal];
+    }
+    // color textview searchbbar
+    UITextField *searchTextView = [self.searchController.searchBar valueForKey:@"searchField"];
+    if (searchTextView && [searchTextView isKindOfClass:[UITextField class]]) {
+        searchTextView.textColor = NCBrandColor.sharedInstance.textView;
+    }
+    
     // Rich Workspace
     [self.viewRichWorkspace loadWithRichWorkspaceText:self.richWorkspaceText];
     
@@ -379,10 +401,7 @@
             [appDelegate.player pause];
         }
         [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_menuDetailClose object:nil];
-                
-        // remove all Notification Messages
-        [appDelegate.listOfNotifications removeAllObjects];
-        
+                        
         // Not Photos Video in library ? then align and Init Auto Upload
         NSArray *recordsPhotoLibrary = [[NCManageDatabase sharedInstance] getPhotoLibraryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", appDelegate.activeAccount]];
         if ([recordsPhotoLibrary count] == 0) {
@@ -666,6 +685,29 @@
 #pragma mark ===== Graphic Window =====
 #pragma --------------------------------------------------------------------------------------------
 
+- (void)createRefreshControl
+{
+    refreshControl = [NCMainRefreshControl new];
+    
+    self.tableView.refreshControl = refreshControl;
+    
+    refreshControl.tintColor = UIColor.lightGrayColor;
+    refreshControl.backgroundColor = NCBrandColor.sharedInstance.backgroundView;
+    [refreshControl addTarget:self action:@selector(refreshControlTarget) forControlEvents:UIControlEventValueChanged];
+}
+
+- (void)deleteRefreshControl
+{
+    [refreshControl endRefreshing];
+    
+    for (UIView *subview in [_tableView subviews]) {
+        if (subview == refreshControl)
+            [subview removeFromSuperview];
+    }
+    
+    refreshControl = nil;
+}
+
 - (void)refreshControlTarget
 {
     [self readFolder:_serverUrl];
@@ -685,76 +727,37 @@
         self.navigationItem.title = [NSString stringWithFormat:@"%@ : %lu / %lu", NSLocalizedString(@"_selected_", nil), (unsigned long)selezionati, (unsigned long)totali];
 
     } else {
+        self.navigationController.navigationBar.prefersLargeTitles = true;
         
-        // we are in home : LOGO BRAND
-        if ([_serverUrl isEqualToString:[CCUtility getHomeServerUrlActiveUrl:appDelegate.activeUrl]]) {
+        if (_isRoot) {
+            self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeAlways;
             self.navigationItem.title = NCBrandOptions.sharedInstance.brand;
         } else {
+            self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
             self.navigationItem.title = _titleMain;
         }
     }
-}
-
-- (UIImage *)getImageLogoHome
-{
-    UIImage *image = [UIImage imageNamed:@"themingLogo"];
     
-    tableCapabilities *capabilities = [[NCManageDatabase sharedInstance] getCapabilitesWithAccount:appDelegate.activeAccount];
-    if ([NCBrandOptions sharedInstance].use_themingColor && [capabilities.themingColorText isEqualToString:@"#000000"] && [UIImage imageNamed:@"themingLogoBlack"]) {
-        image = [UIImage imageNamed:@"themingLogoBlack"];
-    }
-   
-    if ([NCBrandOptions sharedInstance].use_themingLogo) {
-        
-        image = [UIImage imageWithContentsOfFile:[NSString stringWithFormat:@"%@/%@-themingLogo.png", [CCUtility getDirectoryUserData], [CCUtility getStringUser:appDelegate.activeUser activeUrl:appDelegate.activeUrl]]];
-        if (image == nil) image = [UIImage imageNamed:@"themingLogo"];
-    }
-        
-    if ([appDelegate.reachability isReachable] == NO) {
-            
-        return [CCGraphics changeThemingColorImage:[UIImage imageNamed:@"nonetwork"] width:50 height:50 color:NCBrandColor.sharedInstance.icon];
-            
-    } else {
-        
-        return image;
-    }
+    [self SetSortButtonText];
 }
 
 - (void)setUINavigationBarDefault
 {
-    UIBarButtonItem *buttonNotification, *buttonSelect;
+    UIBarButtonItem *buttonSelect = [[UIBarButtonItem alloc] initWithTitle:NSLocalizedString(@"_select_", @"") style:UIBarButtonItemStylePlain target:self action:@selector(tableViewToggle)];
     
-    buttonSelect = [[UIBarButtonItem alloc] initWithTitle:NSLocalizedString(@"_select_", @"") style:UIBarButtonItemStylePlain target:self action:@selector(tableViewToggle)];
-    buttonSelect.enabled = true;
-    
-    // <
     self.navigationController.navigationBar.hidden = NO;
-    
-    // Notification
-    if ([appDelegate.listOfNotifications count] > 0) {
-        
-        buttonNotification = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"notification"] style:UIBarButtonItemStylePlain target:self action:@selector(viewNotification)];
-        buttonNotification.tintColor = NCBrandColor.sharedInstance.brandText;
-        buttonNotification.enabled = true;
-    }
-    
-    if (buttonNotification)
-        self.navigationItem.rightBarButtonItems = [[NSArray alloc] initWithObjects:buttonSelect, buttonNotification, nil];
-    else
-        self.navigationItem.rightBarButtonItems = [[NSArray alloc] initWithObjects:buttonSelect, nil];
-    
+
+    self.navigationItem.rightBarButtonItem = buttonSelect;
     self.navigationItem.leftBarButtonItem = nil;
 }
 
 - (void)setUINavigationBarSelected
-{    
-    UIImage *icon = [UIImage imageNamed:@"navigationMore"];
-    UIBarButtonItem *buttonMore = [[UIBarButtonItem alloc] initWithImage:icon style:UIBarButtonItemStylePlain target:self action:@selector(toggleReSelectMenu)];
-
+{
+    UIBarButtonItem *buttonMore = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"navigationMore"] style:UIBarButtonItemStylePlain target:self action:@selector(toggleReSelectMenu)];
     UIBarButtonItem *leftButton = [[UIBarButtonItem alloc] initWithTitle:NSLocalizedString(@"_cancel_", nil) style:UIBarButtonItemStylePlain target:self action:@selector(cancelSelect)];
     
     self.navigationItem.leftBarButtonItem = leftButton;
-    self.navigationItem.rightBarButtonItems = [[NSArray alloc] initWithObjects:buttonMore, nil];
+    self.navigationItem.rightBarButtonItem = buttonMore; //[[NSArray alloc] initWithObjects:buttonMore, nil];
 }
 
 - (void)cancelSelect
@@ -958,22 +961,6 @@
     });
     
     [self tableViewSelect:false];
-}
-
-#pragma --------------------------------------------------------------------------------------------
-#pragma mark ==== View Notification  ====
-#pragma --------------------------------------------------------------------------------------------
-
-- (void)viewNotification
-{
-    if ([appDelegate.listOfNotifications count] > 0) {
-        
-        CCNotification *notificationVC = [[UIStoryboard storyboardWithName:@"CCNotification" bundle:nil] instantiateViewControllerWithIdentifier:@"CCNotification"];
-        
-        [notificationVC setModalPresentationStyle:UIModalPresentationFormSheet];
-        
-        [self presentViewController:notificationVC animated:YES completion:nil];
-    }
 }
 
 #pragma mark -
@@ -1324,7 +1311,12 @@
 
 - (void)updateSearchResultsForSearchController:(UISearchController *)searchController
 {
+    // Color text "Cancel"
+    [[UIBarButtonItem appearanceWhenContainedInInstancesOfClasses:@[[UISearchBar class]]] setTintColor:NCBrandColor.sharedInstance.brand];
+    
     if (searchController.isActive) {
+        [self deleteRefreshControl];
+        
         NSString *fileName = [CCUtility removeForbiddenCharactersServer:searchController.searchBar.text];
         
         if (fileName.length >= k_minCharsSearch && [fileName isEqualToString:_searchFileName] == NO) {
@@ -1342,7 +1334,7 @@
             }
             
             // Version >= 12
-            if ([[NCManageDatabase sharedInstance] getServerVersionWithAccount:appDelegate.activeAccount] >= 12) {
+            if ([[NCManageDatabase sharedInstance] getCapabilitiesServerVersionWithAccount:appDelegate.activeAccount element:@"major"] >= 12) {
                 
                 [_timerWaitInput invalidate];
                 _timerWaitInput = [NSTimer scheduledTimerWithTimeInterval:1.5 target:self selector:@selector(searchStartTimer) userInfo:nil repeats:NO];
@@ -1357,6 +1349,9 @@
         }
         
     } else {
+        
+        [self createRefreshControl];
+
         [self reloadDatasource:self.serverUrl ocId:nil action:k_action_NULL];
     }
 }
@@ -1378,10 +1373,7 @@
         
         [[NCMainCommon sharedInstance] reloadDatasourceWithServerUrl:self.serverUrl ocId:nil action:k_action_NULL];
     }
-    
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
-        [self setTableViewHeader];
-    });
+
 }
 
 #pragma mark -
@@ -1770,7 +1762,7 @@
     rect.size.height = rect.size.height - locationY - safeAreaTop - offsetY;
     
     [CCMenuAccount setTitleFont:[UIFont systemFontOfSize:12.0]];
-    [CCMenuAccount showMenuInView:self.navigationController.view fromRect:rect menuItems:menuArray withOptions:options];    
+    [CCMenuAccount showMenuInView:self.navigationController.view fromRect:rect menuItems:menuArray withOptions:options];
 }
 
 - (void)changeDefaultAccount:(CCMenuItem *)sender
@@ -2083,147 +2075,6 @@
     [appDelegate startLoadAutoDownloadUpload];
 }
 
-#pragma --------------------------------------------------------------------------------------------
-#pragma mark ===== Lock Passcode =====
-#pragma --------------------------------------------------------------------------------------------
-
-- (NSUInteger)passcodeViewControllerNumberOfFailedAttempts:(CCBKPasscode *)aViewController
-{
-    return _failedAttempts;
-}
-
-- (NSDate *)passcodeViewControllerLockUntilDate:(CCBKPasscode *)aViewController
-{
-    return _lockUntilDate;
-}
-
-- (void)passcodeViewCloseButtonPressed:(id)sender
-{
-    [self dismissViewControllerAnimated:YES completion:nil];
-}
-
-- (void)passcodeViewController:(CCBKPasscode *)aViewController authenticatePasscode:(NSString *)aPasscode resultHandler:(void (^)(BOOL))aResultHandler
-{
-    if (aViewController.fromType == CCBKPasscodeFromLockScreen || aViewController.fromType == CCBKPasscodeFromLockDirectory || aViewController.fromType == CCBKPasscodeFromDisactivateDirectory ) {
-        if ([aPasscode isEqualToString:[CCUtility getBlockCode]]) {
-            _lockUntilDate = nil;
-            _failedAttempts = 0;
-            aResultHandler(YES);
-        } else aResultHandler(NO);
-    } else aResultHandler(YES);
-}
-
-- (void)passcodeViewController:(CCBKPasscode *)aViewController didFinishWithPasscode:(NSString *)aPasscode
-{
-    [aViewController dismissViewControllerAnimated:YES completion:nil];
-    
-    switch (aViewController.type) {
-            
-        case BKPasscodeViewControllerCheckPasscodeType: {
-            
-            if (aViewController.fromType == CCBKPasscodeFromLockDirectory) {
-                
-                // possiamo procedere alla prossima directory
-                [self performSegueDirectoryWithControlPasscode:false metadata:self.metadata blinkFileNamePath:self.blinkFileNamePath];
-                
-                // avviamo la sessione Passcode Lock con now
-                appDelegate.sessionePasscodeLock = [NSDate date];
-            }
-            
-            // disattivazione lock cartella
-            if (aViewController.fromType == CCBKPasscodeFromDisactivateDirectory) {
-            
-                NSString *lockServerUrl = [CCUtility stringAppendServerUrl:self.metadata.serverUrl addFileName:self.metadata.fileName];
-                
-                if (![[NCManageDatabase sharedInstance] setDirectoryLockWithServerUrl:lockServerUrl lock:NO account:appDelegate.activeAccount]) {
-                
-                    [[NCContentPresenter shared] messageNotification:@"_error_" description:@"_error_operation_canc_" delay:k_dismissAfterSecond type:messageTypeError errorCode:k_CCErrorInternalError];
-                }
-                
-                [self tableViewReloadData];
-            }
-        }
-            break;
-        default:
-            break;
-    }
-}
-
-- (void)comandoLockPassword
-{
-    NSString *lockServerUrl = [CCUtility stringAppendServerUrl:self.metadata.serverUrl addFileName:self.metadata.fileName];
-
-    // se non è abilitato il Lock Passcode esci
-    if ([[CCUtility getBlockCode] length] == 0) {
-        
-        UIAlertController *alertController = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"_warning_", nil) message:NSLocalizedString(@"_only_lock_passcode_", nil) preferredStyle:UIAlertControllerStyleAlert];
-        UIAlertAction *goToSettingsAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"_go_to_app_settings_", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-            [self.tabBarController setSelectedIndex:4];
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
-                NSIndexPath *selectedIndex = [NSIndexPath indexPathForRow:0 inSection:1];
-                [appDelegate.activeMore.tableView selectRowAtIndexPath:selectedIndex animated:true scrollPosition: UITableViewScrollPositionNone];
-                [appDelegate.activeMore tableView:appDelegate.activeMore.tableView didSelectRowAtIndexPath:selectedIndex];
-            });
-        }];
-        UIAlertAction *okAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"_ok_", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {}];
-
-        [alertController addAction:goToSettingsAction];
-        [alertController addAction:okAction];
-        [self presentViewController:alertController animated:YES completion:nil];
-        return;
-    }
-    
-    // se è richiesta la disattivazione si chiede la password
-    tableDirectory *directory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", appDelegate.activeAccount, lockServerUrl]];
-    
-    if (directory.lock) {
-        
-        CCBKPasscode *viewController = [[CCBKPasscode alloc] initWithNibName:nil bundle:nil];
-        viewController.delegate = self;
-        viewController.fromType = CCBKPasscodeFromDisactivateDirectory;
-        viewController.type = BKPasscodeViewControllerCheckPasscodeType;
-        viewController.inputViewTitlePassword = YES;
-        
-        if ([CCUtility getSimplyBlockCode]) {
-            
-            viewController.passcodeStyle = BKPasscodeInputViewNumericPasscodeStyle;
-            viewController.passcodeInputView.maximumLength = 6;
-            
-        } else {
-            
-            viewController.passcodeStyle = BKPasscodeInputViewNormalPasscodeStyle;
-            viewController.passcodeInputView.maximumLength = 64;
-        }
-        
-        BKTouchIDManager *touchIDManager = [[BKTouchIDManager alloc] initWithKeychainServiceName:k_serviceShareKeyChain];
-        touchIDManager.promptText = NSLocalizedString(@"_scan_fingerprint_", nil);
-        viewController.touchIDManager = touchIDManager;
-
-        viewController.title = NSLocalizedString(@"_passcode_protection_", nil);
-        viewController.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self action:@selector(passcodeViewCloseButtonPressed:)];
-        viewController.navigationItem.leftBarButtonItem.tintColor = [UIColor blackColor];
-        
-        UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:viewController];
-        navigationController.modalPresentationStyle = UIModalPresentationFullScreen;
-        [self presentViewController:navigationController animated:YES completion:nil];
-        
-        return;
-    }
-    
-    // ---------------- ACTIVATE PASSWORD
-    
-    if ([[NCManageDatabase sharedInstance] setDirectoryLockWithServerUrl:lockServerUrl lock:YES account:appDelegate.activeAccount]) {
-        
-        NSIndexPath *indexPath = [sectionDataSource.ocIdIndexPath objectForKey:self.metadata.ocId];
-        if ([self indexPathIsValid:indexPath])
-            [self.tableView reloadRowsAtIndexPaths:[NSArray arrayWithObjects:indexPath, nil] withRowAnimation:UITableViewRowAnimationAutomatic];
-        
-    } else {
-        
-        [[NCContentPresenter shared] messageNotification:@"_error_" description:@"_error_operation_canc_" delay:k_dismissAfterSecond type:messageTypeError errorCode:k_CCErrorInternalError];
-    }
-}
-
 #pragma mark -
 #pragma --------------------------------------------------------------------------------------------
 #pragma mark ===== menu action : Favorite, More, Delete [swipe] =====
@@ -2272,18 +2123,7 @@
 - (void)actionDelete:(NSIndexPath *)indexPath
 {
     tableMetadata *metadata = [[NCMainCommon sharedInstance] getMetadataFromSectionDataSourceIndexPath:indexPath sectionDataSource:sectionDataSource];
-    
-    // Directory locked ?
-    NSString *lockServerUrl = [CCUtility stringAppendServerUrl:self.metadata.serverUrl addFileName:metadata.fileName];
-    
-    tableDirectory *directory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", appDelegate.activeAccount, lockServerUrl]];
     tableLocalFile *localFile = [[NCManageDatabase sharedInstance] getTableLocalFileWithPredicate:[NSPredicate predicateWithFormat:@"ocId == %@", metadata.ocId]];
-    
-    if (directory.lock && [[CCUtility getBlockCode] length] && appDelegate.sessionePasscodeLock == nil) {
-        
-        [[NCContentPresenter shared] messageNotification:@"_error_" description:@"_folder_blocked_" delay:k_dismissAfterSecond type:messageTypeError errorCode:k_CCErrorInternalError];
-        return;
-    }
     
     UIAlertController *alertController = [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:UIAlertControllerStyleActionSheet];
     
@@ -2512,7 +2352,7 @@
 }
 
 #pragma --------------------------------------------------------------------------------------------
-#pragma mark - ==== Table ==== 
+#pragma mark - ==== Table ====
 #pragma --------------------------------------------------------------------------------------------
 
 - (void)tableViewToggle
@@ -2562,7 +2402,7 @@
 }
 
 - (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath
-{    
+{
     if (tableView.editing == 1) {
         
         tableMetadata *metadata = [[NCMainCommon sharedInstance] getMetadataFromSectionDataSourceIndexPath:indexPath sectionDataSource:sectionDataSource];
@@ -2785,13 +2625,11 @@
 
 - (void)setTableViewHeader
 {
-    tableCapabilities *capabilities = [[NCManageDatabase sharedInstance] getCapabilitesWithAccount:appDelegate.activeAccount];
-  
+    NSInteger versionMajor = [[NCManageDatabase sharedInstance] getCapabilitiesServerVersionWithAccount:appDelegate.activeAccount element:@"major"];
+
     NSString *trimmedRichWorkspaceText = [self.richWorkspaceText stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    
-    if (self.searchController.isActive == true) {
-        [self.tableView.tableHeaderView setFrame:CGRectMake(self.tableView.tableHeaderView.frame.origin.x, self.tableView.tableHeaderView.frame.origin.y, self.tableView.frame.size.width, 0)];
-    } else if (capabilities.versionMajor < k_nextcloud_version_18_0 || trimmedRichWorkspaceText.length == 0) {
+
+    if (versionMajor < k_nextcloud_version_18_0 || trimmedRichWorkspaceText.length == 0 ) {
                 
         [self.tableView.tableHeaderView setFrame:CGRectMake(self.tableView.tableHeaderView.frame.origin.x, self.tableView.tableHeaderView.frame.origin.y, self.tableView.frame.size.width, heightSearchBar)];
         
@@ -2800,7 +2638,9 @@
         [self.viewRichWorkspace setFrame:CGRectMake(self.tableView.tableHeaderView.frame.origin.x, self.tableView.tableHeaderView.frame.origin.y, self.tableView.frame.size.width, heightRichWorkspace)];
     }
     
-    
+    if (self.searchController.isActive == true) {
+        [self.tableView.tableHeaderView setFrame:CGRectMake(self.tableView.tableHeaderView.frame.origin.x, self.tableView.tableHeaderView.frame.origin.y, self.tableView.frame.size.width, 0)];
+    }
     
     [self.viewRichWorkspace setNeedsLayout];
     [self.viewRichWorkspace loadWithRichWorkspaceText:self.richWorkspaceText];
@@ -2856,7 +2696,7 @@
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
-{    
+{
     CCCellMain *cell = [tableView cellForRowAtIndexPath:indexPath];
     
     // settiamo il record file.
@@ -2940,7 +2780,7 @@
     
     if (self.metadata.directory) {
         
-        [self performSegueDirectoryWithControlPasscode:true metadata:self.metadata blinkFileNamePath:self.blinkFileNamePath];
+        [self performSegueDirectoryWithMetadata:self.metadata blinkFileNamePath:self.blinkFileNamePath];
     }
 }
 
@@ -3042,50 +2882,11 @@
 }
 
 // can i go to next viewcontroller
-- (void)performSegueDirectoryWithControlPasscode:(BOOL)controlPasscode metadata:(tableMetadata *)metadata blinkFileNamePath:(NSString *)blinkFileNamePath
+- (void)performSegueDirectoryWithMetadata:(tableMetadata *)metadata blinkFileNamePath:(NSString *)blinkFileNamePath
 {
     NSString *nomeDir;
     
     if (self.tableView.editing == NO) {
-        
-        NSString *lockServerUrl = [CCUtility stringAppendServerUrl:metadata.serverUrl addFileName:metadata.fileName];
-        
-        tableDirectory *directory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", metadata.account, lockServerUrl]];
-        
-        // SE siamo in presenza di una directory bloccata E è attivo il block E la sessione password Lock è senza data ALLORA chiediamo la password per procedere
-        if (directory.lock && [[CCUtility getBlockCode] length] && appDelegate.sessionePasscodeLock == nil && controlPasscode) {
-            
-            CCBKPasscode *viewController = [[CCBKPasscode alloc] initWithNibName:nil bundle:nil];
-            viewController.delegate = self;
-            viewController.fromType = CCBKPasscodeFromLockDirectory;
-            viewController.type = BKPasscodeViewControllerCheckPasscodeType;
-            viewController.inputViewTitlePassword = YES;
-            
-            if ([CCUtility getSimplyBlockCode]) {
-                
-                viewController.passcodeStyle = BKPasscodeInputViewNumericPasscodeStyle;
-                viewController.passcodeInputView.maximumLength = 6;
-                
-            } else {
-                
-                viewController.passcodeStyle = BKPasscodeInputViewNormalPasscodeStyle;
-                viewController.passcodeInputView.maximumLength = 64;
-            }
-
-            BKTouchIDManager *touchIDManager = [[BKTouchIDManager alloc] initWithKeychainServiceName:k_serviceShareKeyChain];
-            touchIDManager.promptText = NSLocalizedString(@"_scan_fingerprint_", nil);
-            viewController.touchIDManager = touchIDManager;
-            
-            viewController.title = NSLocalizedString(@"_folder_blocked_", nil);
-            viewController.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self action:@selector(passcodeViewCloseButtonPressed:)];
-            viewController.navigationItem.leftBarButtonItem.tintColor = [UIColor blackColor];
-            
-            UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:viewController];
-            navigationController.modalPresentationStyle = UIModalPresentationFullScreen;
-            [self presentViewController:navigationController animated:YES completion:nil];
-            
-            return;
-        }
         
         // E2EE Check enable
         if (metadata.e2eEncrypted && [CCUtility isEndToEndEnabled:appDelegate.activeAccount] == NO) {

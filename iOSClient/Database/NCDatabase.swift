@@ -31,8 +31,9 @@ class tableAccount: Object {
     @objc dynamic var autoUpload: Bool = false
     @objc dynamic var autoUploadBackground: Bool = false
     @objc dynamic var autoUploadCreateSubfolder: Bool = false
-    @objc dynamic var autoUploadFileName = ""
+    @objc dynamic var autoUploadDeleteAssetLocalIdentifier: Bool = false
     @objc dynamic var autoUploadDirectory = ""
+    @objc dynamic var autoUploadFileName = ""
     @objc dynamic var autoUploadFull: Bool = false
     @objc dynamic var autoUploadImage: Bool = false
     @objc dynamic var autoUploadVideo: Bool = false
@@ -63,7 +64,6 @@ class tableAccount: Object {
     @objc dynamic var quotaTotal: Double = 0
     @objc dynamic var quotaUsed: Double = 0
     @objc dynamic var role = ""
-    @objc dynamic var startDirectoryPhotosTab = ""
     @objc dynamic var storageLocation = ""
     @objc dynamic var subadmin = ""
     @objc dynamic var twitter = ""
@@ -155,63 +155,11 @@ class tableActivitySubjectRich: Object {
 class tableCapabilities: Object {
     
     @objc dynamic var account = ""
-    @objc dynamic var themingBackground = ""
-    @objc dynamic var themingBackgroundDefault: Bool = false
-    @objc dynamic var themingBackgroundPlain: Bool = false
-    @objc dynamic var themingColor = ""
-    @objc dynamic var themingColorElement = ""
-    @objc dynamic var themingColorText = ""
-    @objc dynamic var themingLogo = ""
-    @objc dynamic var themingName = ""
-    @objc dynamic var themingSlogan = ""
-    @objc dynamic var themingUrl = ""
-    @objc dynamic var versionMajor: Int = 0
-    @objc dynamic var versionMicro: Int = 0
-    @objc dynamic var versionMinor: Int = 0
-    @objc dynamic var versionString = ""
-    @objc dynamic var endToEndEncryption: Bool = false
-    @objc dynamic var endToEndEncryptionVersion = ""
-    let richdocumentsMimetypes = List<String>()
-    @objc dynamic var richdocumentsDirectEditing: Bool = false
-    // FILES SHARING
-    @objc dynamic var isFilesSharingAPIEnabled: Bool = false
-    @objc dynamic var filesSharingDefaulPermissions: Int = 0
-    @objc dynamic var isFilesSharingGroupSharing: Bool = false
-    @objc dynamic var isFilesSharingReSharing: Bool = false
-    @objc dynamic var isFilesSharingPublicShareLinkEnabled: Bool = false
-    @objc dynamic var isFilesSharingAllowPublicUploadsEnabled: Bool = false
-    @objc dynamic var isFilesSharingAllowPublicUserSendMail: Bool = false
-    @objc dynamic var isFilesSharingAllowPublicUploadFilesDrop: Bool = false
-    @objc dynamic var isFilesSharingAllowPublicMultipleLinks: Bool = false
-    @objc dynamic var isFilesSharingPublicExpireDateByDefaultEnabled: Bool = false
-    @objc dynamic var isFilesSharingPublicExpireDateEnforceEnabled: Bool = false
-    @objc dynamic var filesSharingPublicExpireDateDays : Int = 0
-    @objc dynamic var isFilesSharingPublicPasswordEnforced: Bool = false
-    @objc dynamic var isFilesSharingAllowUserSendMail: Bool = false
-    @objc dynamic var isFilesSharingUserExpireDate: Bool = false
-    @objc dynamic var isFilesSharingGroupEnabled: Bool = false
-    @objc dynamic var isFilesSharingGroupExpireDate: Bool = false
-    @objc dynamic var isFilesSharingFederationAllowUserSendShares: Bool = false
-    @objc dynamic var isFilesSharingFederationAllowUserReceiveShares: Bool = false
-    @objc dynamic var isFilesSharingFederationExpireDate: Bool = false
-    @objc dynamic var isFileSharingShareByMailEnabled: Bool = false
-    @objc dynamic var isFileSharingShareByMailPassword: Bool = false
-    @objc dynamic var isFileSharingShareByMailUploadFilesDrop: Bool = false
-    // HC
-    @objc dynamic var isHandwerkcloudEnabled: Bool = false
-    @objc dynamic var HCShopUrl = ""
-    // Imagemeter
-    @objc dynamic var isImagemeterEnabled: Bool = false
-    // Fulltextsearch
-    @objc dynamic var isFulltextsearchEnabled: Bool = false
-    // Extended Support
-    @objc dynamic var isExtendedSupportEnabled: Bool = false
-    // Pagination iOS Helper
-    @objc dynamic var isPaginationEnabled: Bool = false
-    @objc dynamic var paginationEndponit = ""
-    // Core
-    @objc dynamic var corePollInterval: Int = 0
-    @objc dynamic var coreWebDavRoot = ""
+    @objc dynamic var jsondata: Data? = nil
+    
+    override static func primaryKey() -> String {
+        return "account"
+    }
 }
 
 class tableComments: Object {
@@ -262,7 +210,6 @@ class tableDirectory: Object {
     @objc dynamic var etag = ""
     @objc dynamic var favorite: Bool = false
     @objc dynamic var fileId = ""
-    @objc dynamic var lock: Bool = false
     @objc dynamic var ocId = ""
     @objc dynamic var offline: Bool = false
     @objc dynamic var permissions = ""
@@ -358,6 +305,7 @@ class tableMedia: Object {
     @objc dynamic var creationDate = NSDate()
     @objc dynamic var date = NSDate()
     @objc dynamic var directory: Bool = false
+    @objc dynamic var deleteAssetLocalIdentifier: Bool = false
     @objc dynamic var e2eEncrypted: Bool = false
     @objc dynamic var edited: Bool = false
     @objc dynamic var etag = ""
@@ -403,6 +351,7 @@ class tableMetadata: Object {
     @objc dynamic var creationDate = NSDate()
     @objc dynamic var date = NSDate()
     @objc dynamic var directory: Bool = false
+    @objc dynamic var deleteAssetLocalIdentifier: Bool = false
     @objc dynamic var e2eEncrypted: Bool = false
     @objc dynamic var edited: Bool = false
     @objc dynamic var etag = ""

@@ -168,7 +168,7 @@
 "_lock_active_"                 = "Lock: On";
 "_lock_not_active_"             = "Lock: Off";
 "_lock_protection_no_screen_"        = "Do not ask at startup";
-"_lock_protection_no_screen_footer_" = "Use \"Do not ask at startup\" for protected folders only or for the encryption option";
+"_lock_protection_no_screen_footer_" = "Use \"Do not ask at startup\" for the encryption option";
 "_url_"                         = "URL";
 "_username_"                    = "Username";
 "_change_credentials_"          = "Change your credentials";
@@ -208,7 +208,6 @@
 "_synchronizations_"            = "Synchronized folders";
 "_version_server_"              = "Server version";
 "_help_"                        = "Help";
-"_lock_protection_simply_"      = "Weak password protection";
 "_change_simply_passcode_"      = "Change password type";
 "_quota_"                       = "Quota";
 "_available_"                   = "available";
@@ -288,7 +287,7 @@
 "_crashservice_title_"          = "Disable crash reporter";
 "_crashservice_alert_"          = "This option requires a restart of the app to take effect";
 "_upload_mov_livephoto_"        = "Live Photo";
-"_upload_mov_livephoto_footer_" = "\"Live Photo\" will save, when possible, Live Photo video and hide the mov file part";
+"_upload_mov_livephoto_footer_" = "\"Live Photo\" will save, when possible, the photo selected in \"Live Photo\" format";
 
 // Login
 
@@ -336,6 +335,8 @@
 "_create_full_upload_"                      = "Creating archive… May take a long time, please wait.";
 "_error_createsubfolders_upload_"           = "Error creating subfolders";
 "_activate_autoupload_"                     = "Enable auto upload";
+"_remove_photo_CameraRoll_"                 = "Remove from camera roll";
+"_remove_photo_CameraRoll_desc_"            = "In case of a successful automatic upload, a message confirmation is required to delete the photos or videos from the camera roll. Remember that the deleted photos or videos are available in the Trash for 30 days";
 
 // Utility
 
@@ -361,11 +362,17 @@
 "_file_not_present_"            = "Error: File not present, please reload.";
 "_order_by_"                    = "Sort by";
 "_order_by_name_a_z_"           = "Sort by name (from A to Z)";
+"_sorted_by_name_a_z_"          = "Sorted by name (from A to Z)";
 "_order_by_name_z_a_"           = "Sort by name (from Z to A)";
+"_sorted_by_name_z_a_"          = "Sorted by name (from Z to A)";
 "_order_by_date_more_recent_"   = "Sort from the most recent";
+"_sorted_by_date_more_recent_"  = "Sorted from the most recent";
 "_order_by_date_less_recent_"   = "Sort from the less recent";
+"_sorted_by_date_less_recent_"  = "Sorted from the less recent";
 "_order_by_size_smallest_"      = "Sort from the smallest";
+"_sorted_by_size_smallest_"     = "Sorted from the smallest";
 "_order_by_size_largest_"       = "Sort from the largest";
+"_sorted_by_size_largest_"      = "Sorted from the largest";
 "_delete_selected_files_"       = "Delete files";
 "_move_selected_files_"         = "Move files";
 "_move_or_copy_selected_files_" = "Move or copy files";
@@ -609,6 +616,7 @@
 // Notification
 
 "_notification_"                    = "Notification";
+"_no_notification_"                 = "No notification yet";
 
 // Photo Browser
 
@@ -765,48 +773,6 @@
 "_error_decompressing_"                 = "Error during decompressing. Unknown compression method or the file is corrupt";
 "_error_json_decoding_"                 = "Serious internal error in decoding metadata (The data couldn’t be read because it isn’t in the correct format.)";
 
-// BKPasscode
-
-"%d Failed Passcode Attempts" = "%d failed passcode attempts";
-"%d Failed Password Attempts" = "%d failed password attempts";
-
-"1 Failed Passcode Attempt" = "1 failed passcode attempt";
-"1 Failed Password Attempt" = "1 failed password attempt";
-
-"Do you want to use Touch ID for authentication?" = "Do you want to use Touch/Face ID for authentication?";
-
-"Done" = "Done";
-
-"Enable Touch ID" = "Enable Touch/Face ID";
-
-"Enter a different passcode. Cannot re-use the same passcode." = "Enter a different passcode. Cannot re-use the same passcode.";
-"Enter a different password. Cannot re-use the same password." = "Enter a different password. Cannot re-use the same password.";
-
-"Enter a passcode" = "Enter a passcode";
-"Enter a password" = "Enter a password";
-
-"Enter your new passcode" = "Enter your new passcode";
-"Enter your new password" = "Enter your new password";
-
-"Enter your old passcode" = "Enter your old passcode";
-"Enter your old password" = "Enter your old password";
-
-"Enter your passcode" = "Enter your passcode";
-"Enter your password" = "Enter your password";
-
-"Invalid Passcode" = "Invalid passcode";
-"Invalid Password" = "Invalid password";
-
-"Passcodes did not match.\nTry again." = "Passcodes did not match.\nTry again.";
-"Password did not match.\nTry again." = "Password did not match.\nTry again.";
-
-"Re-enter your passcode" = "Re-enter your passcode";
-"Re-enter your password" = "Re-enter your password";
-
-"Try again in %d minutes" = "Try again in %d minutes";
-
-"Try again in 1 minute" = "Try again in 1 minute";
-
 // QRCode
 
 "_qrcode_not_authorized_"   = "This app is not authorized to use Back Camera";
@@ -819,6 +785,15 @@
 "_voice_memo_stop_"         = "Tap to stop";
 "_voice_memo_filename_"     = "Voice memo";
 "_voice_memo_title_"        = "Upload voice memo";
+
+// Passcode
+
+"Enter Passcode"            = "Enter Passcode";
+"Enter a new passcode"      = "Enter a new passcode";
+"Confirm new passcode"      = "Confirm new passcode";
+"Passcodes didn't match. Try again." = "Passcodes didn't match. Try again.";
+"Delete"                    = "Delete";
+"Cancel"                    = "Cancel";
 
 // IM
 

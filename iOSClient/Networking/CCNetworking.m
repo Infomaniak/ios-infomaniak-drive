@@ -707,7 +707,7 @@
             }
             
             addObject.serverUrl = metadata.serverUrl;
-            addObject.version = [[NCManageDatabase sharedInstance] getEndToEndEncryptionVersionWithAccount:tableAccount.account];
+            addObject.version = [[NCManageDatabase sharedInstance] getCapabilitiesE2EEVersionWithAccount:tableAccount.account];
             
             // Get the last metadata
             tableDirectory *directory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", tableAccount.account, metadata.serverUrl]];
@@ -955,6 +955,11 @@
         
     } else {
     
+        // Delete Asset
+        if (tableAccount.autoUploadDeleteAssetLocalIdentifier && ![metadata.assetLocalIdentifier isEqualToString:@""] && [metadata.sessionSelector isEqualToString:selectorUploadAutoUpload]) {
+            metadata.deleteAssetLocalIdentifier = true;
+        }
+        
         // Edited file, remove tempocId and adjust the directory provider storage
         if (metadata.edited) {
             

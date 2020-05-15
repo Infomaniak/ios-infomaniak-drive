@@ -31,9 +31,12 @@
 #import "NCBridgeSwift.h"
 #import "NCAutoUpload.h"
 #import "NCPushNotificationEncryption.h"
+#import <QuartzCore/QuartzCore.h>
 
 @class NCViewerRichdocument;
 
+@interface AppDelegate() <TOPasscodeViewControllerDelegate>
+@end
 
 @implementation AppDelegate
 
@@ -50,9 +53,11 @@
     }
     
     [CCUtility createDirectoryStandard];
+    [CCUtility emptyTemporaryDirectory];
     
     // Networking
-    [[NCCommunicationCommon sharedInstance] setupWithUserAgent:[CCUtility getUserAgent] capabilitiesGroup:[NCBrandOptions sharedInstance].capabilitiesGroups delegate:[NCNetworking sharedInstance]];
+    [[NCCommunicationCommon sharedInstance] setupWithDelegate:[NCNetworking sharedInstance]];
+    [[NCCommunicationCommon sharedInstance] setupWithUserAgent:[CCUtility getUserAgent] capabilitiesGroup:[NCBrandOptions sharedInstance].capabilitiesGroups];
     
     // Verify upgrade
     if ([self upgrade]) {
@@ -71,9 +76,6 @@
     // UserDefaults
     self.ncUserDefaults = [[NSUserDefaults alloc] initWithSuiteName:[NCBrandOptions sharedInstance].capabilitiesGroups];
         
-    // Initialization Notification
-    self.listOfNotifications = [NSMutableArray new];
-    
     // Background Fetch
     [application setMinimumBackgroundFetchInterval:UIApplicationBackgroundFetchIntervalMinimum];
 
@@ -110,23 +112,10 @@
     [[AVAudioSession sharedInstance] setCategory: AVAudioSessionCategoryPlayback error:nil];
     // [[AVAudioSession sharedInstance] setActive:YES error:nil];
     [[UIApplication sharedApplication] beginReceivingRemoteControlEvents];
-    
-    /*
-    // APPEARANCE: How to hide UINavigationBar 1px bottom line < iOS 11
-    [[UINavigationBar appearance] setBackgroundImage:[[UIImage alloc] init] forBarPosition:UIBarPositionAny barMetrics:UIBarMetricsDefault];
-    [[UINavigationBar appearance] setShadowImage:[[UIImage alloc] init]];
-    [UINavigationBar appearance].translucent = NO;
-    */
-    
+
+
     // ProgressView Detail
     self.progressViewDetail = [[UIProgressView alloc] initWithProgressViewStyle: UIProgressViewStyleBar];
-    
-    // passcode
-    [[BKPasscodeLockScreenManager sharedManager] setDelegate:self];
-    
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [[BKPasscodeLockScreenManager sharedManager] showLockScreen:NO];
-    });
     
     // Quick Actions
     if([[UIApplicationShortcutItem class] respondsToSelector:@selector(new)]) {
@@ -185,7 +174,13 @@
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(deleteFile:) name:k_notificationCenter_deleteFile object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(moveFile:) name:k_notificationCenter_moveFile object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(copyFile:) name:k_notificationCenter_copyFile object:nil];
-
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(uploadedFile:) name:k_notificationCenter_uploadedFile object:nil];
+    
+    // Passcode
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self passcodeWithAutomaticallyPromptForBiometricValidation:true];
+    });
+    
     return YES;
 }
 
@@ -209,6 +204,9 @@
     // Test Maintenance
     if (self.activeAccount.length == 0 || self.maintenanceMode)
         return;
+    
+    NSLog(@"[LOG] Request Passcode");
+    [self passcodeWithAutomaticallyPromptForBiometricValidation:true];
     
     NSLog(@"[LOG] Request Service Server Nextcloud");
     [[NCService sharedInstance] startRequestServicesServer];
@@ -240,10 +238,13 @@
         NSLog(@"[LOG] Middleware Ping");
         [[NCService sharedInstance] middlewarePing];
     }
-    
+
     // verify task (download/upload) lost
-    [self verifyTaskLos];
+    [self verifyTaskLost];
     
+    // verify delete Asset Local Identifiers in auto upload
+    [[NCUtility sharedInstance] deleteAssetLocalIdentifiersWithAccount:self.activeAccount sessionSelector:selectorUploadAutoUpload];
+   
     // Brand
 #if defined(HC)
     tableAccount *account = [[NCManageDatabase sharedInstance] getAccountActive];
@@ -263,20 +264,20 @@
 - (void)applicationDidEnterBackground:(UIApplication *)application
 {
     NSLog(@"[LOG] Enter in Background");
-    
-    [[BKPasscodeLockScreenManager sharedManager] showLockScreen:YES];
-    
-    if([[UIDevice currentDevice] respondsToSelector:@selector(isMultitaskingSupported)]) {
-        
-        __block UIBackgroundTaskIdentifier background_task;
-        
-        background_task = [application beginBackgroundTaskWithExpirationHandler:^ {
             
-            //Clean up code. Tell the system that we are done.
-            [application endBackgroundTask: background_task];
-            background_task = UIBackgroundTaskInvalid;
-        }];
-    }
+    [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_applicationDidEnterBackground object:nil];
+    [self passcodeWithAutomaticallyPromptForBiometricValidation:false];
+    
+    /*
+    __block UIBackgroundTaskIdentifier background_task;
+        
+    background_task = [application beginBackgroundTaskWithExpirationHandler:^ {
+            
+        //Clean up code. Tell the system that we are done.
+        [application endBackgroundTask: background_task];
+        background_task = UIBackgroundTaskInvalid;
+    }];
+    */
 }
 
 //
@@ -398,9 +399,10 @@
 {
     if (contextViewController == NULL) {
         UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:viewController];
+        navController.navigationBar.barStyle =  UIBarStyleBlack;
         navController.navigationBar.tintColor = NCBrandColor.sharedInstance.customerText;
         navController.navigationBar.barTintColor = NCBrandColor.sharedInstance.customer;
-        navController.navigationBar.barStyle = UIBarStyleBlack;
+        [navController.navigationBar setTranslucent:false];
         self.window.rootViewController = navController;
         [self.window makeKeyAndVisible];
         
@@ -411,9 +413,10 @@
     } else {
         UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:viewController];
         navController.modalPresentationStyle = UIModalPresentationFullScreen;
+        navController.navigationBar.barStyle =  UIBarStyleBlack;
         navController.navigationBar.tintColor = NCBrandColor.sharedInstance.customerText;
         navController.navigationBar.barTintColor = NCBrandColor.sharedInstance.customer;
-        navController.navigationBar.barStyle = UIBarStyleBlack;
+        [navController.navigationBar setTranslucent:false];
         [contextViewController presentViewController:navController animated:true completion:nil];
     }
 }
@@ -424,7 +427,7 @@
 }
 
 #pragma --------------------------------------------------------------------------------------------
-#pragma mark ===== Account =====
+#pragma mark ===== Account & Communication =====
 #pragma --------------------------------------------------------------------------------------------
 
 - (void)settingActiveAccount:(NSString *)activeAccount activeUrl:(NSString *)activeUrl activeUser:(NSString *)activeUser activeUserID:(NSString *)activeUserID activePassword:(NSString *)activePassword
@@ -434,22 +437,11 @@
     self.activeUser = activeUser;
     self.activeUserID = activeUserID;
     self.activePassword = activePassword;
-    tableCapabilities *capabilities = [[NCManageDatabase sharedInstance] getCapabilitesWithAccount:activeAccount];
 
     (void)[NCNetworkingNotificationCenter shared];
 
-    [[NCCommunicationCommon sharedInstance] setupWithUser:activeUser userId:activeUserID password:activePassword url:activeUrl userAgent:[CCUtility getUserAgent] capabilitiesGroup:[NCBrandOptions sharedInstance].capabilitiesGroups nextcloudVersion:capabilities.versionMajor delegate:[NCNetworking sharedInstance]];
-    
-    OCCommunication *communication = [OCNetworking sharedManager].sharedOCCommunication;
-    [communication setupNextcloudVersion:[[NCManageDatabase sharedInstance] getServerVersionWithAccount:activeAccount]];
-    
-}
-
-- (void)settingWebDavRoot:(NSString *)webdavRoot
-{
-    if (webdavRoot != nil) {
-        [[NCCommunicationCommon sharedInstance] setupWithWebDavRoot:webdavRoot];
-    }
+    [[NCCommunicationCommon sharedInstance] setupWithUser:activeUser userId:activeUserID password:activePassword url:activeUrl];
+    [self settingSetupCommunicationCapabilities:activeAccount];
 }
 
 - (void)deleteAccount:(NSString *)account wipe:(BOOL)wipe
@@ -480,6 +472,20 @@
         } else {
             [self openLoginView:self.window.rootViewController selector:k_intro_login openLoginWeb:false];
         }
+    }
+}
+
+- (void)settingSetupCommunicationCapabilities:(NSString *)account
+{
+    NSInteger serverVersionMajor = [[NCManageDatabase sharedInstance] getCapabilitiesServerVersionWithAccount:account element:@"major"];
+    if (serverVersionMajor > 0) {
+        [[OCNetworking sharedManager].sharedOCCommunication setupNextcloudVersion: serverVersionMajor];
+        [[NCCommunicationCommon sharedInstance] setupWithNextcloudVersion:serverVersionMajor];
+     }
+    
+    NSString *webDavRoot = [[NCManageDatabase sharedInstance] getCapabilitiesWebDavRootWithAccount:account];
+    if (webDavRoot != nil) {
+        [[NCCommunicationCommon sharedInstance] setupWithWebDavRoot:webDavRoot];
     }
 }
 
@@ -720,6 +726,18 @@
     }
 }
 
+- (void)uploadedFile:(NSNotification *)notification
+{
+    NSDictionary *userInfo = notification.userInfo;
+    tableMetadata *metadata = userInfo[@"metadata"];
+    NSInteger errorCode = [userInfo[@"errorCode"] integerValue];
+   
+    if (errorCode == 0) {
+        // verify delete Asset Local Identifiers in auto upload
+        [[NCUtility sharedInstance] deleteAssetLocalIdentifiersWithAccount:metadata.account sessionSelector:selectorUploadAutoUpload];
+    }
+}
+
 #pragma --------------------------------------------------------------------------------------------
 #pragma mark ===== Quick Actions - ShotcutItem =====
 #pragma --------------------------------------------------------------------------------------------
@@ -870,29 +888,38 @@
     item.selectedImage = item.image;
     
     // Plus Button
-    UIImage *buttonImage = [CCGraphics changeThemingColorImage:[UIImage imageNamed:@"tabBarPlus"] width:120 height:120 color:NCBrandColor.sharedInstance.brandElement];
+    int buttonSize = 56;
+    UIImage *buttonImage = [CCGraphics changeThemingColorImage:[UIImage imageNamed:@"tabBarPlus"] width:120 height:120 color:UIColor.whiteColor];
     UIButton *buttonPlus = [UIButton buttonWithType:UIButtonTypeCustom];
     buttonPlus.tag = 99;
-    [buttonPlus setBackgroundImage:buttonImage forState:UIControlStateNormal];
-    [buttonPlus setBackgroundImage:buttonImage forState:UIControlStateHighlighted];
+    [buttonPlus setImage:buttonImage forState:UIControlStateNormal];
+    buttonPlus.backgroundColor = NCBrandColor.sharedInstance.brand;
+    buttonPlus.layer.cornerRadius = buttonSize / 2;
+    buttonPlus.layer.masksToBounds = NO;
+    buttonPlus.layer.shadowOffset = CGSizeMake(0, 0);
+    buttonPlus.layer.shadowRadius = 3.0f;
+    buttonPlus.layer.shadowOpacity = 0.5;
+    
+
     [buttonPlus addTarget:self action:@selector(handleTouchTabbarCenter:) forControlEvents:UIControlEventTouchUpInside];
     
     [buttonPlus setTranslatesAutoresizingMaskIntoConstraints:NO];
     [tabBarController.tabBar addSubview:buttonPlus];
     
+
     if (safeAreaBottom > 0) {
         
         // X
         constraint = [NSLayoutConstraint constraintWithItem:buttonPlus attribute:NSLayoutAttributeCenterX relatedBy:NSLayoutRelationEqual toItem:tabBarController.tabBar attribute:NSLayoutAttributeCenterX multiplier:1.0 constant:0];
         [tabBarController.view addConstraint:constraint];
         // Y
-        constraint = [NSLayoutConstraint constraintWithItem:buttonPlus attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:tabBarController.tabBar attribute:NSLayoutAttributeTop multiplier:1.0 constant:5];
+        constraint = [NSLayoutConstraint constraintWithItem:buttonPlus attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:tabBarController.tabBar attribute:NSLayoutAttributeTop multiplier:1.0 constant:-(buttonSize / 2)];
         [tabBarController.view addConstraint:constraint];
         // Width
-        constraint = [NSLayoutConstraint constraintWithItem:buttonPlus attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:nil attribute:0 multiplier:1.0 constant:40];
+        constraint = [NSLayoutConstraint constraintWithItem:buttonPlus attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:nil attribute:0 multiplier:1.0 constant:buttonSize];
         [tabBarController.view addConstraint:constraint];
         // Height
-        constraint = [NSLayoutConstraint constraintWithItem:buttonPlus attribute:NSLayoutAttributeHeight relatedBy:NSLayoutRelationEqual toItem:nil attribute:0 multiplier:1.0 constant:40];
+        constraint = [NSLayoutConstraint constraintWithItem:buttonPlus attribute:NSLayoutAttributeHeight relatedBy:NSLayoutRelationEqual toItem:nil attribute:0 multiplier:1.0 constant:buttonSize];
         [tabBarController.view addConstraint:constraint];
         
     } else {
@@ -901,13 +928,13 @@
         constraint = [NSLayoutConstraint constraintWithItem:buttonPlus attribute:NSLayoutAttributeCenterX relatedBy:NSLayoutRelationEqual toItem:tabBarController.tabBar attribute:NSLayoutAttributeCenterX multiplier:1.0 constant:0];
         [tabBarController.view addConstraint:constraint];
         // Y
-        constraint = [NSLayoutConstraint constraintWithItem:buttonPlus attribute:NSLayoutAttributeCenterY relatedBy:NSLayoutRelationEqual toItem:tabBarController.tabBar attribute:NSLayoutAttributeCenterY multiplier:1.0 constant:0];
+        constraint = [NSLayoutConstraint constraintWithItem:buttonPlus attribute:NSLayoutAttributeCenterY relatedBy:NSLayoutRelationEqual toItem:tabBarController.tabBar attribute:NSLayoutAttributeCenterY multiplier:1.0 constant:-(buttonSize / 2)];
         [tabBarController.view addConstraint:constraint];
         // Width
-        constraint = [NSLayoutConstraint constraintWithItem:buttonPlus attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:nil attribute:0 multiplier:1.0 constant:33];
+        constraint = [NSLayoutConstraint constraintWithItem:buttonPlus attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:nil attribute:0 multiplier:1.0 constant:buttonSize];
         [tabBarController.view addConstraint:constraint];
         // Height
-        constraint = [NSLayoutConstraint constraintWithItem:buttonPlus attribute:NSLayoutAttributeHeight relatedBy:NSLayoutRelationEqual toItem:nil attribute:0 multiplier:1.0 constant:33];
+        constraint = [NSLayoutConstraint constraintWithItem:buttonPlus attribute:NSLayoutAttributeHeight relatedBy:NSLayoutRelationEqual toItem:nil attribute:0 multiplier:1.0 constant:buttonSize];
         [tabBarController.view addConstraint:constraint];
     }
 }
@@ -967,9 +994,11 @@
     
     if ([NCBrandOptions sharedInstance].use_themingColor) {
         
-        tableCapabilities *capabilities = [[NCManageDatabase sharedInstance] getCapabilitesWithAccount:self.activeAccount];
+        NSString *themingColor = [[NCManageDatabase sharedInstance] getCapabilitiesServerThemingWithAccount:self.activeAccount element:@"color"];
+        NSString *themingColorElement = [[NCManageDatabase sharedInstance] getCapabilitiesServerThemingWithAccount:self.activeAccount element:@"color-element"];
+        NSString *themingColorText = [[NCManageDatabase sharedInstance] getCapabilitiesServerThemingWithAccount:self.activeAccount element:@"color-text"];
 
-        [CCGraphics settingThemingColor:capabilities.themingColor themingColorElement:capabilities.themingColorElement themingColorText:capabilities.themingColorText];
+        [CCGraphics settingThemingColor:themingColor themingColorElement:themingColorElement themingColorText:themingColorText];
         
         UIColor *color = NCBrandColor.sharedInstance.brand;
         BOOL isTooLight = NCBrandColor.sharedInstance.brand.isTooLight;
@@ -1000,64 +1029,38 @@
     // Dark Mode
     [NCBrandColor.sharedInstance setDarkMode];
     
-    // Appearance
-    if (@available(iOS 13.0, *)) {
-        UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
-        [appearance configureWithOpaqueBackground];
-        appearance.backgroundColor = UIColor.whiteColor;
-        appearance.titleTextAttributes = @{NSForegroundColorAttributeName : NCBrandColor.sharedInstance.textView};
-        appearance.largeTitleTextAttributes = @{NSForegroundColorAttributeName : NCBrandColor.sharedInstance.textView};
-        UINavigationBar.appearance.scrollEdgeAppearance = appearance;
-        UINavigationBar.appearance.standardAppearance = appearance;
-    } else {
-        UINavigationBar.appearance.titleTextAttributes = @{NSForegroundColorAttributeName : NCBrandColor.sharedInstance.textView};
-        UINavigationBar.appearance.largeTitleTextAttributes = @{NSForegroundColorAttributeName : NCBrandColor.sharedInstance.textView};
-        UINavigationBar.appearance.translucent = false;
-    }
-    UINavigationBar.appearance.tintColor = NCBrandColor.sharedInstance.brand;
-    
     // View
     if (form) viewController.view.backgroundColor = NCBrandColor.sharedInstance.backgroundForm;
     else viewController.view.backgroundColor = NCBrandColor.sharedInstance.backgroundView;
         
     // NavigationBar
     if (viewController.navigationController.navigationBar) {
-        UINavigationBar *navigationBar = viewController.navigationController.navigationBar;
-        UIColor *titleColor = [self.reachability isReachable] ? NCBrandColor.sharedInstance.textView : NCBrandColor.sharedInstance.connectionNo;
-        if (@available(iOS 13.0, *)) {
-            UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
-            [appearance configureWithOpaqueBackground];
-            appearance.titleTextAttributes = @{NSForegroundColorAttributeName : titleColor};
-            appearance.largeTitleTextAttributes = @{NSForegroundColorAttributeName : titleColor};
-            navigationBar.scrollEdgeAppearance = appearance;
-            navigationBar.standardAppearance = appearance;
-        } else {
-            navigationBar.translucent = false;
-            navigationBar.titleTextAttributes = @{NSForegroundColorAttributeName : titleColor};
-            navigationBar.largeTitleTextAttributes = @{NSForegroundColorAttributeName : titleColor};
+        if (![self.reachability isReachable]) {
+           [viewController.navigationController.navigationBar setTitleTextAttributes:@{NSForegroundColorAttributeName : NCBrandColor.sharedInstance.connectionNo}];
         }
-        navigationBar.tintColor = NCBrandColor.sharedInstance.brand;
     }
+    
+    [self configureNavBarForViewController:viewController];
     
     //tabBar
     if (viewController.tabBarController.tabBar) {
         viewController.tabBarController.tabBar.translucent = NO;
-        viewController.tabBarController.tabBar.barTintColor = NCBrandColor.sharedInstance.tabBar;
+        viewController.tabBarController.tabBar.barTintColor = NCBrandColor.sharedInstance.backgroundView;
         viewController.tabBarController.tabBar.tintColor = NCBrandColor.sharedInstance.brandElement;
-        [viewController.tabBarController.tabBar setAlpha:1];
     }
     
-    //tabBar button t
+    //tabBar button Plus
     UISplitViewController *splitViewController = (UISplitViewController *)self.window.rootViewController;
     if ([splitViewController isKindOfClass:[UISplitViewController class]]) {
         UINavigationController *navigationController = (UINavigationController *)[splitViewController.viewControllers firstObject];
         if ([navigationController isKindOfClass:[UINavigationController class]]) {
             UITabBarController *tabBarController = (UITabBarController *)navigationController.topViewController;
             if ([tabBarController isKindOfClass:[UITabBarController class]]) {
+                [tabBarController.tabBar setNeedsDisplay];
                 UIButton *button = [tabBarController.view viewWithTag:99];
-                UIImage *buttonImage = [CCGraphics changeThemingColorImage:[UIImage imageNamed:@"tabBarPlus"] multiplier:3 color:NCBrandColor.sharedInstance.brandElement];
-                [button setBackgroundImage:buttonImage forState:UIControlStateNormal];
-                [button setBackgroundImage:buttonImage forState:UIControlStateHighlighted];
+                UIImage *buttonImage = [CCGraphics changeThemingColorImage:[UIImage imageNamed:@"tabBarPlus"] width:120 height:120 color:UIColor.whiteColor];
+                [button setImage:buttonImage forState:UIControlStateNormal];
+                button.backgroundColor = NCBrandColor.sharedInstance.brand;
             }
         }
     }
@@ -1079,118 +1082,6 @@
     
     // Tint Color GLOBAL WINDOW
     [self.window setTintColor:NCBrandColor.sharedInstance.textView];
-}
-
-#pragma --------------------------------------------------------------------------------------------
-#pragma mark ===== Manager Passcode =====
-#pragma --------------------------------------------------------------------------------------------
-
-- (BOOL)lockScreenManagerShouldShowLockScreen:(BKPasscodeLockScreenManager *)aManager
-{
-    // ServerUrl active
-    NSString *serverUrl = self.activeMain.serverUrl;
-    BOOL isBlockZone = false;
-    
-    // fermiamo la data della sessione
-    self.sessionePasscodeLock = nil;
-    
-    // se il block code è a zero esci con NON attivare la richiesta password
-    if ([[CCUtility getBlockCode] length] == 0) return NO;
-    
-    // se non c'è attivo un account esci con NON attivare la richiesta password
-    if ([self.activeAccount length] == 0) return NO;
-    
-    // se non è attivo il OnlyLockDir esci con NON attivare la richiesta password
-    if (serverUrl && _activeUrl) {
-        
-        while (![serverUrl isEqualToString:[CCUtility getHomeServerUrlActiveUrl:_activeUrl]]) {
-            
-            tableDirectory *directory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", self.activeAccount, serverUrl]];
-            
-            if (directory.lock) {
-                isBlockZone = true;
-                break;
-            } else {
-                serverUrl = [CCUtility deletingLastPathComponentFromServerUrl:serverUrl];
-                if (serverUrl == self.activeUrl)
-                    break;
-            }
-        }
-    }
-    
-    if ([CCUtility getOnlyLockDir] && !isBlockZone) return NO;
-    
-    return YES;
-}
-
-- (UIViewController *)lockScreenManagerPasscodeViewController:(BKPasscodeLockScreenManager *)aManager
-{
-    CCBKPasscode *viewController = [[CCBKPasscode alloc] initWithNibName:nil bundle:nil];
-    viewController.type = BKPasscodeViewControllerCheckPasscodeType;
-    viewController.delegate = self;
-    viewController.title = [NCBrandOptions sharedInstance].brand;
-    viewController.fromType = CCBKPasscodeFromLockScreen;
-    viewController.inputViewTitlePassword = YES;
-    
-    if ([CCUtility getSimplyBlockCode]) {
-        
-        viewController.passcodeStyle = BKPasscodeInputViewNumericPasscodeStyle;
-        viewController.passcodeInputView.maximumLength = 6;
-        
-    } else {
-        
-        viewController.passcodeStyle = BKPasscodeInputViewNormalPasscodeStyle;
-        viewController.passcodeInputView.maximumLength = 64;
-    }
-
-    viewController.touchIDManager = [[BKTouchIDManager alloc] initWithKeychainServiceName: k_serviceShareKeyChain];
-    viewController.touchIDManager.promptText = NSLocalizedString(@"_scan_fingerprint_", nil);
-
-    UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:viewController];
-    navigationController.modalPresentationStyle = UIModalPresentationFullScreen;
-    return navigationController;
-}
-
-- (void)passcodeViewController:(CCBKPasscode *)aViewController didFinishWithPasscode:(NSString *)aPasscode
-{
-    [aViewController dismissViewControllerAnimated:YES completion:nil];
-    
-    // is a lock screen
-    if (aViewController.fromType == CCBKPasscodeFromLockScreen) {
-        
-        [aViewController dismissViewControllerAnimated:YES completion:nil];
-        
-        // start session Passcode Lock
-        BOOL isBlockZone = false;
-        NSString *serverUrl = self.activeMain.serverUrl;
-        
-        while (![serverUrl isEqualToString:[CCUtility getHomeServerUrlActiveUrl:_activeUrl]]) {
-            
-            tableDirectory *directory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", self.activeAccount, serverUrl]];
-            
-            if (directory.lock) {
-                isBlockZone = true;
-                break;
-            } else {
-                serverUrl = [CCUtility deletingLastPathComponentFromServerUrl:serverUrl];
-                if (serverUrl == self.activeUrl)
-                    break;
-            }
-        }
-        if (isBlockZone)
-            self.sessionePasscodeLock = [NSDate date];
-     }
-}
-
-- (void)passcodeViewController:(CCBKPasscode *)aViewController authenticatePasscode:(NSString *)aPasscode resultHandler:(void (^)(BOOL))aResultHandler
-{
-    if (aViewController.fromType == CCBKPasscodeFromLockScreen || aViewController.fromType == CCBKPasscodeFromInit) {
-        if ([aPasscode isEqualToString:[CCUtility getBlockCode]]) {
-            //self.lockUntilDate = nil;
-            //self.failedAttempts = 0;
-            aResultHandler(YES);
-        } else aResultHandler(NO);
-    } else aResultHandler(YES);
 }
 
 #pragma --------------------------------------------------------------------------------------------
@@ -1576,7 +1467,7 @@
     }
 }
 
-- (void)verifyTaskLos
+- (void)verifyTaskLost
 {
     // DOWNLOAD
     //
@@ -1734,7 +1625,7 @@
                                                     NSString *fileName = [[path stringByDeletingLastPathComponent] lastPathComponent];
                                                     NSString *serverUrl = [CCUtility deletingLastPathComponentFromServerUrl:[NSString stringWithFormat:@"%@%@/%@", matchedAccount.url, k_webDAV, [path stringByDeletingLastPathComponent]]];
                                                     tableMetadata *metadata = [[NCManageDatabase sharedInstance] createMetadataWithAccount:matchedAccount.account fileName:fileName ocId:[[NSUUID UUID] UUIDString] serverUrl:serverUrl url:@"" contentType:@""];
-                                                    [self.activeMain performSegueDirectoryWithControlPasscode:true metadata:metadata blinkFileNamePath:fileNamePath];
+                                                    [self.activeMain performSegueDirectoryWithMetadata:metadata blinkFileNamePath:fileNamePath];
                                                     
                                                 } else {
                                                     
@@ -1801,6 +1692,85 @@
     }
     
     return YES;
+}
+
+#pragma --------------------------------------------------------------------------------------------
+#pragma mark ===== Passcode + Delegate =====
+#pragma --------------------------------------------------------------------------------------------
+
+- (void)passcodeWithAutomaticallyPromptForBiometricValidation:(BOOL)automaticallyPromptForBiometricValidation
+{
+    LAContext *laContext = [LAContext new];
+    NSError *error;
+    BOOL isBiometryAvailable = false;
+    
+    if ([[CCUtility getPasscode] length] == 0 || [self.activeAccount length] == 0 || [CCUtility getNotPasscodeAtStart]) return;
+    
+    if (!self.passcodeViewController.view.window) {
+           
+        self.passcodeViewController = [[TOPasscodeViewController alloc] initWithStyle:TOPasscodeViewStyleTranslucentLight passcodeType:TOPasscodeTypeSixDigits];
+        if (@available(iOS 13.0, *)) {
+            if ([[UITraitCollection currentTraitCollection] userInterfaceStyle] == UIUserInterfaceStyleDark) {
+                self.passcodeViewController.style = TOPasscodeViewStyleTranslucentDark;
+            }
+        }
+
+        self.passcodeViewController.delegate = self;
+        self.passcodeViewController.allowCancel = false;
+        self.passcodeViewController.keypadButtonShowLettering = false;
+        
+        if ([laContext canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error]) {
+            if (error == NULL) {
+                if (laContext.biometryType == LABiometryTypeFaceID) {
+                    self.passcodeViewController.biometryType = TOPasscodeBiometryTypeFaceID;
+                    self.passcodeViewController.allowBiometricValidation = true;
+                    isBiometryAvailable = true;
+                } else if (laContext.biometryType == LABiometryTypeTouchID) {
+                    self.passcodeViewController.biometryType = TOPasscodeBiometryTypeTouchID;
+                    self.passcodeViewController.allowBiometricValidation = true;
+                    isBiometryAvailable = true;
+                } else {
+                    isBiometryAvailable = false;
+                    NSLog(@"No Biometric support");
+                }
+            }
+        }
+    
+        [self.window.rootViewController presentViewController:self.passcodeViewController animated:YES completion:nil];
+    }
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
+        if (automaticallyPromptForBiometricValidation && self.passcodeViewController.view.window) {
+            [[LAContext new] evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics localizedReason:[[NCBrandOptions sharedInstance] brand] reply:^(BOOL success, NSError * _Nullable error) {
+                if (success) {
+                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
+                        [self.passcodeViewController dismissViewControllerAnimated:YES completion:nil];
+                    });
+                }
+            }];
+        }
+    });
+}
+
+- (void)didTapCancelInPasscodeViewController:(TOPasscodeViewController *)passcodeViewController
+{
+    [passcodeViewController dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (BOOL)passcodeViewController:(TOPasscodeViewController *)passcodeViewController isCorrectCode:(NSString *)code
+{
+    return [code isEqualToString:[CCUtility getPasscode]];
+}
+
+- (void)didPerformBiometricValidationRequestInPasscodeViewController:(TOPasscodeViewController *)passcodeViewController
+{
+    [[LAContext new] evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics localizedReason:[[NCBrandOptions sharedInstance] brand] reply:^(BOOL success, NSError * _Nullable error) {
+        if (success) {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
+                [passcodeViewController dismissViewControllerAnimated:YES completion:nil];
+            });
+        }
+    }];
 }
 
 #pragma --------------------------------------------------------------------------------------------

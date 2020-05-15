@@ -24,7 +24,7 @@
 import Foundation
 import NCCommunication
 
-class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate, NCSelectDelegate {
+class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate {
     
     @IBOutlet weak var collectionView : UICollectionView!
     
@@ -81,6 +81,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         collectionView.register(UINib.init(nibName: "NCSectionFooter", bundle: nil), forSupplementaryViewOfKind: UICollectionView.elementKindSectionFooter, withReuseIdentifier: "sectionFooter")
         
         collectionView.alwaysBounceVertical = true
+        collectionView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 50, right: 0);
                 
         gridLayout = NCGridMediaLayout()
         gridLayout.preferenceWidth = CGFloat(CCUtility.getMediaWidthImage())
@@ -114,8 +115,8 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         super.viewWillAppear(animated)
         
         // Configure Refresh Control
-        refreshControl.tintColor = NCBrandColor.sharedInstance.brandText
-        refreshControl.backgroundColor = NCBrandColor.sharedInstance.brand
+        refreshControl.tintColor = .lightGray
+        refreshControl.backgroundColor = NCBrandColor.sharedInstance.backgroundView
         refreshControl.addTarget(self, action: #selector(loadNetworkDatasource), for: .valueChanged)
         
         // get auto upload folder
@@ -151,6 +152,9 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
 
     @objc func changeTheming() {
         appDelegate.changeTheming(self, tableView: nil, collectionView: collectionView, form: false)
+        
+        refreshControl.tintColor = .lightGray
+        refreshControl.backgroundColor = NCBrandColor.sharedInstance.backgroundView
         
         cacheImages.cellPlayImage = CCGraphics.changeThemingColorImage(UIImage.init(named: "play"), width: 100, height: 100, color: .white)
         cacheImages.cellFavouriteImage = CCGraphics.changeThemingColorImage(UIImage.init(named: "favorite"), width: 100, height: 100, color: NCBrandColor.sharedInstance.yellowFavorite)
@@ -276,16 +280,6 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
 
             actions.append(
                 NCMenuAction(
-                    title: NSLocalizedString("_select_media_folder_", comment: ""),
-                    icon: CCGraphics.changeThemingColorImage(UIImage(named: "folderAutomaticUpload"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
-                    action: { menuAction in
-                        self.selectStartDirectoryPhotosTab()
-                    }
-                )
-            )
-
-            actions.append(
-                NCMenuAction(
                     title: NSLocalizedString(filterTypeFileImage ? "_media_viewimage_show_" : "_media_viewimage_hide_", comment: ""),
                     icon: CCGraphics.changeThemingColorImage(UIImage(named: filterTypeFileImage ? "imageno" : "imageyes"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                     action: { menuAction in
@@ -341,43 +335,6 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         menuPanelController.track(scrollView: mainMenuViewController.tableView)
 
         self.present(menuPanelController, animated: true, completion: nil)
-    }
-    
-    // MARK: Select Directory
-    
-    func selectStartDirectoryPhotosTab() {
-        
-        let navigationController = UIStoryboard(name: "NCSelect", bundle: nil).instantiateInitialViewController() as! UINavigationController
-        let viewController = navigationController.topViewController as! NCSelect
-        
-        viewController.delegate = self
-        viewController.hideButtonCreateFolder = true
-        viewController.includeDirectoryE2EEncryption = false
-        viewController.includeImages = false
-        viewController.layoutViewSelect = k_layout_view_move
-        viewController.selectFile = false
-        viewController.titleButtonDone = NSLocalizedString("_select_", comment: "")
-        viewController.type = "mediaFolder"
-        
-        navigationController.modalPresentationStyle = UIModalPresentationStyle.fullScreen
-        self.present(navigationController, animated: true, completion: nil)
-        
-    }
-    
-    func dismissSelect(serverUrl: String?, metadata: tableMetadata?, type: String, buttonType: String, overwrite: Bool) {
-        
-        let oldStartDirectoryMediaTabView = NCManageDatabase.sharedInstance.getAccountStartDirectoryMediaTabView(CCUtility.getHomeServerUrlActiveUrl(appDelegate.activeUrl))
-        
-        if serverUrl != nil && serverUrl != oldStartDirectoryMediaTabView {
-            
-            // Save Start Directory
-            NCManageDatabase.sharedInstance.setAccountStartDirectoryMediaTabView(serverUrl!)
-            //
-            NCManageDatabase.sharedInstance.clearTable(tableMedia.self, account: appDelegate.activeAccount)
-            self.sectionDatasource = CCSectionDataSourceMetadata()
-            //
-            loadNetworkDatasource()
-        }
     }
     
     // MARK: SEGUE
@@ -666,8 +623,7 @@ extension NCMedia {
         }
         
         if addPast {
-            //CCGraphics.addImage(toTitle: NSLocalizedString("_media_", comment: ""), colorTitle: NCBrandColor.sharedInstance.brandText, imageTitle: CCGraphics.changeThemingColorImage(UIImage.init(named: "load"), multiplier: 2, color: NCBrandColor.sharedInstance.brandText), imageRight: false, navigationItem: self.navigationItem)
-            NCUtility.sharedInstance.startActivityIndicator(view: self.view, bottom: 50)
+            NCUtility.sharedInstance.startActivityIndicator(view: self.view, bottom: 60)
         }
         loadingSearch = true
         

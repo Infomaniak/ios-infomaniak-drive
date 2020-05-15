@@ -330,7 +330,7 @@ class NCUtility: NSObject {
         guard let mimeType = CCUtility.getMimeType(metadata.fileNameView) else {
             return false
         }
-        guard let richdocumentsMimetypes = NCManageDatabase.sharedInstance.getRichdocumentsMimetypes(account: metadata.account) else {
+        guard let richdocumentsMimetypes = NCManageDatabase.sharedInstance.getCapabilitiesRichdocumentsMimetypes(account: metadata.account) else {
             return false
         }
         
@@ -379,11 +379,11 @@ class NCUtility: NSObject {
         
         NCManageDatabase.sharedInstance.clearDatabase(account: nil, removeAccount: true)
         
-        CCUtility.emptyGroupDirectoryProviderStorage()
-        CCUtility.emptyGroupLibraryDirectory()
+        CCUtility.removeGroupDirectoryProviderStorage()
+        CCUtility.removeGroupLibraryDirectory()
         
-        CCUtility.emptyDocumentsDirectory()
-        CCUtility.emptyTemporaryDirectory()
+        CCUtility.removeDocumentsDirectory()
+        CCUtility.removeTemporaryDirectory()
         
         CCUtility.createDirectoryStandard()
         
@@ -531,6 +531,24 @@ class NCUtility: NSObject {
         UIGraphicsEndImageContext()
         
         return image ?? UIImage()
+    }
+    
+    @objc func deleteAssetLocalIdentifiers(account: String, sessionSelector: String) {
+        
+        if UIApplication.shared.applicationState != .active { return }
+        let metadatasSessionUpload = NCManageDatabase.sharedInstance.getMetadatas(predicate: NSPredicate(format: "account == %@ AND session CONTAINS[cd] %@", account, "upload"), sorted: nil, ascending: true)
+        if metadatasSessionUpload?.count ?? 0 > 0 { return }
+        let localIdentifiers = NCManageDatabase.sharedInstance.getAssetLocalIdentifiersUploaded(account: account, sessionSelector: sessionSelector)
+        if localIdentifiers.count == 0 { return }
+        let assets = PHAsset.fetchAssets(withLocalIdentifiers: localIdentifiers, options: nil)
+        
+        PHPhotoLibrary.shared().performChanges({
+            PHAssetChangeRequest.deleteAssets(assets as NSFastEnumeration)
+        }, completionHandler: { success, error in
+            DispatchQueue.main.async {
+                NCManageDatabase.sharedInstance.clearAssetLocalIdentifiers(localIdentifiers, account: account)
+            }
+        })
     }
 }
 

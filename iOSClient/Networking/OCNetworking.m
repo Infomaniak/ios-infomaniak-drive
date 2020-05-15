@@ -985,8 +985,8 @@
         completion(account, nil, NSLocalizedString(@"_ssl_certificate_untrusted_", nil), NSURLErrorServerCertificateUntrusted);
     }
     
-    tableCapabilities *capabilities = [[NCManageDatabase sharedInstance] getCapabilitesWithAccount:account];
-    if (capabilities != nil && capabilities.versionMajor >= k_nextcloud_version_15_0) {
+    NSInteger versionMajor = [[NCManageDatabase sharedInstance] getCapabilitiesServerVersionWithAccount:account element:@"major"];
+    if (versionMajor >= k_nextcloud_version_15_0) {
         previews = true;
     }
     
@@ -1155,51 +1155,6 @@
         }
         
         completion(account, message, errorCode);
-    }];
-}
-
-- (void)getCapabilitiesWithAccount:(NSString *)account completion:(void (^)(NSString *account, OCCapabilities *capabilities, NSString *message, NSInteger errorCode))completion
-{
-    tableAccount *tableAccount = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", account]];
-    if (tableAccount == nil) {
-        completion(account, nil, NSLocalizedString(@"_error_user_not_available_", nil), k_CCErrorUserNotAvailble);
-    } else if ([CCUtility getPassword:account].length == 0) {
-        completion(account, nil, NSLocalizedString(@"_bad_username_password_", nil), kOCErrorServerUnauthorized);
-    } else if ([CCUtility getCertificateError:account]) {
-        completion(account, nil, NSLocalizedString(@"_ssl_certificate_untrusted_", nil), NSURLErrorServerCertificateUntrusted);
-    }
-    
-    OCCommunication *communication = [OCNetworking sharedManager].sharedOCCommunication;
-
-    [communication setCredentialsWithUser:tableAccount.user andUserID:tableAccount.userID andPassword:[CCUtility getPassword:account]];
-    [communication setUserAgent:[CCUtility getUserAgent]];
-    [communication getCapabilitiesOfServer:[tableAccount.url stringByAppendingString:@"/"] onCommunication:communication successRequest:^(NSHTTPURLResponse *response, OCCapabilities *capabilities, NSString *redirectedServer) {
-        
-        completion(account, capabilities, nil, 0);
-        
-    } failureRequest:^(NSHTTPURLResponse *response, NSError *error, NSString *redirectedServer) {
-        
-        NSString *message;
-        NSInteger errorCode = response.statusCode;
-        
-        if (errorCode == 0 || (errorCode >= 200 && errorCode < 300))
-            errorCode = error.code;
-        
-        // Server Unauthorized
-        if (errorCode == kOCErrorServerUnauthorized || errorCode == kOCErrorServerForbidden) {
-            [[OCNetworking sharedManager] checkRemoteUser:account function:@"get capabilities" errorCode:errorCode];
-        } else if (errorCode == NSURLErrorServerCertificateUntrusted) {
-            [CCUtility setCertificateError:account error:YES];
-        }
-        
-        // Error
-        if (errorCode == 503) {
-            message = NSLocalizedString(@"_server_error_retry_", nil);
-        } else {
-            message = [error.userInfo valueForKey:@"NSLocalizedDescription"];
-        }
-        
-        completion(account, nil, message, errorCode);
     }];
 }
 
@@ -1650,7 +1605,7 @@
     @synchronized(self) {
         
         AppDelegate *appDelegate = (AppDelegate *)[[UIApplication sharedApplication] delegate];
-        tableCapabilities *capabilities = [[NCManageDatabase sharedInstance] getCapabilitesWithAccount:account];
+        NSInteger versionMajor = [[NCManageDatabase sharedInstance] getCapabilitiesServerVersionWithAccount:account element:@"major"];
         tableAccount *tableAccount = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", account]];
         NSString *token = [CCUtility getPassword:account];
         
@@ -1660,7 +1615,7 @@
             self.checkRemoteUserInProgress = true;
         }
         
-        if (capabilities != nil && capabilities.versionMajor >= k_nextcloud_version_17_0) {
+        if (versionMajor >= k_nextcloud_version_17_0) {
             
             [[OCNetworking sharedManager] getRemoteWipeStatusWithAccount:account token:token completion:^(NSString *account, BOOL wipe, NSString *message, NSInteger errorCode) {
                 

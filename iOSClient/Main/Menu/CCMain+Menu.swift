@@ -41,6 +41,20 @@ extension CCMain {
 
         viewController.present(menuPanelController, animated: true, completion: nil)
     }
+    
+    @objc func SetSortButtonText() {
+        
+        switch CCUtility.getOrderSettings() {
+        case "fileName":
+            self.sortButton.setTitle((CCUtility.getAscendingSettings() ? NSLocalizedString("_sorted_by_name_a_z_", comment: "") : NSLocalizedString("_sorted_by_name_z_a_", comment: "")), for: .normal)
+        case "date":
+            self.sortButton.setTitle((CCUtility.getAscendingSettings() ? NSLocalizedString("_sorted_by_date_less_recent_", comment: "") : NSLocalizedString("_sorted_by_date_more_recent_", comment: "")), for: .normal)
+        case "size":
+            self.sortButton.setTitle((CCUtility.getAscendingSettings() ? NSLocalizedString("_sorted_by_size_largest_", comment: "") : NSLocalizedString("_sorted_by_size_smallest_", comment: "")), for: .normal)
+        default:
+            break
+        }
+    }
 
     private func initSortMenu() -> [NCMenuAction] {
         var actions = [NCMenuAction]()
@@ -59,7 +73,7 @@ extension CCMain {
                     } else {
                         CCUtility.setOrderSettings("fileName")
                     }
-                    self.sortButton.setTitle(Bundle.main.localizedString(forKey: "_sorted_filename_", value: nil, table: "InfomaniakLocalizable"), for: .normal)
+                    self.SetSortButtonText()
                     NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_clearDateReadDataSource), object: nil)
                 }
             )
@@ -79,7 +93,7 @@ extension CCMain {
                     } else {
                         CCUtility.setOrderSettings("date")
                     }
-                    self.sortButton.setTitle(Bundle.main.localizedString(forKey: "_sorted_date_", value: nil, table: "InfomaniakLocalizable"), for: .normal)
+                    self.SetSortButtonText()
                     NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_clearDateReadDataSource), object: nil)
                 }
             )
@@ -99,7 +113,7 @@ extension CCMain {
                     } else {
                         CCUtility.setOrderSettings("size")
                     }
-                    self.sortButton.setTitle(Bundle.main.localizedString(forKey: "_sorted_size_", value: nil, table: "InfomaniakLocalizable"), for: .normal)
+                    self.SetSortButtonText()
                     NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_clearDateReadDataSource), object: nil)
                 }
             )
@@ -214,21 +228,15 @@ extension CCMain {
     
     private func initMoreMenu(indexPath: IndexPath, metadata: tableMetadata, metadataFolder: tableMetadata) -> [NCMenuAction] {
         let appDelegate = UIApplication.shared.delegate as! AppDelegate
-        let autoUploadFileName = NCManageDatabase.sharedInstance.getAccountAutoUploadFileName()
-        let autoUploadDirectory = NCManageDatabase.sharedInstance.getAccountAutoUploadDirectory(appDelegate.activeUrl)
 
         var actions = [NCMenuAction]()
 
         if (metadata.directory) {
             
-            var isDirectoryLock = false
             var isOffline = false
             let isFolderEncrypted = CCUtility.isFolderEncrypted(metadata.serverUrl+"/"+metadata.fileName, e2eEncrypted: metadata.e2eEncrypted, account: metadata.account)
 
             if let directory = NCManageDatabase.sharedInstance.getTableDirectory(predicate: NSPredicate(format: "account == %@ AND serverUrl == %@", appDelegate.activeAccount, CCUtility.stringAppendServerUrl(metadata.serverUrl, addFileName: metadata.fileName)!)) {
-                if (directory.lock && CCUtility.getBlockCode() != nil && appDelegate.sessionePasscodeLock == nil) {
-                    isDirectoryLock = true
-                }
                 isOffline = directory.offline
             }
 
@@ -250,7 +258,7 @@ extension CCMain {
                 )
             )
 
-            if (!isDirectoryLock && !isFolderEncrypted) {
+            if (!isFolderEncrypted) {
                 actions.append(
                     NCMenuAction(
                         title: NSLocalizedString("_details_", comment: ""),
@@ -262,7 +270,7 @@ extension CCMain {
                 )
             }
 
-            if(!(metadata.fileName == autoUploadFileName && metadata.serverUrl == autoUploadDirectory) && !isDirectoryLock && !metadata.e2eEncrypted) {
+            if (!metadata.e2eEncrypted) {
                 actions.append(
                     NCMenuAction(
                         title: NSLocalizedString("_rename_", comment: ""),
@@ -293,7 +301,7 @@ extension CCMain {
                 )
             }
 
-            if (!(metadata.fileName == autoUploadFileName && metadata.serverUrl == autoUploadDirectory) && !isDirectoryLock && !isFolderEncrypted) {
+            if (!isFolderEncrypted) {
                 actions.append(
                     NCMenuAction(
                         title: NSLocalizedString("_move_or_copy_", comment: ""),
@@ -323,16 +331,6 @@ extension CCMain {
                     )
                 )
             }
-
-            actions.append(
-                NCMenuAction(
-                    title: isDirectoryLock ? NSLocalizedString("_remove_passcode_", comment: "") : NSLocalizedString("_protect_passcode_", comment: ""),
-                    icon: CCGraphics.changeThemingColorImage(UIImage(named: "settingsPasscodeYES"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
-                    action: { menuAction in
-                        self.perform(#selector(self.comandoLockPassword))
-                    }
-                )
-            )
 
             if (!metadata.e2eEncrypted && CCUtility.isEnd(toEndEnabled: appDelegate.activeAccount)) {
                 actions.append(

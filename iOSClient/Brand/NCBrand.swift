@@ -26,7 +26,6 @@ import UIKit
 //MARK: - Configuration
 
 @objc class NCBrandConfiguration: NSObject {
-    
     @objc static let sharedInstance: NCBrandConfiguration = {
         let instance = NCBrandConfiguration()
         return instance
@@ -41,7 +40,6 @@ import UIKit
 //MARK: - Options
 
 @objc class NCBrandOptions: NSObject {
-    
     @objc static let sharedInstance: NCBrandOptions = {
         let instance = NCBrandOptions()
         return instance
@@ -100,7 +98,6 @@ import UIKit
 //MARK: - Color
 
 class NCBrandColor: NSObject {
-
     @objc static let sharedInstance: NCBrandColor = {
         let instance = NCBrandColor()
         instance.setDarkMode()
@@ -155,7 +152,7 @@ class NCBrandColor: NSObject {
             separator = UIColor(red: 60.0/255.0, green: 60.0/255.0, blue: 60.0/255.0, alpha: 1.0)
             select = UIColor.white.withAlphaComponent(0.2)
         } else {
-            tabBar = UIColor(red: 247.0/255.0, green: 247.0/255.0, blue: 247.0/255.0, alpha: 1.0)
+            tabBar = .white
             backgroundView = .white
             backgroundForm = UIColor(red: 247.0/255.0, green: 247.0/255.0, blue: 247.0/255.0, alpha: 1.0)
             textView = .black
@@ -164,16 +161,3 @@ class NCBrandColor: NSObject {
         }
     }
 }
-
-//MARK: - Beta
-
-@objc class NCBrandBeta: NSObject {
-    
-    @objc static let shared: NCBrandBeta = {
-        let instance = NCBrandBeta()
-        return instance
-    }()
-
-    //@objc public let iOSHelper: Bool = false
-}
-

@@ -127,11 +127,12 @@ extension NCSharePaging: PagingViewControllerDataSource {
     func pagingViewController<T>(_ pagingViewController: PagingViewController<T>, viewControllerForIndex index: Int) -> UIViewController {
         
         let height = pagingViewController.options.menuHeight + NCSharePagingView.HeaderHeight
+        let topSafeArea = UIApplication.shared.keyWindow?.safeAreaInsets.top ?? 0
         
         switch index {
         case 0:
             let viewController = UIStoryboard(name: "NCActivity", bundle: nil).instantiateInitialViewController() as! NCActivity
-            viewController.insets = UIEdgeInsets(top: height, left: 0, bottom: 0, right: 0)
+            viewController.insets = UIEdgeInsets(top: height - topSafeArea, left: 0, bottom: 0, right: 0)
             viewController.didSelectItemEnable = false
             viewController.filterFileId = metadata!.fileId
             viewController.objectType = "files"
@@ -188,7 +189,7 @@ class NCShareHeaderViewController: PagingViewController<PagingIndexItem> {
 
 class NCSharePagingView: PagingView {
     
-    static let HeaderHeight: CGFloat = 200
+    static let HeaderHeight: CGFloat = 250
     var metadata: tableMetadata?
     
     var headerHeightConstraint: NSLayoutConstraint?
@@ -212,11 +213,11 @@ class NCSharePagingView: PagingView {
         if FileManager.default.fileExists(atPath: CCUtility.getDirectoryProviderStorageIconOcId(metadata!.ocId, fileNameView: metadata!.fileNameView)) {
             headerView.imageView.image = UIImage.init(contentsOfFile: CCUtility.getDirectoryProviderStorageIconOcId(metadata!.ocId, fileNameView: metadata!.fileNameView))
         } else {
-            if metadata!.iconName.count > 0 {
-                headerView.imageView.image = UIImage.init(named: metadata!.iconName)
-            } else if metadata!.directory {
+            if metadata!.directory {
                 let image = UIImage.init(named: "folder")!
                 headerView.imageView.image = CCGraphics.changeThemingColorImage(image, width: image.size.width*2, height: image.size.height*2, color: NCBrandColor.sharedInstance.brandElement)
+            } else if metadata!.iconName.count > 0 {
+                headerView.imageView.image = UIImage.init(named: metadata!.iconName)
             } else {
                 headerView.imageView.image = UIImage.init(named: "file")
             }
@@ -246,7 +247,7 @@ class NCSharePagingView: PagingView {
             collectionView.heightAnchor.constraint(equalToConstant: options.menuHeight),
             collectionView.topAnchor.constraint(equalTo: headerView.bottomAnchor),
             
-            headerView.topAnchor.constraint(equalTo: topAnchor, constant: 10),
+            headerView.topAnchor.constraint(equalTo: topAnchor),
             headerView.leadingAnchor.constraint(equalTo: leadingAnchor),
             headerView.trailingAnchor.constraint(equalTo: trailingAnchor),
             

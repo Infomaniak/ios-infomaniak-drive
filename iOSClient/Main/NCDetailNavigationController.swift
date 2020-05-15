@@ -51,10 +51,12 @@ class NCDetailNavigationController: UINavigationController {
     
     //MARK: - NotificationCenter
     
+
     @objc func changeTheming() {
 
     }
     
+
     //MARK: - Button
 
     @objc func openMenuMore() {

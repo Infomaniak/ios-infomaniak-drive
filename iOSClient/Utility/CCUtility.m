@@ -88,44 +88,25 @@
     return build;
 }
 
-+ (NSString *)getBlockCode
++ (NSString *)getPasscode
 {
-    return [UICKeyChainStore stringForKey:@"blockcode" service:k_serviceShareKeyChain];
+    return [UICKeyChainStore stringForKey:@"passcode" service:k_serviceShareKeyChain];
 }
 
-+ (void)setBlockCode:(NSString *)blockcode
++ (void)setPasscode:(NSString *)passcode
 {
-    [UICKeyChainStore setString:blockcode forKey:@"blockcode" service:k_serviceShareKeyChain];
+    [UICKeyChainStore setString:passcode forKey:@"passcode" service:k_serviceShareKeyChain];
 }
 
-+ (BOOL)getSimplyBlockCode
++ (BOOL)getNotPasscodeAtStart
 {
-    NSString *simplyBlockCode = [UICKeyChainStore stringForKey:@"simplyblockcode" service:k_serviceShareKeyChain];
-    
-    if (simplyBlockCode == nil) {
-        
-        [self setSimplyBlockCode:YES];
-        return YES;
-    }
-    
-    return [simplyBlockCode boolValue];
+    return [[UICKeyChainStore stringForKey:@"notPasscodeAtStart" service:k_serviceShareKeyChain] boolValue];
 }
 
-+ (void)setSimplyBlockCode:(BOOL)simply
++ (void)setNotPasscodeAtStart:(BOOL)set
 {
-    NSString *sSimply = (simply) ? @"true" : @"false";
-    [UICKeyChainStore setString:sSimply forKey:@"simplyblockcode" service:k_serviceShareKeyChain];
-}
-
-+ (BOOL)getOnlyLockDir
-{
-    return [[UICKeyChainStore stringForKey:@"onlylockdir" service:k_serviceShareKeyChain] boolValue];
-}
-
-+ (void)setOnlyLockDir:(BOOL)lockDir
-{
-    NSString *sLockDir = (lockDir) ? @"true" : @"false";
-    [UICKeyChainStore setString:sLockDir forKey:@"onlylockdir" service:k_serviceShareKeyChain];
+    NSString *sSet = (set) ? @"true" : @"false";
+    [UICKeyChainStore setString:sSet forKey:@"notPasscodeAtStart" service:k_serviceShareKeyChain];
 }
 
 + (NSString *)getOrderSettings
@@ -438,14 +419,14 @@
 
 + (BOOL)isEndToEndEnabled:(NSString *)account
 {
-    tableCapabilities *capabilities = [[NCManageDatabase sharedInstance] getCapabilitesWithAccount:account];
-
+    BOOL isE2EEEnabled = [[NCManageDatabase sharedInstance] getCapabilitiesE2EEEnabledWithAccount:account];
+    
     NSString *publicKey = [self getEndToEndPublicKey:account];
     NSString *privateKey = [self getEndToEndPrivateKey:account];
     NSString *passphrase = [self getEndToEndPassphrase:account];
     NSString *publicKeyServer = [self getEndToEndPublicKeyServer:account];    
     
-    if (passphrase.length > 0 && privateKey.length > 0 && publicKey.length > 0 && publicKeyServer.length > 0 && capabilities.endToEndEncryption) {
+    if (passphrase.length > 0 && privateKey.length > 0 && publicKey.length > 0 && publicKeyServer.length > 0 && isE2EEEnabled) {
         
         return YES;
         
@@ -705,7 +686,6 @@
     NSString *sSet = (set) ? @"true" : @"false";
     [UICKeyChainStore setString:sSet forKey:@"livePhoto" service:k_serviceShareKeyChain];
 }
-
 
 #pragma --------------------------------------------------------------------------------------------
 #pragma mark ===== Various =====
@@ -1190,7 +1170,7 @@
     else return false;
 }
 
-+ (void)emptyGroupApplicationSupport
++ (void)removeGroupApplicationSupport
 {
     NSURL *dirGroup = [CCUtility getDirectoryGroup];
     NSString *path = [[dirGroup URLByAppendingPathComponent:k_appApplicationSupport] path];
@@ -1198,28 +1178,28 @@
     [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
 }
 
-+ (void)emptyGroupLibraryDirectory
++ (void)removeGroupLibraryDirectory
 {
     [[NSFileManager defaultManager] removeItemAtPath:[CCUtility getDirectoryScan] error:nil];
     [[NSFileManager defaultManager] removeItemAtPath:[CCUtility getDirectoryUserData] error:nil];
 }
 
-+ (void)emptyGroupDirectoryProviderStorage
++ (void)removeGroupDirectoryProviderStorage
 {
     [[NSFileManager defaultManager] removeItemAtPath:[CCUtility getDirectoryProviderStorage] error:nil];
 }
 
-+ (void)emptyDocumentsDirectory
++ (void)removeDocumentsDirectory
 {
     [[NSFileManager defaultManager] removeItemAtPath:[CCUtility getDirectoryDocuments] error:nil];
 }
 
-+ (void)emptyTemporaryDirectory
++ (void)removeTemporaryDirectory
 {
     [[NSFileManager defaultManager] removeItemAtPath:NSTemporaryDirectory() error:nil];
 }
 
-+ (void)clearTmpDirectory
++ (void)emptyTemporaryDirectory
 {
     NSArray* tmpDirectory = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:NSTemporaryDirectory() error:NULL];
     for (NSString *file in tmpDirectory) {

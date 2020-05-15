@@ -39,13 +39,12 @@
 
 - (void)initializeForm
 {
-    XLFormDescriptor *form = [XLFormDescriptor formDescriptorWithTitle:NSLocalizedString(@"_credentials_", nil)];
+    XLFormDescriptor *form = [XLFormDescriptor formDescriptor];
     XLFormSectionDescriptor *section;
     XLFormRowDescriptor *row;
         
     NSArray *listAccount = [[NCManageDatabase sharedInstance] getAccounts];
     tableAccount *tableAccount = [[NCManageDatabase sharedInstance] getAccountActive];
-    tableCapabilities *tableCapabilities = [[NCManageDatabase sharedInstance] getCapabilitesWithAccount:tableAccount.account];
 
     // Section : ACCOUNTS -------------------------------------------
     
@@ -249,8 +248,8 @@
     }
     
     // Section : THIRT PART -------------------------------------------
-
-    if (tableCapabilities.isHandwerkcloudEnabled) {
+    BOOL isHandwerkcloudEnabled = [[NCManageDatabase sharedInstance] getCapabilitiesHandwerkcloudEnabledWithAccount:appDelegate.activeAccount];
+    if (isHandwerkcloudEnabled) {
 
         section = [XLFormSectionDescriptor formSectionWithTitle:NSLocalizedString(@"_user_job_", nil)];
         [form addFormSection:section];
@@ -345,10 +344,12 @@
 {
     [super viewDidLoad];
     
+    self.title = NSLocalizedString(@"_credentials_", nil);
     appDelegate = (AppDelegate *)[[UIApplication sharedApplication] delegate];
     
     // changeTheming
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changeTheming) name:k_notificationCenter_changeTheming object:nil];
+    
     [self changeTheming];
 }
 

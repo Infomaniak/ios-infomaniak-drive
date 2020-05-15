@@ -41,7 +41,6 @@ class NCDetailViewController: UIViewController {
     @objc var viewerImageViewController: NCViewerImageViewController?
     @objc var metadatas = [tableMetadata]()
     
-    private let progressHeight: CGFloat = 1.5
     private var maxProgress: Float = 0
     private var videoLayer: AVPlayerLayer?
     private var viewerImageViewControllerLongPressInProgress = false
@@ -117,7 +116,7 @@ class NCDetailViewController: UIViewController {
 
         guard let navigationController = splitViewController?.viewControllers.last as? UINavigationController else { return }
                         
-        appDelegate.progressViewDetail.frame = CGRect(x: 0, y: navigationController.navigationBar.frame.height - (progressHeight*2), width: navigationController.navigationBar.frame.width, height: progressHeight)
+        appDelegate.progressViewDetail.frame = CGRect(x: 0, y: navigationController.navigationBar.frame.height - 2, width: navigationController.navigationBar.frame.width, height: 2)
         progress(0)
         
         if NCBrandColor.sharedInstance.brand.isLight() {
@@ -127,7 +126,7 @@ class NCDetailViewController: UIViewController {
         }
         
         appDelegate.progressViewDetail.trackTintColor = .clear
-        appDelegate.progressViewDetail.transform = CGAffineTransform(scaleX: 1, y: progressHeight)
+        appDelegate.progressViewDetail.transform = CGAffineTransform(scaleX: 1, y: 1)
         
         navigationController.navigationBar.addSubview(appDelegate.progressViewDetail)
     }
@@ -144,6 +143,14 @@ class NCDetailViewController: UIViewController {
         }
     }
     
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        if isNavigationBarHidden {
+            return .lightContent
+        } else {
+            return .default
+        }
+    }
+    
     //MARK: - Utility
 
     @objc func navigateControllerBarHidden(_ state: Bool) {
@@ -156,13 +163,14 @@ class NCDetailViewController: UIViewController {
         
         navigationController?.setNavigationBarHidden(state, animated: false)
         isNavigationBarHidden = state
+        self.setNeedsStatusBarAppearanceUpdate()
     }
     
     //MARK: - NotificationCenter
 
     @objc func changeTheming() {
         appDelegate.changeTheming(self, tableView: nil, collectionView: nil, form: false)
-
+        
         if backgroundView.image != nil {
             backgroundView.image = CCGraphics.changeThemingColorImage(UIImage.init(named: "logo"), multiplier: 2, color: NCBrandColor.sharedInstance.brand.withAlphaComponent(0.4))
         }
