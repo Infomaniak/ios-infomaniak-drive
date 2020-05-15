@@ -1130,7 +1130,7 @@
 				F710D1F624057C9400A6033D /* NCDetailNavigationController.swift */,
 				37C83A0C24532B7200618A3B /* AppDelegate+Swift.swift */,
 				37C83A0E24532BA600618A3B /* CCMain+Swift.swift */,
-                3770320A24656C4F008DA76A /* CCMain+Swift.swift */,
+				3770320A24656C4F008DA76A /* CCMain+Swift.swift */,
 				F710D1F824057C9D00A6033D /* NCDetailViewController.swift */,
 				F7D6650620FF341600BFBA9E /* NCMainCommon.swift */,
 				F7E09CE223E3087F00FB3E9E /* NCMainRefreshControl.swift */,
@@ -2712,10 +2712,6 @@
 				F76673ED22C901F6007ED366 /* FileProviderDomain.swift in Sources */,
 				F77B0E311D118A16002130FE /* CCExifGeo.m in Sources */,
 				3770320B24656C4F008DA76A /* CCMain+Swift.swift in Sources */,
-				F73B4F0E1F470D9100BBEE4B /* nsMBCSGroupProber.cpp in Sources */,
-				F73B4F171F470D9100BBEE4B /* uchardet.cpp in Sources */,
-				F7B6ACDB22FC2D15008AB646 /* NCComments.m in Sources */,
-				F73B4F121F470D9100BBEE4B /* nsSJISProber.cpp in Sources */,
 				F7A321AD1E9E6AD50069AD1B /* CCAdvanced.m in Sources */,
 				F7A3218C1E9E42B30069AD1B /* CCMenuAccount.m in Sources */,
 				F77B0E4F1D118A16002130FE /* CCManageAutoUpload.m in Sources */,
@@ -2949,7 +2945,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -3000,7 +2996,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -3043,7 +3039,7 @@
 				CODE_SIGN_ENTITLEMENTS = iOSClient/Brand/Share.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -3087,7 +3083,7 @@
 				CODE_SIGN_ENTITLEMENTS = iOSClient/Brand/Share.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -3137,7 +3133,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -3187,7 +3183,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -3229,7 +3225,7 @@
 				CODE_SIGN_ENTITLEMENTS = iOSClient/Brand/iOSClient.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				ENABLE_BITCODE = YES;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -3276,7 +3272,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 864VDCS2QY;
 				ENABLE_BITCODE = YES;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -3358,7 +3354,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = (
@@ -3417,7 +3413,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				OTHER_LDFLAGS = (
 					"-Obj-C",
