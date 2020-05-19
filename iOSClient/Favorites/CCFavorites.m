@@ -202,11 +202,11 @@
     if (appDelegate.activeAccount.length == 0)
         return;
     
-    [[NCCommunication sharedInstance] listingFavoritesWithServerUrl:appDelegate.activeUrl showHiddenFiles:[CCUtility getShowHiddenFiles] customUserAgent:nil addCustomHeaders:nil account:appDelegate.activeAccount completionHandler:^(NSString *account, NSArray *files, NSInteger errorCode, NSString *errorMessage) {
+    [[NCCommunication shared] listingFavoritesWithServerUrl:appDelegate.activeUrl showHiddenFiles:[CCUtility getShowHiddenFiles] customUserAgent:nil addCustomHeaders:nil account:appDelegate.activeAccount completionHandler:^(NSString *account, NSArray *files, NSInteger errorCode, NSString *errorMessage) {
         
          if (errorCode == 0 && [account isEqualToString:appDelegate.activeAccount] && files != nil) {
              
-             [[NCManageDatabase sharedInstance] convertNCFilesToMetadatas:files useMetadataFolder:false account:account completion:^(tableMetadata *metadataFolder, NSArray<tableMetadata *> *metadatasFolder, NSArray<tableMetadata *> *metadatas) {
+             [[NCManageDatabase sharedInstance] convertNCCommunicationFilesToMetadatas:files useMetadataFolder:false account:account completion:^(tableMetadata *metadataFolder, NSArray<tableMetadata *> *metadatasFolder, NSArray<tableMetadata *> *metadatas) {
                  
                  NSString *father = @"";
                  NSMutableArray *filesOcId = [NSMutableArray new];
@@ -627,7 +627,7 @@
                 
                     } else if ([self.metadata.typeFile isEqualToString: k_metadataTypeFile_document] && [[NCUtility sharedInstance] isDirectEditing:self.metadata] != nil) {
                         
-                        if (appDelegate.reachability.isReachable) {
+                        if (NCCommunication.shared.isNetworkReachable) {
                             [self shouldPerformSegue:self.metadata selector:@""];
                         } else {
                             [[NCContentPresenter shared] messageNotification:@"_info_" description:@"_go_online_" delay:k_dismissAfterSecond type:messageTypeInfo errorCode:0];
@@ -635,7 +635,7 @@
                         
                     } else if ([self.metadata.typeFile isEqualToString: k_metadataTypeFile_document] && [[NCUtility sharedInstance] isRichDocument:self.metadata]) {
                         
-                        if (appDelegate.reachability.isReachable) {
+                        if (NCCommunication.shared.isNetworkReachable) {
                             [self shouldPerformSegue:self.metadata selector:@""];
                         } else {
                             [[NCContentPresenter shared] messageNotification:@"_info_" description:@"_go_online_" delay:k_dismissAfterSecond type:messageTypeInfo errorCode:0];

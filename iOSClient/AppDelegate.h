@@ -28,7 +28,6 @@
 #import <LocalAuthentication/LocalAuthentication.h>
 #import <TOPasscodeViewController/TOPasscodeViewController.h>
 
-#import "Reachability.h"
 #import "CCUtility.h"
 #import "CCMain.h"
 #import "CCSettings.h"
@@ -83,10 +82,6 @@
 
 // ProgressView Detail
 @property (nonatomic, strong) UIProgressView *progressViewDetail;
-
-// Reachability
-@property (nonatomic, strong) Reachability *reachability;
-@property BOOL lastReachability;
 
 @property (nonatomic, retain) TOPasscodeViewController *passcodeViewController;
 

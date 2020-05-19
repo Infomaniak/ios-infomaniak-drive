@@ -552,7 +552,7 @@ class NCManageDatabase: NSObject {
         }
     }
     
-    @objc func setAccountUserProfile(_ userProfile: NCUserProfile) -> tableAccount? {
+    @objc func setAccountUserProfile(_ userProfile: NCCommunicationUserProfile) -> tableAccount? {
      
         let realm = try! Realm()
 
@@ -714,53 +714,47 @@ class NCManageDatabase: NSObject {
     //MARK: -
     //MARK: Table Activity
 
-    #if !EXTENSION
-    @objc func addActivity(_ listOfActivity: [OCActivity], account: String) {
+    @objc func addActivity(_ activities: [NCCommunicationActivity], account: String) {
     
         let realm = try! Realm()
 
         do {
             try realm.write {
             
-                for activity in listOfActivity {
+                for activity in activities {
                     
                     let addObjectActivity = tableActivity()
                     
                     addObjectActivity.account = account
                     addObjectActivity.idActivity = activity.idActivity
                     addObjectActivity.idPrimaryKey = account + String(activity.idActivity)
-            
-                    if let date = activity.date {
-                        addObjectActivity.date = date as NSDate
-                    }
-                    
+                    addObjectActivity.date = activity.date
                     addObjectActivity.app = activity.app
                     addObjectActivity.type = activity.type
                     addObjectActivity.user = activity.user
                     addObjectActivity.subject = activity.subject
                     
-                    if activity.subject_rich.count > 0 {
-                        addObjectActivity.subjectRich = activity.subject_rich[0] as? String ?? ""
-                        if activity.subject_rich.count > 1 {
-                            if let dict = activity.subject_rich[1] as? [String:AnyObject] {
-                                for (key, value) in dict {
-                                    let addObjectActivitySubjectRich = tableActivitySubjectRich()
-                                    if let dict = value as? [String:AnyObject] {
+                    if let subject_rich = activity.subject_rich {
+                        if let json = JSON(subject_rich).array {
+                            addObjectActivity.subjectRich = json[0].stringValue
+                            if json.count > 1 {
+                                if let dict = json[1].dictionary {
+                                    for (key, value) in dict {
+                                        let addObjectActivitySubjectRich = tableActivitySubjectRich()
+                                        let dict = value as JSON
                                         addObjectActivitySubjectRich.account = account
-                                        switch dict["id"] {
-                                        case is String:
-                                            addObjectActivitySubjectRich.id = dict["id"] as? String ?? ""
-                                        case is Int:
-                                            addObjectActivitySubjectRich.id = String(dict["id"] as? Int ?? 0)
-                                        default: addObjectActivitySubjectRich.id = ""
+                                        if dict["id"].intValue > 0 {
+                                            addObjectActivitySubjectRich.id = String(dict["id"].intValue)
+                                        } else {
+                                            addObjectActivitySubjectRich.id = dict["id"].stringValue
                                         }
-                                        addObjectActivitySubjectRich.name = dict["name"] as? String ?? ""
+                                        addObjectActivitySubjectRich.name = dict["name"].stringValue
                                         addObjectActivitySubjectRich.idPrimaryKey = account + String(activity.idActivity) + addObjectActivitySubjectRich.id + addObjectActivitySubjectRich.name
                                         addObjectActivitySubjectRich.key = key
                                         addObjectActivitySubjectRich.idActivity = activity.idActivity
-                                        addObjectActivitySubjectRich.link = dict["link"] as? String ?? ""
-                                        addObjectActivitySubjectRich.path = dict["path"] as? String ?? ""
-                                        addObjectActivitySubjectRich.type = dict["type"] as? String ?? ""
+                                        addObjectActivitySubjectRich.link = dict["link"].stringValue
+                                        addObjectActivitySubjectRich.path = dict["path"].stringValue
+                                        addObjectActivitySubjectRich.type = dict["type"].stringValue
 
                                         realm.add(addObjectActivitySubjectRich, update: .all)
                                     }
@@ -769,20 +763,23 @@ class NCManageDatabase: NSObject {
                         }
                     }
                     
-                    if activity.previews.count > 0 {
-                        for case let activityPreview as [String:AnyObject] in activity.previews {
-                            let addObjectActivityPreview = tableActivityPreview()
-                            addObjectActivityPreview.account = account
-                            addObjectActivityPreview.idActivity = activity.idActivity
-                            addObjectActivityPreview.fileId = activityPreview["fileId"] as? Int ?? 0
-                            addObjectActivityPreview.idPrimaryKey = account + String(activity.idActivity) + String(addObjectActivityPreview.fileId)
-                            addObjectActivityPreview.source = activityPreview["source"] as? String ?? ""
-                            addObjectActivityPreview.link = activityPreview["link"] as? String ?? ""
-                            addObjectActivityPreview.mimeType = activityPreview["mimeType"] as? String ?? ""
-                            addObjectActivityPreview.view = activityPreview["view"] as? String ?? ""
-                            addObjectActivityPreview.isMimeTypeIcon = activityPreview["isMimeTypeIcon"] as? Bool ?? false
-                            
-                            realm.add(addObjectActivityPreview, update: .all)
+                    if let previews = activity.previews {
+                        if let json = JSON(previews).array {
+                            for preview in json {
+                                let addObjectActivityPreview = tableActivityPreview()
+                                
+                                addObjectActivityPreview.account = account
+                                addObjectActivityPreview.idActivity = activity.idActivity
+                                addObjectActivityPreview.fileId = preview["fileId"].intValue
+                                addObjectActivityPreview.idPrimaryKey = account + String(activity.idActivity) + String(addObjectActivityPreview.fileId)
+                                addObjectActivityPreview.source = preview["source"].stringValue
+                                addObjectActivityPreview.link = preview["link"].stringValue
+                                addObjectActivityPreview.mimeType = preview["mimeType"].stringValue
+                                addObjectActivityPreview.view = preview["view"].stringValue
+                                addObjectActivityPreview.isMimeTypeIcon = preview["isMimeTypeIcon"].boolValue
+                                
+                                realm.add(addObjectActivityPreview, update: .all)
+                            }
                         }
                     }
                     
@@ -800,7 +797,6 @@ class NCManageDatabase: NSObject {
             print("[LOG] Could not write to database: ", error)
         }
     }
-    #endif
     
     func getActivity(predicate: NSPredicate, filterFileId: String?) -> (all: [tableActivity], filter: [tableActivity]) {
         
@@ -974,216 +970,6 @@ class NCManageDatabase: NSObject {
         return nil
     }
     
-    @objc func getCapabilitiesServerVersion(account: String, element: String) -> Int {
-
-        let realm = try! Realm()
-        realm.refresh()
-        
-        guard let result = realm.objects(tableCapabilities.self).filter("account == %@", account).first else {
-            return 0
-        }
-        guard let jsondata = result.jsondata else {
-            return 0
-        }
-        
-        let json = JSON(jsondata)
-        let data = json["ocs"]["data"]
-
-        return data["version"][element].intValue
-    }
-    
-    @objc func getCapabilitiesServerVersionString(account: String) -> String? {
-
-        let realm = try! Realm()
-        realm.refresh()
-        
-        guard let result = realm.objects(tableCapabilities.self).filter("account == %@", account).first else {
-            return nil
-        }
-        guard let jsondata = result.jsondata else {
-            return nil
-        }
-        
-        let json = JSON(jsondata)
-        let data = json["ocs"]["data"]
-
-        return data["version"]["string"].string
-    }
-    
-    @objc func getCapabilitiesWebDavRoot(account: String) -> String? {
-
-        let realm = try! Realm()
-        realm.refresh()
-        
-        guard let result = realm.objects(tableCapabilities.self).filter("account == %@", account).first else {
-            return nil
-        }
-        guard let jsondata = result.jsondata else {
-            return nil
-        }
-        
-        let json = JSON(jsondata)
-        let dataCapabilities = json["ocs"]["data"]["capabilities"]
-
-        return dataCapabilities["core"]["webdav-root"].string
-    }
-    
-    @objc func getCapabilitiesE2EEEnabled(account: String) -> Bool {
-
-        let realm = try! Realm()
-        realm.refresh()
-        
-        guard let result = realm.objects(tableCapabilities.self).filter("account == %@", account).first else {
-            return false
-        }
-        guard let jsondata = result.jsondata else {
-            return false
-        }
-        
-        let json = JSON(jsondata)
-        let dataCapabilities = json["ocs"]["data"]["capabilities"]
-
-        return dataCapabilities["end-to-end-encryption"]["enabled"].boolValue
-    }
-    
-    @objc func getCapabilitiesE2EEVersion(account: String) -> Int {
-
-        let realm = try! Realm()
-        realm.refresh()
-        
-        guard let result = realm.objects(tableCapabilities.self).filter("account == %@", account).first else {
-            return 0
-        }
-        guard let jsondata = result.jsondata else {
-            return 0
-        }
-        
-        let json = JSON(jsondata)
-        let dataCapabilities = json["ocs"]["data"]["capabilities"]
-
-        if let result = dataCapabilities["end-to-end-encryption"]["api-version"].string {
-            return Int(result)!
-        } else {
-            return 0
-        }
-    }
-    
-    @objc func getCapabilitiesServerTheming(account: String, element: String) -> String? {
-
-        let realm = try! Realm()
-        realm.refresh()
-        
-        guard let result = realm.objects(tableCapabilities.self).filter("account == %@", account).first else {
-            return nil
-        }
-        guard let jsondata = result.jsondata else {
-            return nil
-        }
-        
-        let json = JSON(jsondata)
-        let dataCapabilities = json["ocs"]["data"]["capabilities"]
-
-        return dataCapabilities["theming"][element].string
-    }
-    
-    @objc func getCapabilitiesHandwerkcloudEnabled(account: String) -> Bool {
-
-        let realm = try! Realm()
-        realm.refresh()
-        
-        guard let result = realm.objects(tableCapabilities.self).filter("account == %@", account).first else {
-            return false
-        }
-        guard let jsondata = result.jsondata else {
-            return false
-        }
-        
-        let json = JSON(jsondata)
-        let dataCapabilities = json["ocs"]["data"]["capabilities"]
-
-        return dataCapabilities["handwerkcloud"]["enabled"].boolValue
-    }
-    
-    @objc func getCapabilitiesFilesSharingEnabled(account: String) -> Bool {
-
-        let realm = try! Realm()
-        realm.refresh()
-        
-        guard let result = realm.objects(tableCapabilities.self).filter("account == %@", account).first else {
-            return false
-        }
-        guard let jsondata = result.jsondata else {
-            return false
-        }
-        
-        let json = JSON(jsondata)
-        let dataCapabilities = json["ocs"]["data"]["capabilities"]
-
-        return dataCapabilities["files_sharing"]["api_enabled"].boolValue
-    }
-    
-    @objc func getCapabilitiesFilesSharingPublicPasswordEnforced(account: String) -> Bool {
-
-        let realm = try! Realm()
-        realm.refresh()
-        
-        guard let result = realm.objects(tableCapabilities.self).filter("account == %@", account).first else {
-            return false
-        }
-        guard let jsondata = result.jsondata else {
-            return false
-        }
-        
-        let json = JSON(jsondata)
-        let dataCapabilities = json["ocs"]["data"]["capabilities"]
-
-        return dataCapabilities["files_sharing"]["public"]["password"]["enforced"].boolValue
-    }
-    
-    @objc func getCapabilitiesRichdocumentsMimetypes(account: String) -> [String]? {
-        
-        let realm = try! Realm()
-        realm.refresh()
-        var resultArray = [String]()
-
-        guard let result = realm.objects(tableCapabilities.self).filter("account == %@", account).first else {
-            return nil
-        }
-        guard let jsondata = result.jsondata else {
-            return nil
-        }
-        
-        let json = JSON(jsondata)
-        let dataCapabilities = json["ocs"]["data"]["capabilities"]
-        
-        if let results = dataCapabilities["richdocuments"]["mimetypes"].array {
-            for result in results {
-                resultArray.append(result.string ?? "")
-            }
-            return resultArray
-        }
-        
-        return nil
-    }
-    
-    @objc func getCapabilitiesExternalSitesServerEnabled(account: String) -> Bool {
-
-        let realm = try! Realm()
-        realm.refresh()
-        
-        guard let result = realm.objects(tableCapabilities.self).filter("account == %@", account).first else {
-            return false
-        }
-        guard let jsondata = result.jsondata else {
-            return false
-        }
-        
-        let json = JSON(jsondata)
-        let dataCapabilities = json["ocs"]["data"]["capabilities"]
-
-        return dataCapabilities["external"].exists()
-    }
-    
     //MARK: -
     //MARK: Table Comments
     
@@ -1236,7 +1022,7 @@ class NCManageDatabase: NSObject {
     //MARK: -
     //MARK: Table Direct Editing
     
-    @objc func addDirectEditing(account: String, editors: [NCEditorDetailsEditors], creators: [NCEditorDetailsCreators]) {
+    @objc func addDirectEditing(account: String, editors: [NCCommunicationEditorDetailsEditors], creators: [NCCommunicationEditorDetailsCreators]) {
         
         let realm = try! Realm()
 
@@ -1772,8 +1558,7 @@ class NCManageDatabase: NSObject {
     //MARK: -
     //MARK: Table External Sites
     
-    #if !EXTENSION
-    @objc func addExternalSites(_ externalSites: OCExternalSites, account: String) {
+    @objc func addExternalSites(_ externalSite: NCCommunicationExternalSite, account: String) {
         
         let realm = try! Realm()
 
@@ -1783,12 +1568,12 @@ class NCManageDatabase: NSObject {
                 let addObject = tableExternalSites()
             
                 addObject.account = account
-                addObject.idExternalSite = externalSites.idExternalSite
-                addObject.icon = externalSites.icon
-                addObject.lang = externalSites.lang
-                addObject.name = externalSites.name
-                addObject.url = externalSites.url
-                addObject.type = externalSites.type
+                addObject.idExternalSite = externalSite.idExternalSite
+                addObject.icon = externalSite.icon
+                addObject.lang = externalSite.lang
+                addObject.name = externalSite.name
+                addObject.url = externalSite.url
+                addObject.type = externalSite.type
            
                 realm.add(addObject)
             }
@@ -1796,7 +1581,6 @@ class NCManageDatabase: NSObject {
             print("[LOG] Could not write to database: ", error)
         }
     }
-    #endif
     
     @objc func deleteExternalSites(account: String) {
         
@@ -2005,7 +1789,7 @@ class NCManageDatabase: NSObject {
         return tableMetadata.init(value: metadata)
     }
     
-    @objc func convertNCFileToMetadata(_ file: NCFile, isEncrypted: Bool, account: String) -> tableMetadata {
+    @objc func convertNCFileToMetadata(_ file: NCCommunicationFile, isEncrypted: Bool, account: String) -> tableMetadata {
         
         let metadata = tableMetadata()
         
@@ -2040,7 +1824,7 @@ class NCManageDatabase: NSObject {
         if isEncrypted || metadata.e2eEncrypted {
             if let tableE2eEncryption = NCManageDatabase.sharedInstance.getE2eEncryption(predicate: NSPredicate(format: "account == %@ AND serverUrl == %@ AND fileNameIdentifier == %@", account, file.serverUrl, file.fileName)) {
                 metadata.fileNameView = tableE2eEncryption.fileName
-                let results = NCCommunicationCommon.sharedInstance.getInternalContenType(fileName: metadata.fileNameView, contentType: file.contentType, directory: file.directory)
+                let results = NCCommunicationCommon.shared.getInternalContenType(fileName: metadata.fileNameView, contentType: file.contentType, directory: file.directory)
                 metadata.contentType = results.contentType
                 metadata.iconName = results.iconName
                 metadata.typeFile = results.typeFile
@@ -2050,7 +1834,7 @@ class NCManageDatabase: NSObject {
         return metadata
     }
     
-    @objc func convertNCFilesToMetadatas(_ files: [NCFile], useMetadataFolder: Bool, account: String, completion: @escaping (_ metadataFolder: tableMetadata,_ metadatasFolder: [tableMetadata], _ metadatas: [tableMetadata])->())  {
+    @objc func convertNCCommunicationFilesToMetadatas(_ files: [NCCommunicationFile], useMetadataFolder: Bool, account: String, completion: @escaping (_ metadataFolder: tableMetadata,_ metadatasFolder: [tableMetadata], _ metadatas: [tableMetadata])->())  {
     
         var counter: Int = 0
         var isEncrypted: Bool = false
@@ -2089,7 +1873,7 @@ class NCManageDatabase: NSObject {
     @objc func createMetadata(account: String, fileName: String, ocId: String, serverUrl: String, url: String, contentType: String) -> tableMetadata {
         
         let metadata = tableMetadata()
-        let results = NCCommunicationCommon.sharedInstance.getInternalContenType(fileName: fileName, contentType: contentType, directory: false)
+        let results = NCCommunicationCommon.shared.getInternalContenType(fileName: fileName, contentType: contentType, directory: false)
         
         metadata.account = account
         metadata.contentType = results.contentType
@@ -2152,7 +1936,7 @@ class NCManageDatabase: NSObject {
         return Array(metadatas.map { tableMetadata.init(value:$0) })
     }
 
-    @objc func addMetadatas(files: [NCFile]?, account: String) {
+    @objc func addMetadatas(files: [NCCommunicationFile]?, account: String) {
     
         guard let files = files else { return }
         

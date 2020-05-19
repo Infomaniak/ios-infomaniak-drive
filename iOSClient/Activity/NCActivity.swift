@@ -211,7 +211,7 @@ extension NCActivity: UITableViewDataSource {
                     if let image = UIImage(contentsOfFile: fileNameLocalPath) { cell.icon.image = image }
                 } else {
                     DispatchQueue.global().async {
-                        NCCommunication.sharedInstance.downloadContent(serverUrl: activity.icon, customUserAgent: nil, addCustomHeaders: nil, account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
+                        NCCommunication.shared.downloadContent(serverUrl: activity.icon, customUserAgent: nil, addCustomHeaders: nil, account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
                             if errorCode == 0 {
                                 do {
                                     try data!.write(to: NSURL(fileURLWithPath: fileNameLocalPath) as URL, options: .atomic)
@@ -236,7 +236,7 @@ extension NCActivity: UITableViewDataSource {
                     }
                 } else {
                     DispatchQueue.global().async {
-                        NCCommunication.sharedInstance.downloadAvatar(serverUrl: self.appDelegate.activeUrl, userID: activity.user, fileNameLocalPath: fileNameLocalPath, size: Int(k_avatar_size), customUserAgent: nil, addCustomHeaders: nil, account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
+                        NCCommunication.shared.downloadAvatar(serverUrl: self.appDelegate.activeUrl, userID: activity.user, fileNameLocalPath: fileNameLocalPath, size: Int(k_avatar_size), customUserAgent: nil, addCustomHeaders: nil, account: self.appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
                             if errorCode == 0 && account == self.appDelegate.activeAccount && UIImage(data: data!) != nil {
                                 cell.avatar.image = UIImage(data: data!)
                             }
@@ -387,19 +387,21 @@ extension activityTableViewCell: UICollectionViewDelegate {
             
             var pathComponents = activityPreview.link.components(separatedBy: "?")
             pathComponents = pathComponents[1].components(separatedBy: "&")
-            var url = pathComponents[0].replacingOccurrences(of: "dir=", with: "").removingPercentEncoding!
-            url = appDelegate.activeUrl + k_webDAV + url + "/" + activitySubjectRich.name
+            var serverUrlFileName = pathComponents[0].replacingOccurrences(of: "dir=", with: "").removingPercentEncoding!
+            serverUrlFileName = appDelegate.activeUrl + k_webDAV + serverUrlFileName + "/" + activitySubjectRich.name
             
-            let fileNameLocalPath = CCUtility.getDirectoryProviderStorageOcId(activitySubjectRich.id, fileNameView: activitySubjectRich.name)
+            let fileNameLocalPath = CCUtility.getDirectoryProviderStorageOcId(activitySubjectRich.id, fileNameView: activitySubjectRich.name)!
             
             NCUtility.sharedInstance.startActivityIndicator(view: (appDelegate.window.rootViewController?.view)!, bottom: 0)
             
-            let _ = OCNetworking.sharedManager()?.download(withAccount: activityPreview.account, url: url, fileNameLocalPath: fileNameLocalPath, encode:true, completion: { (account, message, errorCode) in
+            _ = NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, customUserAgent: nil, addCustomHeaders: nil, account: appDelegate.activeAccount, progressHandler: { (progress) in
+                
+            }) { (account, etag, date, lenght, errorCode, errorDescription) in
                 
                 if account == self.appDelegate.activeAccount && errorCode == 0 {
                     
-                    let serverUrl = (url as NSString).deletingLastPathComponent
-                    let fileName = (url as NSString).lastPathComponent
+                    let serverUrl = (serverUrlFileName as NSString).deletingLastPathComponent
+                    let fileName = (serverUrlFileName as NSString).lastPathComponent
                     let serverUrlFileName = serverUrl + "/" + fileName
                     
                     NCNetworking.sharedInstance.readFile(serverUrlFileName: serverUrlFileName, account: activityPreview.account) { (account, metadata, errorCode, errorDescription) in
@@ -424,7 +426,7 @@ extension activityTableViewCell: UICollectionViewDelegate {
                     
                     NCUtility.sharedInstance.stopActivityIndicator()
                 }
-            })
+            }
         }
     }
 }
@@ -489,7 +491,7 @@ extension activityTableViewCell: UICollectionViewDataSource {
                             
                         } else {
                             
-                            NCCommunication.sharedInstance.downloadPreview(serverUrlPath: activityPreview.source, fileNameLocalPath: fileNamePath, customUserAgent: nil, addCustomHeaders: nil, account: appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
+                            NCCommunication.shared.downloadPreview(serverUrlPath: activityPreview.source, fileNameLocalPath: fileNamePath, customUserAgent: nil, addCustomHeaders: nil, account: appDelegate.activeAccount) { (account, data, errorCode, errorMessage) in
                                 if errorCode == 0 && data != nil {
                                     cell.imageView.image = UIImage.init(data: data!)
                                 }
@@ -574,10 +576,10 @@ extension NCActivity {
             NCUtility.sharedInstance.startActivityIndicator(view: self.view, bottom: 50)
         }
         
-        OCNetworking.sharedManager().getActivityWithAccount(appDelegate.activeAccount, since: idActivity, limit: 200, objectId:filterFileId, objectType: objectType, link: "", completion: { (account, listOfActivity, message, errorCode) in
+        NCCommunication.shared.getActivity(serverUrl: appDelegate.activeUrl, since: idActivity, limit: 200, objectId: filterFileId, objectType: objectType, previews: true, customUserAgent: nil, addCustomHeaders: nil, account: appDelegate.activeAccount) { (account, activities, errorCode, errorDescription) in
             
-            if errorCode == 0 && account == self.appDelegate.activeAccount {
-                NCManageDatabase.sharedInstance.addActivity(listOfActivity as! [OCActivity], account: account!)
+           if errorCode == 0 && account == self.appDelegate.activeAccount {
+                NCManageDatabase.sharedInstance.addActivity(activities , account: account)
             }
             
             NCUtility.sharedInstance.stopActivityIndicator()
@@ -589,6 +591,6 @@ extension NCActivity {
             }
             
             self.loadDataSource()
-        })
+        }
     }
 }

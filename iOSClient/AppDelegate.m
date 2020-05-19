@@ -26,12 +26,12 @@
 #import "CCGraphics.h"
 #import "CCSynchronize.h"
 #import "CCMain.h"
-#import <Fabric/Fabric.h>
-#import <Crashlytics/Crashlytics.h>
 #import "NCBridgeSwift.h"
 #import "NCAutoUpload.h"
 #import "NCPushNotificationEncryption.h"
 #import <QuartzCore/QuartzCore.h>
+
+@import Sentry;
 
 @class NCViewerRichdocument;
 
@@ -47,17 +47,26 @@
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-    // Fabric
     if (![CCUtility getDisableCrashservice] && NCBrandOptions.sharedInstance.disable_crash_service == false) {
-        [Fabric with:@[[Crashlytics class]]];
+        [SentrySDK startWithOptions: @{
+            @"dsn": @"https://42eaf570ec2646b1a564a4c4bfc8c279@o394108.ingest.sentry.io/5243836",
+            @"debug": @(YES),
+            @"enableAutoSessionTracking": @(YES)
+            /* PRIVACY : https://github.com/getsentry/sentry-cocoa
+             By default, we don’t apply the user identification provided to the SDK via the API. Instead, we use
+             the installation ID generated with the first use of the application. The ID doesn’t contain any
+             private or public data of your users or any public or shared data of their device.
+             */
+        }];
     }
     
     [CCUtility createDirectoryStandard];
     [CCUtility emptyTemporaryDirectory];
     
     // Networking
-    [[NCCommunicationCommon sharedInstance] setupWithDelegate:[NCNetworking sharedInstance]];
-    [[NCCommunicationCommon sharedInstance] setupWithUserAgent:[CCUtility getUserAgent] capabilitiesGroup:[NCBrandOptions sharedInstance].capabilitiesGroups];
+    [[NCCommunicationCommon shared] setupWithDelegate:[NCNetworking sharedInstance]];
+    [[NCCommunicationCommon shared] setupWithUserAgent:[CCUtility getUserAgent] capabilitiesGroup:[NCBrandOptions sharedInstance].capabilitiesGroups];
+    [[NCCommunication shared] startNetworkReachabilityObserver];
     
     // Verify upgrade
     if ([self upgrade]) {
@@ -79,9 +88,8 @@
     // Background Fetch
     [application setMinimumBackgroundFetchInterval:UIApplicationBackgroundFetchIntervalMinimum];
 
-    // Initialization List & Array
-    self.listProgressMetadata = [[NSMutableDictionary alloc] init];
-    self.listMainVC = [[NSMutableDictionary alloc] init];
+    self.listProgressMetadata = [NSMutableDictionary new];
+    self.listMainVC = [NSMutableDictionary new];
     self.arrayDeleteMetadata = [NSMutableArray new];
     self.arrayMoveMetadata = [NSMutableArray new];
     self.arrayMoveServerUrlTo = [NSMutableArray new];
@@ -92,27 +100,15 @@
     // Push Notification
     [application registerForRemoteNotifications];
     
-    // Display notification (sent via APNS)
+    // Display notification
     [UNUserNotificationCenter currentNotificationCenter].delegate = self;
     UNAuthorizationOptions authOptions = UNAuthorizationOptionAlert | UNAuthorizationOptionSound | UNAuthorizationOptionBadge;
     [[UNUserNotificationCenter currentNotificationCenter] requestAuthorizationWithOptions:authOptions completionHandler:^(BOOL granted, NSError * _Nullable error) {
     }];
     
-    // setting Reachable in back
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-
-        self.reachability = [Reachability reachabilityForInternetConnection];
-    
-        self.lastReachability = [self.reachability isReachable];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(reachabilityChanged:) name:kReachabilityChangedNotification object:nil];
-        [self.reachability startNotifier];
-    });
-    
     //AV Session
     [[AVAudioSession sharedInstance] setCategory: AVAudioSessionCategoryPlayback error:nil];
-    // [[AVAudioSession sharedInstance] setActive:YES error:nil];
     [[UIApplication sharedApplication] beginReceivingRemoteControlEvents];
-
 
     // ProgressView Detail
     self.progressViewDetail = [[UIProgressView alloc] initWithProgressViewStyle: UIProgressViewStyleBar];
@@ -440,7 +436,7 @@
 
     (void)[NCNetworkingNotificationCenter shared];
 
-    [[NCCommunicationCommon sharedInstance] setupWithUser:activeUser userId:activeUserID password:activePassword url:activeUrl];
+    [[NCCommunicationCommon shared] setupWithUser:activeUser userId:activeUserID password:activePassword url:activeUrl];
     [self settingSetupCommunicationCapabilities:activeAccount];
 }
 
@@ -477,15 +473,15 @@
 
 - (void)settingSetupCommunicationCapabilities:(NSString *)account
 {
-    NSInteger serverVersionMajor = [[NCManageDatabase sharedInstance] getCapabilitiesServerVersionWithAccount:account element:@"major"];
+    NSInteger serverVersionMajor = [[NCManageDatabase sharedInstance] getCapabilitiesServerIntWithAccount:account elements:NCElementsJSON.shared.capabilitiesVersionMajor];
     if (serverVersionMajor > 0) {
         [[OCNetworking sharedManager].sharedOCCommunication setupNextcloudVersion: serverVersionMajor];
-        [[NCCommunicationCommon sharedInstance] setupWithNextcloudVersion:serverVersionMajor];
+        [[NCCommunicationCommon shared] setupWithNextcloudVersion:serverVersionMajor];
      }
     
-    NSString *webDavRoot = [[NCManageDatabase sharedInstance] getCapabilitiesWebDavRootWithAccount:account];
+    NSString *webDavRoot = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:account elements:NCElementsJSON.shared.capabilitiesWebDavRoot];
     if (webDavRoot != nil) {
-        [[NCCommunicationCommon sharedInstance] setupWithWebDavRoot:webDavRoot];
+        [[NCCommunicationCommon shared] setupWithWebDavRoot:webDavRoot];
     }
 }
 
@@ -994,9 +990,9 @@
     
     if ([NCBrandOptions sharedInstance].use_themingColor) {
         
-        NSString *themingColor = [[NCManageDatabase sharedInstance] getCapabilitiesServerThemingWithAccount:self.activeAccount element:@"color"];
-        NSString *themingColorElement = [[NCManageDatabase sharedInstance] getCapabilitiesServerThemingWithAccount:self.activeAccount element:@"color-element"];
-        NSString *themingColorText = [[NCManageDatabase sharedInstance] getCapabilitiesServerThemingWithAccount:self.activeAccount element:@"color-text"];
+        NSString *themingColor = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColor];
+        NSString *themingColorElement = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColorElement];
+        NSString *themingColorText = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColorText];
 
         [CCGraphics settingThemingColor:themingColor themingColorElement:themingColorElement themingColorText:themingColorText];
         
@@ -1035,7 +1031,7 @@
         
     // NavigationBar
     if (viewController.navigationController.navigationBar) {
-        if (![self.reachability isReachable]) {
+        if (!NCCommunication.shared.isNetworkReachable) {
            [viewController.navigationController.navigationBar setTitleTextAttributes:@{NSForegroundColorAttributeName : NCBrandColor.sharedInstance.connectionNo}];
         }
     }
@@ -1082,41 +1078,6 @@
     
     // Tint Color GLOBAL WINDOW
     [self.window setTintColor:NCBrandColor.sharedInstance.textView];
-}
-
-#pragma --------------------------------------------------------------------------------------------
-#pragma mark ===== reachabilityChanged =====
-#pragma --------------------------------------------------------------------------------------------
-
--(void)reachabilityChanged:(SCNetworkReachabilityFlags)flags
-{
-    if ([self.reachability isReachable]) {
-        
-        if (self.lastReachability == NO) {
-            
-            NSLog(@"[LOG] Request Service Server Nextcloud");
-            [[NCService sharedInstance] startRequestServicesServer];
-        }
-        
-        NSLog(@"[LOG] Reachability Changed: Reachable");
-        
-        self.lastReachability = YES;
-        
-    } else {
-        
-        if (self.lastReachability == YES) {
-            [[NCContentPresenter shared] messageNotification:@"_network_not_available_" description:nil delay:k_dismissAfterSecond type:messageTypeInfo errorCode:kCFURLErrorNotConnectedToInternet];
-        }
-        
-        NSLog(@"[LOG] Reachability Changed: NOT Reachable");
-        
-        self.lastReachability = NO;
-    }
-    
-    if ([self.reachability isReachableViaWiFi]) NSLog(@"[LOG] Reachability Changed: WiFi");
-    if ([self.reachability isReachableViaWWAN]) NSLog(@"[LOG] Reachability Changed: WWAn");
-    
-    [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_setTitleMain object:nil];
 }
 
 #pragma --------------------------------------------------------------------------------------------

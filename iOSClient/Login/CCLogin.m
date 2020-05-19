@@ -191,7 +191,7 @@
     if ([self.baseUrl.text hasSuffix:@"/"])
         self.baseUrl.text = [self.baseUrl.text substringToIndex:[self.baseUrl.text length] - 1];
         
-    [[NCCommunication sharedInstance] getServerStatusWithServerUrl:self.baseUrl.text customUserAgent:nil addCustomHeaders:nil completionHandler:^(NSString *serverProductName, NSString *serverVersion, NSInteger versionMajor, NSInteger versionMinor, NSInteger versionMicro, BOOL extendedSupport, NSInteger errorCode, NSString *errorDescription) {
+    [[NCCommunication shared] getServerStatusWithServerUrl:self.baseUrl.text customUserAgent:nil addCustomHeaders:nil completionHandler:^(NSString *serverProductName, NSString *serverVersion, NSInteger versionMajor, NSInteger versionMinor, NSInteger versionMicro, BOOL extendedSupport, NSInteger errorCode, NSString *errorDescription) {
         
         if (errorCode == 0) {
             
@@ -199,7 +199,7 @@
             self.login.enabled = YES;
             
             // Login Flow V2
-            [[NCCommunication sharedInstance] getLoginFlowV2WithServerUrl:self.baseUrl.text customUserAgent:nil addCustomHeaders:nil completionHandler:^(NSString *token, NSString *endpoint, NSString *login, NSInteger errorCode, NSString *errorDescription) {
+            [[NCCommunication shared] getLoginFlowV2WithServerUrl:self.baseUrl.text customUserAgent:nil addCustomHeaders:nil completionHandler:^(NSString *token, NSString *endpoint, NSString *login, NSInteger errorCode, NSString *errorDescription) {
                 
                 // Login Flow V2
                 if (errorCode == 0 && [[NCBrandOptions sharedInstance] use_loginflowv2] && token != nil && endpoint != nil && login != nil) {
@@ -331,12 +331,14 @@
             self.login.enabled = NO;
             [self.activity startAnimating];
             
-            [[OCNetworking sharedManager] checkServerUrl:[NSString stringWithFormat:@"%@%@", url, k_webDAV] user:user userID:user password:token completion:^(NSString *message, NSInteger errorCode) {
-
+            NSString *serverUrl = [NSString stringWithFormat:@"%@%@", url, k_webDAV];
+            
+            [[NCCommunication shared] checkServerWithServerUrl:serverUrl completionHandler:^(NSInteger errorCode, NSString *errorDescription) {
+                
                 [self.activity stopAnimating];
                 self.login.enabled = YES;
                 
-                [self AfterLoginWithUrl:url user:user token:token errorCode:errorCode message:message];
+                [self AfterLoginWithUrl:url user:user token:token errorCode:errorCode message:errorDescription];
             }];
         }
     }
@@ -372,12 +374,12 @@
         self.login.enabled = NO;
         [self.activity startAnimating];
 
-        [[OCNetworking sharedManager] getAppPassword:url username:user password:password completion:^(NSString *token, NSString *message, NSInteger errorCode) {
+        [[NCCommunication shared] getAppPasswordWithServerUrl:url username:user password:password customUserAgent:nil completionHandler:^(NSString *token, NSInteger errorCode, NSString *errorDescription) {
             
             [self.activity stopAnimating];
             self.login.enabled = YES;
-
-            [self AfterLoginWithUrl:url user:user token:token errorCode:errorCode message:message];
+            
+            [self AfterLoginWithUrl:url user:user token:token errorCode:errorCode message:errorDescription];
         }];
     }
 }

@@ -176,7 +176,7 @@ class NCUtility: NSObject {
         
         if !FileManager.default.fileExists(atPath: imageNamePath) || rewrite == true {
             
-            NCCommunication.sharedInstance.downloadContent(serverUrl: iconURL.absoluteString, customUserAgent: nil, addCustomHeaders: nil, account: account) { (account, data, errorCode, errorMessage) in
+            NCCommunication.shared.downloadContent(serverUrl: iconURL.absoluteString, customUserAgent: nil, addCustomHeaders: nil, account: account) { (account, data, errorCode, errorMessage) in
                
                 if errorCode == 0 && data != nil {
                 
@@ -330,7 +330,8 @@ class NCUtility: NSObject {
         guard let mimeType = CCUtility.getMimeType(metadata.fileNameView) else {
             return false
         }
-        guard let richdocumentsMimetypes = NCManageDatabase.sharedInstance.getCapabilitiesRichdocumentsMimetypes(account: metadata.account) else {
+        
+        guard let richdocumentsMimetypes = NCManageDatabase.sharedInstance.getCapabilitiesServerArray(account: metadata.account, elements: NCElementsJSON.shared.capabilitiesRichdocumentsMimetypes) else {
             return false
         }
         

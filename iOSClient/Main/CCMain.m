@@ -168,6 +168,7 @@
     self.searchController.hidesNavigationBarDuringPresentation = true;
     self.navigationController.navigationBar.prefersLargeTitles = true;
     self.navigationItem.hidesSearchBarWhenScrolling = true;
+    self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeAlways;
     [self.navigationController.navigationBar sizeToFit];
 
     // Table Header View
@@ -216,7 +217,7 @@
 {
     [super viewWillAppear:animated];
     [self updateNavBarShadow:self.tableView force:false];
-    if(_isViewDidLoad) {
+    if(_isViewDidLoad && _isRoot) {
         self.navigationItem.hidesSearchBarWhenScrolling = false;
     }
     // test
@@ -246,7 +247,7 @@
 - (void)viewDidAppear:(BOOL)animated
 {
     [super viewDidAppear:animated];
-    if(_isViewDidLoad) {
+    if(_isViewDidLoad && _isRoot) {
         self.navigationItem.hidesSearchBarWhenScrolling = true;
     }
     // Active Main
@@ -699,12 +700,7 @@
 - (void)deleteRefreshControl
 {
     [refreshControl endRefreshing];
-    
-    for (UIView *subview in [_tableView subviews]) {
-        if (subview == refreshControl)
-            [subview removeFromSuperview];
-    }
-    
+    [refreshControl removeFromSuperview];
     refreshControl = nil;
 }
 
@@ -727,13 +723,9 @@
         self.navigationItem.title = [NSString stringWithFormat:@"%@ : %lu / %lu", NSLocalizedString(@"_selected_", nil), (unsigned long)selezionati, (unsigned long)totali];
 
     } else {
-        self.navigationController.navigationBar.prefersLargeTitles = true;
-        
         if (_isRoot) {
-            self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeAlways;
             self.navigationItem.title = NCBrandOptions.sharedInstance.brand;
         } else {
-            self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
             self.navigationItem.title = _titleMain;
         }
     }
@@ -1171,20 +1163,17 @@
     }
     
     _loadingFolder = YES;
-
+    [refreshControl endRefreshing];
     [self tableViewReloadData];
     
     [[NCNetworking sharedInstance] readFolderWithServerUrl:serverUrl account:appDelegate.activeAccount completion:^(NSString *account, tableMetadata *metadataFolder, NSArray *metadatas, NSInteger errorCode, NSString *errorDescription) {
         
-        [refreshControl endRefreshing];
-
         if (errorCode == 0 ) {
             
             _metadataFolder = metadataFolder;
             BOOL isFolderEncrypted = [CCUtility isFolderEncrypted:serverUrl e2eEncrypted:_metadataFolder.e2eEncrypted account:appDelegate.activeAccount];
             [self setTitle];
             
-
             // File is changed ??
             dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{
                 [[CCSynchronize sharedSynchronize] verifyChangeMedatas:metadatas serverUrl:serverUrl account:account withDownload:NO];
@@ -1218,7 +1207,6 @@
             
             if ([serverUrl isEqualToString:_serverUrl]) {
                 [[NCMainCommon sharedInstance] reloadDatasourceWithServerUrl:serverUrl ocId:nil action:k_action_NULL];
-                [self tableViewReloadData];
             }
         
         } else {
@@ -1277,11 +1265,11 @@
         return;
     }
         
-    [[NCCommunication sharedInstance] searchLiteralWithServerUrl:appDelegate.activeUrl depth:@"infinity" literal:_searchFileName showHiddenFiles:[CCUtility getShowHiddenFiles] customUserAgent:nil addCustomHeaders:nil user:appDelegate.activeUser account:appDelegate.activeAccount completionHandler:^(NSString *account, NSArray *files, NSInteger errorCode, NSString *errorDescription) {
+    [[NCCommunication shared] searchLiteralWithServerUrl:appDelegate.activeUrl depth:@"infinity" literal:_searchFileName showHiddenFiles:[CCUtility getShowHiddenFiles] customUserAgent:nil addCustomHeaders:nil user:appDelegate.activeUser account:appDelegate.activeAccount completionHandler:^(NSString *account, NSArray *files, NSInteger errorCode, NSString *errorDescription) {
         
          if (errorCode == 0 && [account isEqualToString:appDelegate.activeAccount] && files != nil) {
              
-             [[NCManageDatabase sharedInstance] convertNCFilesToMetadatas:files useMetadataFolder:false account:account completion:^(tableMetadata *metadataFolder, NSArray<tableMetadata *> *metadatasFolder, NSArray<tableMetadata *> *metadatas) {
+             [[NCManageDatabase sharedInstance] convertNCCommunicationFilesToMetadatas:files useMetadataFolder:false account:account completion:^(tableMetadata *metadataFolder, NSArray<tableMetadata *> *metadatasFolder, NSArray<tableMetadata *> *metadatas) {
                  
                  NSMutableArray *metadatasDB = (NSMutableArray *)[[NCManageDatabase sharedInstance] addMetadatas:metadatas];
                  _searchResultMetadatas = [[NSMutableArray alloc] initWithArray:metadatasDB];
@@ -1334,7 +1322,8 @@
             }
             
             // Version >= 12
-            if ([[NCManageDatabase sharedInstance] getCapabilitiesServerVersionWithAccount:appDelegate.activeAccount element:@"major"] >= 12) {
+            NSInteger serverVersionMajor = [[NCManageDatabase sharedInstance] getCapabilitiesServerIntWithAccount:appDelegate.activeAccount elements:NCElementsJSON.shared.capabilitiesVersionMajor];
+            if (serverVersionMajor >= 12) {
                 
                 [_timerWaitInput invalidate];
                 _timerWaitInput = [NSTimer scheduledTimerWithTimeInterval:1.5 target:self selector:@selector(searchStartTimer) userInfo:nil repeats:NO];
@@ -2625,11 +2614,11 @@
 
 - (void)setTableViewHeader
 {
-    NSInteger versionMajor = [[NCManageDatabase sharedInstance] getCapabilitiesServerVersionWithAccount:appDelegate.activeAccount element:@"major"];
+    NSInteger serverVersionMajor = [[NCManageDatabase sharedInstance] getCapabilitiesServerIntWithAccount:appDelegate.activeAccount elements:NCElementsJSON.shared.capabilitiesVersionMajor];
 
     NSString *trimmedRichWorkspaceText = [self.richWorkspaceText stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
 
-    if (versionMajor < k_nextcloud_version_18_0 || trimmedRichWorkspaceText.length == 0 ) {
+    if (serverVersionMajor < k_nextcloud_version_18_0 || trimmedRichWorkspaceText.length == 0 ) {
                 
         [self.tableView.tableHeaderView setFrame:CGRectMake(self.tableView.tableHeaderView.frame.origin.x, self.tableView.tableHeaderView.frame.origin.y, self.tableView.frame.size.width, heightSearchBar)];
         
@@ -2743,7 +2732,7 @@
                     
                 } else if ([self.metadata.typeFile isEqualToString: k_metadataTypeFile_document] && [[NCUtility sharedInstance] isDirectEditing:self.metadata] != nil) {
                     
-                    if (appDelegate.reachability.isReachable) {
+                    if (NCCommunication.shared.isNetworkReachable) {
                         [self shouldPerformSegue:self.metadata selector:@""];
                     } else {
                         [[NCContentPresenter shared] messageNotification:@"_info_" description:@"_go_online_" delay:k_dismissAfterSecond type:messageTypeInfo errorCode:0];
@@ -2751,7 +2740,7 @@
                     
                 } else if ([self.metadata.typeFile isEqualToString: k_metadataTypeFile_document] && [[NCUtility sharedInstance] isRichDocument:self.metadata]) {
                     
-                    if (appDelegate.reachability.isReachable) {
+                    if (NCCommunication.shared.isNetworkReachable) {
                         [self shouldPerformSegue:self.metadata selector:@""];
                     } else {
                         [[NCContentPresenter shared] messageNotification:@"_info_" description:@"_go_online_" delay:k_dismissAfterSecond type:messageTypeInfo errorCode:0];

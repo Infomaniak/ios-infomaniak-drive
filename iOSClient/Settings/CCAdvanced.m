@@ -165,7 +165,7 @@
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-    
+        
     self.title = NSLocalizedString(@"_advanced_", nil);
     appDelegate = (AppDelegate *)[[UIApplication sharedApplication] delegate];
     

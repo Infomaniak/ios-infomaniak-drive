@@ -511,11 +511,14 @@
             
         } else {
             
-            if (metadata && (errorCode == kOCErrorServerUnauthorized || errorCode == kOCErrorServerForbidden))
-                [[OCNetworking sharedManager] checkRemoteUser:metadata.account function:@"download" errorCode:errorCode];
-            else if (metadata && errorCode == NSURLErrorServerCertificateUntrusted)
+            if (metadata && (errorCode == kOCErrorServerUnauthorized || errorCode == kOCErrorServerForbidden)) {
+#ifndef EXTENSION
+                [[NCNetworkingCheckRemoteUser shared] checkRemoteUserWithAccount:metadata.account];
+#endif
+            } else if (metadata && errorCode == NSURLErrorServerCertificateUntrusted) {
                 [CCUtility setCertificateError:metadata.account error:YES];
-
+            }
+            
             [[NCManageDatabase sharedInstance] setMetadataSession:nil sessionError:[CCError manageErrorKCF:errorCode withNumberError:NO] sessionSelector:nil sessionTaskIdentifier:k_taskIdentifierDone status:k_metadataStatusDownloadError predicate:[NSPredicate predicateWithFormat:@"ocId == %@", ocId]];
         }
         
@@ -609,7 +612,7 @@
         
     } else {
         
-        NSDictionary *results = [[NCCommunicationCommon sharedInstance] objcGetInternalContenTypeWithFileName:metadata.fileNameView contentType:metadata.contentType directory:metadata.directory];
+        NSDictionary *results = [[NCCommunicationCommon shared] objcGetInternalContenTypeWithFileName:metadata.fileNameView contentType:metadata.contentType directory:metadata.directory];
         metadata.contentType = results[@"contentType"];
         metadata.iconName = results[@"iconName"];
         metadata.typeFile = results[@"typeFile"];
@@ -707,7 +710,8 @@
             }
             
             addObject.serverUrl = metadata.serverUrl;
-            addObject.version = [[NCManageDatabase sharedInstance] getCapabilitiesE2EEVersionWithAccount:tableAccount.account];
+            NSString *e2eeApiVersion = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:tableAccount.account elements:NCElementsJSON.shared.capabilitiesE2EEApiVersion];
+            addObject.version = [e2eeApiVersion intValue];
             
             // Get the last metadata
             tableDirectory *directory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", tableAccount.account, metadata.serverUrl]];
@@ -943,10 +947,13 @@
             
         } else {
 
-            if (metadata && (errorCode == kOCErrorServerUnauthorized || errorCode == kOCErrorServerForbidden))
-                [[OCNetworking sharedManager] checkRemoteUser:metadata.account function:@"upload" errorCode:errorCode];
-            else if (metadata && errorCode == NSURLErrorServerCertificateUntrusted)
+            if (metadata && (errorCode == kOCErrorServerUnauthorized || errorCode == kOCErrorServerForbidden)) {
+#ifndef EXTENSION
+                [[NCNetworkingCheckRemoteUser shared] checkRemoteUserWithAccount:metadata.account];
+#endif
+            } else if (metadata && errorCode == NSURLErrorServerCertificateUntrusted) {
                 [CCUtility setCertificateError:metadata.account error:YES];
+            }
             
             [[NCManageDatabase sharedInstance] setMetadataSession:nil sessionError:[CCError manageErrorKCF:errorCode withNumberError:NO] sessionSelector:nil sessionTaskIdentifier:k_taskIdentifierDone status:k_metadataStatusUploadError predicate:[NSPredicate predicateWithFormat:@"ocId == %@", tempocId]];
             
