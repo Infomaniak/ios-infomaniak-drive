@@ -422,9 +422,10 @@
     
     if (downloadTask == nil) {
         
-        [[NCManageDatabase sharedInstance] setMetadataSession:nil sessionError:@"Serious internal error downloadTask not available" sessionSelector:nil sessionTaskIdentifier:k_taskIdentifierDone status:k_metadataStatusDownloadError predicate:[NSPredicate predicateWithFormat:@"ocId == %@", metadata.ocId]];
+        [[NCManageDatabase sharedInstance] setMetadataSession:nil sessionError:NSLocalizedString(@"_not_possible_download_", nil) sessionSelector:nil sessionTaskIdentifier:k_taskIdentifierDone status:k_metadataStatusDownloadError predicate:[NSPredicate predicateWithFormat:@"ocId == %@", metadata.ocId]];
         
-        [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_downloadedFile object:nil userInfo:@{@"metadata": metadata, @"selector": metadata.sessionSelector, @"errorCode": @(k_CCErrorInternalError), @"errorDescription": @"Serious internal error downloadTask not available"}];
+        NSString *errorDescription = [NSString stringWithFormat:@"%@ %@", NSLocalizedString(@"_not_possible_download_", nil), metadata.fileNameView];
+        [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_downloadedFile object:nil userInfo:@{@"metadata": metadata, @"selector": metadata.sessionSelector, @"errorCode": @(k_CCErrorInternalError), @"errorDescription": errorDescription}];
         
     } else {
         

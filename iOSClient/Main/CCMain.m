@@ -117,7 +117,6 @@
     _cellTrashImage = [CCGraphics changeThemingColorImage:[UIImage imageNamed:@"trash"] width:50 height:50 color:[UIColor whiteColor]];
     
     // delegate
-    self.tableView.delegate = self;
     self.tableView.tableFooterView = [UIView new];
     self.tableView.emptyDataSetDelegate = self;
     self.tableView.emptyDataSetSource = self;
@@ -167,7 +166,6 @@
     self.navigationItem.searchController = self.searchController;
     self.searchController.hidesNavigationBarDuringPresentation = true;
     self.navigationController.navigationBar.prefersLargeTitles = true;
-    self.navigationItem.hidesSearchBarWhenScrolling = true;
     self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeAlways;
     [self.navigationController.navigationBar sizeToFit];
 
@@ -219,6 +217,7 @@
     [self updateNavBarShadow:self.tableView force:false];
     if(_isViewDidLoad && _isRoot) {
         self.navigationItem.hidesSearchBarWhenScrolling = false;
+        [self.navigationController.navigationBar sizeToFit];
     }
     // test
     if (appDelegate.activeAccount.length == 0)
@@ -1265,7 +1264,7 @@
         return;
     }
         
-    [[NCCommunication shared] searchLiteralWithServerUrl:appDelegate.activeUrl depth:@"infinity" literal:_searchFileName showHiddenFiles:[CCUtility getShowHiddenFiles] customUserAgent:nil addCustomHeaders:nil user:appDelegate.activeUser account:appDelegate.activeAccount completionHandler:^(NSString *account, NSArray *files, NSInteger errorCode, NSString *errorDescription) {
+    [[NCCommunication shared] searchLiteralWithServerUrl:appDelegate.activeUrl depth:@"infinity" literal:_searchFileName showHiddenFiles:[CCUtility getShowHiddenFiles] customUserAgent:nil addCustomHeaders:nil user:appDelegate.activeUser  completionHandler:^(NSString *account, NSArray *files, NSInteger errorCode, NSString *errorDescription) {
         
          if (errorCode == 0 && [account isEqualToString:appDelegate.activeAccount] && files != nil) {
              
