@@ -706,7 +706,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
             
             metadata.session = k_download_session_foreground
             
-            _ = NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, progressHandler: { (progress) in
+            NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, progressHandler: { (progress) in
                                 
                 self.progress(Float(progress.fractionCompleted))
                 
@@ -817,7 +817,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
                 let serverUrlFileName = metadata.serverUrl + "/" + metadata.fileNameView
                 let fileNameLocalPath = CCUtility.getDirectoryProviderStorageOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
                                 
-                _ = NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, progressHandler: { (progress) in
+                NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, progressHandler: { (progress) in
                                     
                     self.progress(Float(progress.fractionCompleted))
                     
@@ -883,9 +883,9 @@ extension NCDetailViewController: NCSelectDelegate {
     func dismissSelect(serverUrl: String?, metadata: tableMetadata?, type: String, buttonType: String, overwrite: Bool) {
         if let metadata = self.metadata, let serverUrl = serverUrl {
             if buttonType == "done" {
-                NCNetworking.sharedInstance.moveMetadata(metadata, serverUrlTo: serverUrl, overwrite: overwrite) { (errorCode, errorDescription) in }
+                NCNetworking.shared.moveMetadata(metadata, serverUrlTo: serverUrl, overwrite: overwrite) { (errorCode, errorDescription) in }
             } else {
-                NCNetworking.sharedInstance.copyMetadata(metadata, serverUrlTo: serverUrl, overwrite: overwrite) { (errorCode, errorDescription) in }
+                NCNetworking.shared.copyMetadata(metadata, serverUrlTo: serverUrl, overwrite: overwrite) { (errorCode, errorDescription) in }
             }
         }
     }

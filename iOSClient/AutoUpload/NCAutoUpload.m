@@ -365,13 +365,7 @@
     });
     
     // Create the folder for auto upload & if request the subfolders
-    if(![[NCAutoUpload sharedInstance] createAutoUploadFolderWithSubFolder:tableAccount.autoUploadCreateSubfolder assets:newAssetToUpload selector:selector]) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            // end loading
-            [_hud hideHud];
-        });
-        return;
-    }
+    [[NCAutoUpload sharedInstance] createAutoUploadFolderWithSubFolder:tableAccount.autoUploadCreateSubfolder assets:newAssetToUpload selector:selector];
     
     for (PHAsset *asset in newAssetToUpload) {
         
@@ -409,7 +403,7 @@
             metadataForUpload.assetLocalIdentifier = asset.localIdentifier;
             metadataForUpload.session = session;
             metadataForUpload.sessionSelector = selector;
-            metadataForUpload.size = [[NCUtility sharedInstance] getFileSizeWithAsset:asset];
+            metadataForUpload.size = [[NCUtilityFileSystem shared] getFileSizeWithAsset:asset];
             metadataForUpload.status = k_metadataStatusWaitUpload;
 
             // Add Medtadata MOV LIVE PHOTO for upload
@@ -494,54 +488,21 @@
 #pragma mark ===== Create Folder SubFolder Auto Upload Folder Photos/Videos ====
 #pragma --------------------------------------------------------------------------------------------
 
-- (BOOL)createAutoUploadFolderWithSubFolder:(BOOL)useSubFolder assets:(PHFetchResult *)assets selector:(NSString *)selector
+- (void)createAutoUploadFolderWithSubFolder:(BOOL)useSubFolder assets:(PHFetchResult *)assets selector:(NSString *)selector
 {
-    NSString *ocId;
-    NSString *fileId;
-    NSError *error;
+    NSString *serverUrl = [[NCManageDatabase sharedInstance] getAccountAutoUploadDirectory:appDelegate.activeUrl];
+    NSString *fileName = [[NCManageDatabase sharedInstance] getAccountAutoUploadFileName];    
     NSString *autoUploadPath = [[NCManageDatabase sharedInstance] getAccountAutoUploadPath:appDelegate.activeUrl];
-    BOOL encrypted = [CCUtility isFolderEncrypted:autoUploadPath e2eEncrypted:false account:appDelegate.activeAccount];
   
-    [[NCNetworkingEndToEnd sharedManager] createEndToEndFolder:autoUploadPath account:appDelegate.activeAccount user:appDelegate.activeUser userID:appDelegate.activeUserID password:appDelegate.activePassword url:appDelegate.activeUrl encrypted:encrypted ocId:&ocId fileId:&fileId error:&error];
-    
-    if (error == nil) {
-        
-        tableDirectory *tableDirectory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", appDelegate.activeAccount, autoUploadPath]];
-        if (!tableDirectory)
-            (void)[[NCManageDatabase sharedInstance] addDirectoryWithEncrypted:encrypted favorite:false ocId:ocId fileId:fileId etag:nil permissions:nil serverUrl:autoUploadPath richWorkspace:nil account:appDelegate.activeAccount];
-        
-    } else {
-       
-        if ([selector isEqualToString:selectorUploadAutoUploadAll])
-            [[NCContentPresenter shared] messageNotification:@"_error_" description:@"_error_createsubfolders_upload_" delay:k_dismissAfterSecond type:messageTypeError errorCode:k_CCErrorInternalError];
-
-        return false;
-    }
-    
-    // Create if request the subfolders
-    if (useSubFolder) {
-        
-        for (NSString *dateSubFolder in [CCUtility createNameSubFolder:assets]) {
-            
-            NSString *folderPathName = [NSString stringWithFormat:@"%@/%@", autoUploadPath, dateSubFolder];
-            
-            [[NCNetworkingEndToEnd sharedManager] createEndToEndFolder:folderPathName account:appDelegate.activeAccount user:appDelegate.activeUser userID:appDelegate.activeUserID password:appDelegate.activePassword url:appDelegate.activeUrl encrypted:encrypted ocId:&ocId fileId:&fileId error:&error];
-            
-            if ( error == nil) {
-                
-                (void)[[NCManageDatabase sharedInstance] addDirectoryWithEncrypted:encrypted favorite:false ocId:ocId fileId:fileId etag:nil permissions:nil serverUrl:folderPathName richWorkspace:nil account:appDelegate.activeAccount];
-                
-            } else {
-                
-                if ([selector isEqualToString:selectorUploadAutoUploadAll])
-                    [[NCContentPresenter shared] messageNotification:@"_error_" description:@"_error_createsubfolders_upload_" delay:k_dismissAfterSecond type:messageTypeError errorCode:k_CCErrorInternalError];
-
-                return false;
+    [[NCNetworking shared] createFolderWithFileName:fileName serverUrl:serverUrl account:appDelegate.activeAccount url:appDelegate.activeAccount overwrite:true completion:^(NSInteger errorCode, NSString *errorDescription) {
+        if (errorCode == 0 && useSubFolder) {
+            for (NSString *dateSubFolder in [CCUtility createNameSubFolder:assets]) {
+                NSString *fileName = dateSubFolder.lastPathComponent;
+                NSString *serverUrl = [NSString stringWithFormat:@"%@/%@", autoUploadPath, dateSubFolder].stringByDeletingLastPathComponent;
+                [[NCNetworking shared] createFolderWithFileName:fileName serverUrl:serverUrl account:appDelegate.activeAccount url:appDelegate.activeAccount overwrite:true completion:^(NSInteger errorCode, NSString *errorDescription) { }];
             }
         }
-    }
-    
-    return true;
+    }];
 }
 
 #pragma --------------------------------------------------------------------------------------------

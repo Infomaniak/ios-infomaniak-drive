@@ -64,7 +64,7 @@
     [CCUtility emptyTemporaryDirectory];
     
     // Networking
-    [[NCCommunicationCommon shared] setupWithDelegate:[NCNetworking sharedInstance]];
+    [[NCCommunicationCommon shared] setupWithDelegate:[NCNetworking shared]];
     [[NCCommunicationCommon shared] setupWithUserAgent:[CCUtility getUserAgent] capabilitiesGroup:[NCBrandOptions sharedInstance].capabilitiesGroups];
     
     // Verify upgrade
@@ -203,7 +203,7 @@
     [self passcodeWithAutomaticallyPromptForBiometricValidation:true];
     
     NSLog(@"[LOG] Request Service Server Nextcloud");
-    [[NCService sharedInstance] startRequestServicesServer];
+    [[NCService shared] startRequestServicesServer];
     
     NSLog(@"[LOG] Initialize Auto upload");
     [[NCAutoUpload sharedInstance] initStateAutoUpload];
@@ -230,7 +230,7 @@
     // middelware ping
     if ([[NCBrandOptions sharedInstance] use_middlewarePing]) {
         NSLog(@"[LOG] Middleware Ping");
-        [[NCService sharedInstance] middlewarePing];
+        [[NCService shared] middlewarePing];
     }
 
     // verify task (download/upload) lost
@@ -303,7 +303,7 @@
         
         UIAlertController *alertController = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"_ssl_certificate_untrusted_", nil) message:NSLocalizedString(@"_connect_server_anyway_", nil)  preferredStyle:UIAlertControllerStyleAlert];
         [alertController addAction: [UIAlertAction actionWithTitle:NSLocalizedString(@"_yes_", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-            [[NCNetworking sharedInstance] wrtiteCertificateWithDirectoryCertificate:[CCUtility getDirectoryCerificates]];
+            [[NCNetworking shared] wrtiteCertificateWithDirectoryCertificate:[CCUtility getDirectoryCerificates]];
             [self startTimerErrorNetworking];
         }]];
                        
@@ -682,7 +682,7 @@
         [self.arrayDeleteMetadata removeObjectAtIndex:0];
         tableAccount *account = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", metadata.account]];
         if (account) {
-            [[NCNetworking sharedInstance] deleteMetadata:metadata account:metadata.account user:account.user userID:account.userID password:[CCUtility getPassword:metadata.account] url:account.url completion:^(NSInteger errorCode, NSString *errorDescription) { }];
+            [[NCNetworking shared] deleteMetadata:metadata account:metadata.account url:account.url completion:^(NSInteger errorCode, NSString *errorDescription) { }];
         } else {
             [self deleteFile:[NSNotification new]];
         }
@@ -698,7 +698,7 @@
         [self.arrayMoveServerUrlTo removeObjectAtIndex:0];
         tableAccount *account = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", metadata.account]];
         if (account) {
-            [[NCNetworking sharedInstance] moveMetadata:metadata serverUrlTo:serverUrlTo overwrite:true completion:^(NSInteger errorCode, NSString *errorDescription) { }];
+            [[NCNetworking shared] moveMetadata:metadata serverUrlTo:serverUrlTo overwrite:true completion:^(NSInteger errorCode, NSString *errorDescription) { }];
         } else {
             [self moveFile:[NSNotification new]];
         }
@@ -714,7 +714,7 @@
         [self.arrayCopyServerUrlTo removeObjectAtIndex:0];
         tableAccount *account = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", metadata.account]];
         if (account) {
-            [[NCNetworking sharedInstance] copyMetadata:metadata serverUrlTo:serverUrlTo overwrite:true completion:^(NSInteger errorCode, NSString *errorDescription) { }];
+            [[NCNetworking shared] copyMetadata:metadata serverUrlTo:serverUrlTo overwrite:true completion:^(NSInteger errorCode, NSString *errorDescription) { }];
         } else {
             [self copyFile:[NSNotification new]];
         }
@@ -861,7 +861,7 @@
     // Favorites
     item = [tabBarController.tabBar.items objectAtIndex: k_tabBarApplicationIndexFavorite];
     [item setTitle:NSLocalizedString(@"_favorites_", nil)];
-    item.image = [CCGraphics changeThemingColorImage:[UIImage imageNamed:@"tabBarFavorites"] width:50 height:50 color:NCBrandColor.sharedInstance.brandElement];
+    item.image = [CCGraphics changeThemingColorImage:[UIImage imageNamed:@"favorite"] width:50 height:50 color:NCBrandColor.sharedInstance.brandElement];
     item.selectedImage = item.image;
     
     // (PLUS INVISIBLE)
@@ -873,7 +873,7 @@
     // Media
     item = [tabBarController.tabBar.items objectAtIndex: k_tabBarApplicationIndexMedia];
     [item setTitle:NSLocalizedString(@"_media_", nil)];
-    item.image = [CCGraphics changeThemingColorImage:[UIImage imageNamed:@"tabBarMedia"] width:50 height:50 color:NCBrandColor.sharedInstance.brandElement];
+    item.image = [CCGraphics changeThemingColorImage:[UIImage imageNamed:@"media"] width:50 height:50 color:NCBrandColor.sharedInstance.brandElement];
     item.selectedImage = item.image;
     
     // More
@@ -883,7 +883,7 @@
     item.selectedImage = item.image;
     
     // Plus Button
-    int buttonSize = 56;
+    int buttonSize = 57;
     UIImage *buttonImage = [CCGraphics changeThemingColorImage:[UIImage imageNamed:@"tabBarPlus"] width:120 height:120 color:UIColor.whiteColor];
     UIButton *buttonPlus = [UIButton buttonWithType:UIButtonTypeCustom];
     buttonPlus.tag = 99;
@@ -1256,6 +1256,7 @@
                     tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
                     
                     [[CCNetworking sharedNetworking] uploadFile:metadata taskStatus:k_taskStatusResume];
+//                    [[NCNetworkingE2EE shared] uploadWithMetadata:metadata];
                     
                     break;
                                         
