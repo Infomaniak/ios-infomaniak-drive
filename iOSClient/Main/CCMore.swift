@@ -337,7 +337,7 @@ class CCMore: UIViewController, UITableViewDelegate, UITableViewDataSource {
             }
         }
         
-        cell.imageIcon?.image = CCGraphics.changeThemingColorImage(UIImage.init(named: item.icon), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon)
+        cell.imageIcon?.image = CCGraphics.changeThemingColorImage(UIImage.init(named: item.icon), width: 150, height: 150, color: NCBrandColor.sharedInstance.icon)
         cell.labelText?.text = NSLocalizedString(item.name, comment: "")
         cell.labelText.textColor = NCBrandColor.sharedInstance.textView
         
