@@ -123,7 +123,7 @@
     }
         
     // Start Timer
-    self.timerProcessAutoDownloadUpload = [NSTimer scheduledTimerWithTimeInterval:k_timerProcessAutoDownloadUpload target:self selector:@selector(loadAutoDownloadUpload) userInfo:nil repeats:YES];
+    self.timerProcessAutoUpload = [NSTimer scheduledTimerWithTimeInterval:k_timerProcessAutoUpload target:self selector:@selector(loadAutoUpload) userInfo:nil repeats:YES];
     self.timerUpdateApplicationIconBadgeNumber = [NSTimer scheduledTimerWithTimeInterval:k_timerUpdateApplicationIconBadgeNumber target:self selector:@selector(updateApplicationIconBadgeNumber) userInfo:nil repeats:YES];
     [self startTimerErrorNetworking];
 
@@ -233,14 +233,16 @@
         [[NCService shared] middlewarePing];
     }
 
-    // verify task (download/upload) lost
+    // verify upload task lost
+    [[NCNetworking shared] verifyDownloadRequestLost];
+    [[NCNetworking shared] verifyUploadRequestLost];
     [self verifyTaskLost];
     
     // verify delete Asset Local Identifiers in auto upload
     [[NCUtility sharedInstance] deleteAssetLocalIdentifiersWithAccount:self.activeAccount sessionSelector:selectorUploadAutoUpload];
    
     // Brand
-#if defined(HC)
+    #if defined(HC)
     tableAccount *account = [[NCManageDatabase sharedInstance] getAccountActive];
     if (account.hcIsTrial == true || account.hcTrialExpired == true || account.hcNextGroupExpirationGroupExpired == true) {
         
@@ -249,7 +251,7 @@
         
         [self.window.rootViewController presentViewController:vc animated:YES completion:nil];
     }
-#endif
+    #endif
 }
 
 //
@@ -261,17 +263,6 @@
             
     [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_applicationDidEnterBackground object:nil];
     [self passcodeWithAutomaticallyPromptForBiometricValidation:false];
-    
-    /*
-    __block UIBackgroundTaskIdentifier background_task;
-        
-    background_task = [application beginBackgroundTaskWithExpirationHandler:^ {
-            
-        //Clean up code. Tell the system that we are done.
-        [application endBackgroundTask: background_task];
-        background_task = UIBackgroundTaskInvalid;
-    }];
-    */
 }
 
 //
@@ -1135,88 +1126,45 @@
 }
 
 #pragma --------------------------------------------------------------------------------------------
-#pragma mark ===== Process Load Download/Upload < k_timerProcess seconds > =====
+#pragma mark ===== Process Load Upload < k_timerProcess seconds > =====
 #pragma --------------------------------------------------------------------------------------------
 
-- (void)loadAutoDownloadUpload
+- (void)loadAutoUpload
 {
     if (self.activeAccount.length == 0 || self.maintenanceMode)
         return;
     
-    tableMetadata *metadataForUpload, *metadataForDownload;
-    long counterDownload = 0, counterUpload = 0;
-    NSUInteger sizeDownload = 0, sizeUpload = 0;
+    tableMetadata *metadataForUpload;
+    long counterUpload = 0;
+    NSUInteger sizeUpload = 0;
     NSMutableArray *uploaded = [NSMutableArray new];
     NSPredicate *predicate;
     
-    long maxConcurrentOperationDownloadUpload = k_maxConcurrentOperation;
+    long maxConcurrentOperationUpload = k_maxConcurrentOperation;
     
-    NSArray *metadatasDownload = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"status == %d OR status == %d", k_metadataStatusInDownload, k_metadataStatusDownloading] sorted:nil ascending:true];
     NSArray *metadatasUpload = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"status == %d OR status == %d", k_metadataStatusInUpload, k_metadataStatusUploading] sorted:nil ascending:true];
     
     // E2EE only 1
-    for(tableMetadata *metadata in metadatasDownload) {
-        if ([CCUtility isFolderEncrypted:metadata.serverUrl e2eEncrypted:metadata.e2eEncrypted account:metadata.account]) return;
-    }
     for(tableMetadata *metadata in metadatasUpload) {
         if ([CCUtility isFolderEncrypted:metadata.serverUrl e2eEncrypted:metadata.e2eEncrypted account:metadata.account]) return;
     }
     
     // Counter
-    counterDownload = [metadatasDownload count];
     counterUpload = [metadatasUpload count];
     
     // Size
-    for (tableMetadata *metadata in metadatasDownload) {
-        sizeDownload = sizeDownload + metadata.size;
-    }
     for (tableMetadata *metadata in metadatasUpload) {
         sizeUpload = sizeUpload + metadata.size;
     }
     
-    NSLog(@"%@", [NSString stringWithFormat:@"[LOG] PROCESS-AUTO-UPLOAD | Download %ld - %@ | Upload %ld - %@", counterDownload, [CCUtility transformedSize:sizeDownload], counterUpload, [CCUtility transformedSize:sizeUpload]]);
+    NSLog(@"%@", [NSString stringWithFormat:@"[LOG] PROCESS-AUTO-UPLOAD Upload %ld - %@", counterUpload, [CCUtility transformedSize:sizeUpload]]);
     
     // Stop Timer
-    [_timerProcessAutoDownloadUpload invalidate];
-    
-    // ------------------------- <selector Download> -------------------------
-    
-    while (counterDownload < maxConcurrentOperationDownloadUpload) {
+    [_timerProcessAutoUpload invalidate];
         
-        metadataForDownload = [[NCManageDatabase sharedInstance] getMetadataWithPredicate:[NSPredicate predicateWithFormat:@"status == %d", k_metadataStatusWaitDownload] sorted:@"date" ascending:YES];
-        if (metadataForDownload) {
-            
-            if ([CCUtility isFolderEncrypted:metadataForDownload.serverUrl e2eEncrypted:metadataForDownload.e2eEncrypted account:metadataForDownload.account]) {
-                
-                if ([[UIApplication sharedApplication] applicationState] == UIApplicationStateBackground) { break; }
-                maxConcurrentOperationDownloadUpload = 1;
-                
-                metadataForDownload.status = k_metadataStatusInDownload;
-                tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForDownload];
-                
-                [[CCNetworking sharedNetworking] downloadFile:metadata taskStatus:k_taskStatusResume];
-                
-                break;
-                                
-            } else {
-                
-                metadataForDownload.status = k_metadataStatusInDownload;
-                tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForDownload];
-                
-                [[CCNetworking sharedNetworking] downloadFile:metadata taskStatus:k_taskStatusResume];
-                
-                counterDownload++;
-                sizeDownload = sizeDownload + metadata.size;
-            }
-            
-        } else {
-            break;
-        }
-    }
-    
     // ------------------------- <selector Upload> -------------------------
     
-    while (counterUpload < maxConcurrentOperationDownloadUpload) {
+    while (counterUpload < maxConcurrentOperationUpload) {
         
         if (sizeUpload > k_maxSizeOperationUpload) {
             break;
@@ -1250,13 +1198,12 @@
                 if ([CCUtility isFolderEncrypted:metadataForUpload.serverUrl e2eEncrypted:metadataForUpload.e2eEncrypted account:metadataForUpload.account]) {
                 
                     if ([[UIApplication sharedApplication] applicationState] == UIApplicationStateBackground) { break; }
-                    maxConcurrentOperationDownloadUpload = 1;
+                    maxConcurrentOperationUpload = 1;
                     
                     metadataForUpload.status = k_metadataStatusInUpload;
                     tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
                     
-                    [[CCNetworking sharedNetworking] uploadFile:metadata taskStatus:k_taskStatusResume];
-//                    [[NCNetworkingE2EE shared] uploadWithMetadata:metadata];
+                    [[NCNetworking shared] uploadWithMetadata:metadata e2eEncrypted:true];
                     
                     break;
                                         
@@ -1285,7 +1232,7 @@
     
     // ------------------------- <selector Auto Upload> -------------------------
     
-    while (counterUpload < maxConcurrentOperationDownloadUpload) {
+    while (counterUpload < maxConcurrentOperationUpload) {
         
         if (sizeUpload > k_maxSizeOperationUpload) {
             break;
@@ -1303,7 +1250,7 @@
             if ([CCUtility isFolderEncrypted:metadataForUpload.serverUrl e2eEncrypted:metadataForUpload.e2eEncrypted account:metadataForUpload.account]) {
                 
                 if ([[UIApplication sharedApplication] applicationState] == UIApplicationStateBackground) { break; }
-                maxConcurrentOperationDownloadUpload = 1;
+                maxConcurrentOperationUpload = 1;
                 
                 metadataForUpload.status = k_metadataStatusInUpload;
                 tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
@@ -1322,7 +1269,6 @@
                 counterUpload++;
                 sizeUpload = sizeUpload + metadata.size;
             }
-            
            
         } else {
             break;
@@ -1341,7 +1287,7 @@
         
     } else {
         
-        while (counterUpload < maxConcurrentOperationDownloadUpload) {
+        while (counterUpload < maxConcurrentOperationUpload) {
             
             if (sizeUpload > k_maxSizeOperationUpload) {
                 break;
@@ -1359,7 +1305,7 @@
                 if ([CCUtility isFolderEncrypted:metadataForUpload.serverUrl e2eEncrypted:metadataForUpload.e2eEncrypted account:metadataForUpload.account]) {
                 
                     if ([[UIApplication sharedApplication] applicationState] == UIApplicationStateBackground) { break; }
-                    maxConcurrentOperationDownloadUpload = 1;
+                    maxConcurrentOperationUpload = 1;
                     
                     metadataForUpload.status = k_metadataStatusInUpload;
                     tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
@@ -1386,25 +1332,10 @@
         }
     }
     
-    // No Download/upload available ? --> remove errors for retry
-    //
-    if (counterDownload+counterUpload < maxConcurrentOperationDownloadUpload+1) {
-        
-        NSArray *metadatas = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"status == %d OR status == %d", k_metadataStatusDownloadError, k_metadataStatusUploadError] sorted:nil ascending:NO];
-        for (tableMetadata *metadata in metadatas) {
-            
-            if (metadata.status == k_metadataStatusDownloadError)
-                metadata.status = k_metadataStatusWaitDownload;
-            else if (metadata.status == k_metadataStatusUploadError)
-                metadata.status = k_metadataStatusWaitUpload;
-            
-            [[NCManageDatabase sharedInstance] addMetadata:metadata];
-        }
-    }
-    
     // Upload in pending
     //
-    NSArray *metadatasInUpload = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"session != %@ AND status == %d AND sessionTaskIdentifier == 0", k_upload_session_extension, k_metadataStatusInUpload] sorted:nil ascending:true];
+    NSString *sessionExtension = [[NCCommunicationCommon shared] sessionIdentifierExtension];
+    NSArray *metadatasInUpload = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"session != %@ AND status == %d AND sessionTaskIdentifier == 0", sessionExtension, k_metadataStatusInUpload] sorted:nil ascending:true];
     for (tableMetadata *metadata in metadatasInUpload) {
         if ([self.sessionPendingStatusInUpload containsObject:metadata.ocId]) {
             metadata.status = k_metadataStatusWaitUpload;
@@ -1418,48 +1349,22 @@
     }
     
     // Start Timer
-    _timerProcessAutoDownloadUpload = [NSTimer scheduledTimerWithTimeInterval:k_timerProcessAutoDownloadUpload target:self selector:@selector(loadAutoDownloadUpload) userInfo:nil repeats:YES];
+    _timerProcessAutoUpload = [NSTimer scheduledTimerWithTimeInterval:k_timerProcessAutoUpload target:self selector:@selector(loadAutoUpload) userInfo:nil repeats:YES];
 }
 
-- (void)startLoadAutoDownloadUpload
+- (void)startLoadAutoUpload
 {
-    if (self.timerProcessAutoDownloadUpload.isValid) {
-        [self performSelectorOnMainThread:@selector(loadAutoDownloadUpload) withObject:nil waitUntilDone:YES];
+    if (self.timerProcessAutoUpload.isValid) {
+        [self performSelectorOnMainThread:@selector(loadAutoUpload) withObject:nil waitUntilDone:YES];
     }
 }
 
 - (void)verifyTaskLost
 {
-    // DOWNLOAD
-    //
-    NSArray *matadatasInDownloading = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"status == %d", k_metadataStatusDownloading] sorted:nil ascending:true];
-    for (tableMetadata *metadata in matadatasInDownloading) {
-        
-        NSURLSession *session = [[CCNetworking sharedNetworking] getSessionfromSessionDescription:metadata.session];
-        
-        [session getTasksWithCompletionHandler:^(NSArray *dataTasks, NSArray *uploadTasks, NSArray *downloadTasks) {
-            
-            NSURLSessionTask *findTask;
-            
-            for (NSURLSessionTask *task in downloadTasks) {
-                if (task.taskIdentifier == metadata.sessionTaskIdentifier) {
-                    findTask = task;
-                }
-            }
-            
-            if (!findTask) {
-                
-                metadata.sessionTaskIdentifier = k_taskIdentifierDone;
-                metadata.status = k_metadataStatusWaitDownload;
-                
-                (void)[[NCManageDatabase sharedInstance] addMetadata:metadata];
-            }
-        }];
-    }
-
     // UPLOAD
     //
-    NSArray *metadatasUploading = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"session != %@ AND status == %d", k_upload_session_extension, k_metadataStatusUploading] sorted:nil ascending:true];
+    NSString *sessionExtension = [[NCCommunicationCommon shared] sessionIdentifierExtension];
+    NSArray *metadatasUploading = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"session != %@ AND status == %d", sessionExtension, k_metadataStatusUploading] sorted:nil ascending:true];
     for (tableMetadata *metadata in metadatasUploading) {
         
         NSURLSession *session = [[CCNetworking sharedNetworking] getSessionfromSessionDescription:metadata.session];
@@ -1749,9 +1654,9 @@
 
 - (BOOL)upgrade
 {
-#ifdef DEBUG
+    #ifdef DEBUG
     //self.maintenanceMode = YES;
-#endif
+    #endif
     
     NSString *actualVersion = [CCUtility getVersion];
     NSString *actualBuild = [CCUtility getBuild];

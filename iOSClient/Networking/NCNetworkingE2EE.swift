@@ -30,8 +30,6 @@ import CFNetwork
         return instance
     }()
     
-    let appDelegate = UIApplication.shared.delegate as! AppDelegate
-
     //MARK: - WebDav Create Folder
     
     func createFolder(fileName: String, serverUrl: String, account: String, url: String, completion: @escaping (_ errorCode: Int, _ errorDescription: String)->()) {
@@ -180,74 +178,25 @@ import CFNetwork
     }
     
     //MARK: - Upload
-    @objc func upload(metadata: tableMetadata) {
+    
+    func upload(metadata: tableMetadata, account: tableAccount) {
         
-        var metadataForUpload: tableMetadata?
-        let internalContenType = NCCommunicationCommon.shared.getInternalContenType(fileName: metadata.fileNameView, contentType: metadata.contentType, directory: false)
-        var fileNameLocalPath = CCUtility.getDirectoryProviderStorageOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
-        let fileNameIdentifier = CCUtility.generateRandomIdentifier()!
-
-        if CCUtility.fileProviderStorageExists(metadata.ocId, fileNameView: metadata.fileNameView) {
-            
-            metadata.fileName = fileNameIdentifier
-            metadata.e2eEncrypted = true
-            metadata.contentType = internalContenType.contentType
-            metadata.iconName = internalContenType.iconName
-            metadata.typeFile = internalContenType.typeFile
-            metadata.date = NCUtilityFileSystem.shared.getFileModificationDate(filePath: fileNameLocalPath) as NSDate
-            metadata.size = NCUtilityFileSystem.shared.getFileSize(filePath: fileNameLocalPath)
-            metadata.session = k_upload_session_default
-            
-            if metadata.size > Double(k_max_filesize_E2EE) {
-                NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_uploadedFile), object: nil, userInfo: ["metadata":metadata, "errorCode":k_CCErrorInternalError, "errorDescription":"E2E Error file too big"])
-                return
-            }
-            
-            metadataForUpload = NCManageDatabase.sharedInstance.addMetadata(metadata)
-            self.upload(metadataForUpload: metadataForUpload!)
-            
-        } else {
-            
-            CCUtility.extractImageVideoFromAssetLocalIdentifier(forUpload: metadata, notification: true) { (extractMetadata, fileNamePath) in
-                
-                guard let extractMetadata = extractMetadata else {
-                    NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
-                    return
-                }
-                
-                fileNameLocalPath = CCUtility.getDirectoryProviderStorageOcId(extractMetadata.ocId, fileNameView: extractMetadata.fileNameView)
-                CCUtility.moveFile(atPath: fileNamePath, toPath: fileNameLocalPath)
-                extractMetadata.fileName = fileNameIdentifier
-                extractMetadata.e2eEncrypted = true
-                extractMetadata.session = k_upload_session_default
-
-                if extractMetadata.size > Double(k_max_filesize_E2EE) {
-                    NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_uploadedFile), object: nil, userInfo: ["metadata":metadata, "errorCode":k_CCErrorInternalError, "errorDescription":"E2E Error file too big"])
-                    return
-                }
-                
-                metadataForUpload = NCManageDatabase.sharedInstance.addMetadata(extractMetadata)
-                self.upload(metadataForUpload: metadataForUpload!)
-            }
-        }
-    }
-        
-    private func upload(metadataForUpload: tableMetadata) {
-        
+        var metadata = metadata
         let object = tableE2eEncryption()
         var key: NSString?, initializationVector: NSString?, authenticationTag: NSString?
         var e2eMetadataKey = ""
         var e2eMetadataKeyIndex = 0
-        let fileNameLocalPath = CCUtility.getDirectoryProviderStorageOcId(metadataForUpload.ocId, fileNameView: metadataForUpload.fileNameView)!
-        let serverUrlFileName = metadataForUpload.serverUrl + "/" + metadataForUpload.fileName
+        let serverUrl = metadata.serverUrl
+        let fileNameLocalPath = CCUtility.getDirectoryProviderStorageOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
+        let serverUrlFileName = serverUrl + "/" + metadata.fileName
         
-        if NCEndToEndEncryption.sharedManager()?.encryptFileName(metadataForUpload.fileNameView, fileNameIdentifier: metadataForUpload.fileName, directory: CCUtility.getDirectoryProviderStorageOcId(metadataForUpload.ocId), key: &key, initializationVector: &initializationVector, authenticationTag: &authenticationTag) == false {
+        if NCEndToEndEncryption.sharedManager()?.encryptFileName(metadata.fileNameView, fileNameIdentifier: metadata.fileName, directory: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId), key: &key, initializationVector: &initializationVector, authenticationTag: &authenticationTag) == false {
             
-            NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_uploadedFile), object: nil, userInfo: ["metadata":metadataForUpload, "errorCode":k_CCErrorInternalError, "errorDescription":"_e2e_error_create_encrypted_"])
+            NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_uploadedFile), object: nil, userInfo: ["metadata":metadata, "errorCode":k_CCErrorInternalError, "errorDescription":"_e2e_error_create_encrypted_"])
             return
         }
         
-        if let object = NCManageDatabase.sharedInstance.getE2eEncryption(predicate: NSPredicate(format: "account == %@ AND serverUrl == %@", metadataForUpload.account, metadataForUpload.serverUrl)) {
+        if let object = NCManageDatabase.sharedInstance.getE2eEncryption(predicate: NSPredicate(format: "account == %@ AND serverUrl == %@", metadata.account, serverUrl)) {
             e2eMetadataKey = object.metadataKey
             e2eMetadataKeyIndex = object.metadataKeyIndex
         } else {
@@ -255,95 +204,113 @@ import CFNetwork
             e2eMetadataKey = key!.base64EncodedString()
         }
         
-        object.account = metadataForUpload.account
+        object.account = metadata.account
         object.authenticationTag = authenticationTag as String?
-        object.fileName = metadataForUpload.fileNameView
-        object.fileNameIdentifier = metadataForUpload.fileName
+        object.fileName = metadata.fileNameView
+        object.fileNameIdentifier = metadata.fileName
         object.fileNamePath = fileNameLocalPath
         object.key = key! as String
         object.initializationVector = initializationVector! as String
         object.metadataKey = e2eMetadataKey
         object.metadataKeyIndex = e2eMetadataKeyIndex
-        object.mimeType = metadataForUpload.contentType
-        object.serverUrl = metadataForUpload.serverUrl
+        object.mimeType = metadata.contentType
+        object.serverUrl = serverUrl
         
-        let e2eeApiVersion = NCManageDatabase.sharedInstance.getCapabilitiesServerString(account: metadataForUpload.account, elements: NCElementsJSON.shared.capabilitiesE2EEApiVersion)!
+        let e2eeApiVersion = NCManageDatabase.sharedInstance.getCapabilitiesServerString(account: metadata.account, elements: NCElementsJSON.shared.capabilitiesE2EEApiVersion)!
         object.version = Int(e2eeApiVersion) ?? 1
         
         if NCManageDatabase.sharedInstance.addE2eEncryption(object) == false {
-            NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_uploadedFile), object: nil, userInfo: ["metadata":metadataForUpload, "errorCode":k_CCErrorInternalError, "errorDescription":"_e2e_error_create_encrypted_"])
+            NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_uploadedFile), object: nil, userInfo: ["metadata":metadata, "errorCode":k_CCErrorInternalError, "errorDescription":"_e2e_error_create_encrypted_"])
             return
         }
         
-        NCNetworkingE2EE.shared.sendE2EMetadata(account: metadataForUpload.account, serverUrl: metadataForUpload.serverUrl, fileNameRename: nil, fileNameNewRename: nil, deleteE2eEncryption: nil, url: appDelegate.activeUrl, upload: true) { (e2eToken, errorCode, errorDescription) in
+        NCNetworkingE2EE.shared.sendE2EMetadata(account: metadata.account, serverUrl: serverUrl, fileNameRename: nil, fileNameNewRename: nil, deleteE2eEncryption: nil, url: account.url, upload: true) { (e2eToken, errorCode, errorDescription) in
             
             if errorCode == 0 && e2eToken != nil {
+                                
+                // Start Upload file
+                metadata.status = Int(k_metadataStatusInUpload)
+                metadata.session = NCCommunicationCommon.shared.sessionIdentifierUpload
+                if let result = NCManageDatabase.sharedInstance.addMetadata(metadata) { metadata = result }
                 
-                NCCommunication.shared.upload(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, dateCreationFile: metadataForUpload.date as Date, dateModificationFile: metadataForUpload.date as Date, addCustomHeaders: ["e2e-token":e2eToken!], progressHandler: { (progress) in
+                NCCommunication.shared.upload(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, dateCreationFile: metadata.date as Date, dateModificationFile: metadata.date as Date, addCustomHeaders: ["e2e-token":e2eToken!], requestHandler: { (request) in
                     
-                    NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_progressTask), object: nil, userInfo: ["account":metadataForUpload.account, "ocId":metadataForUpload.ocId, "serverUrl":metadataForUpload.serverUrl, "status":NSNumber(value: k_metadataStatusInUpload), "progress":NSNumber(value: progress.fractionCompleted), "totalBytes":NSNumber(value: progress.totalUnitCount), "totalBytesExpected":NSNumber(value: progress.completedUnitCount)])
+                    NCNetworking.shared.uploadRequest[fileNameLocalPath] = request
+                    metadata.status = Int(k_metadataStatusUploading)
+                    if let result = NCManageDatabase.sharedInstance.addMetadata(metadata) { metadata = result }
+                    
+                    NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_uploadFileStart), object: nil, userInfo: ["ocId":metadata.ocId, "serverUrl":serverUrl, "account": metadata.account])
+                    
+                }, progressHandler: { (progress) in
+                    
+                    NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_progressTask), object: nil, userInfo: ["account":metadata.account, "ocId":metadata.ocId, "serverUrl":serverUrl, "status":NSNumber(value: k_metadataStatusInUpload), "progress":NSNumber(value: progress.fractionCompleted), "totalBytes":NSNumber(value: progress.totalUnitCount), "totalBytesExpected":NSNumber(value: progress.completedUnitCount)])
                     
                 }) { (account, ocId, etag, date, size, errorCode, errorDescription) in
                 
-                    if (errorCode == 0 && date != nil && etag != nil && ocId != nil) {
+                    NCNetworking.shared.uploadRequest[fileNameLocalPath] = nil
+                    
+                    if (errorCode == 0 && ocId != nil) {
                             
-                        CCUtility.moveFile(atPath: CCUtility.getDirectoryProviderStorageOcId(metadataForUpload.ocId), toPath:  CCUtility.getDirectoryProviderStorageOcId(ocId))
-                        NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "ocId == %@", metadataForUpload.ocId))
+                        CCUtility.moveFile(atPath: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId), toPath:  CCUtility.getDirectoryProviderStorageOcId(ocId))
+                        NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
                             
-                        metadataForUpload.date = date!
-                        metadataForUpload.etag = etag!
-                        metadataForUpload.ocId = ocId!
-                        metadataForUpload.session = ""
-                        metadataForUpload.sessionError = ""
-                        metadataForUpload.sessionTaskIdentifier = Int(k_taskIdentifierDone)
-                        metadataForUpload.status = Int(k_metadataStatusNormal)
-                            
-                        NCManageDatabase.sharedInstance.addMetadata(metadataForUpload)
-                        NCManageDatabase.sharedInstance.addLocalFile(metadata: metadataForUpload)
-                            
-                        CCGraphics.createNewImage(from: metadataForUpload.fileNameView, ocId: metadataForUpload.ocId, filterGrayScale: false, typeFile: metadataForUpload.typeFile, writeImage: true)
+                        metadata.date = date ?? NSDate()
+                        metadata.etag = etag ?? ""
+                        metadata.ocId = ocId!
                         
-                        print("[LOG] Insert new upload : " + metadataForUpload.fileNameView)
-                            
-                    } else if errorCode == Int(CFNetworkErrors.cfurlErrorCancelled.rawValue) {
+                        metadata.session = ""
+                        metadata.sessionError = ""
+                        metadata.status = Int(k_metadataStatusNormal)
+                                           
+                        NCManageDatabase.sharedInstance.addLocalFile(metadata: metadata)
+                        if let result = NCManageDatabase.sharedInstance.addMetadata(metadata) { metadata = result }
                         
-                        if (metadataForUpload.status == k_metadataStatusUploadForcedStart) {
-                            
-                            metadataForUpload.sessionError = ""
-                            metadataForUpload.sessionTaskIdentifier = 0
-                            metadataForUpload.status = Int(k_metadataStatusInUpload)
-                            
-                            NCManageDatabase.sharedInstance.addMetadata(metadataForUpload)
-                            
-                        } else {
-                            
-                            CCUtility.removeFile(atPath: CCUtility.getDirectoryProviderStorageOcId(metadataForUpload.ocId))
-                            NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "ocId == %@", metadataForUpload.ocId))
-                        }
+                        CCGraphics.createNewImage(from: metadata.fileNameView, ocId: metadata.ocId, filterGrayScale: false, typeFile: metadata.typeFile, writeImage: true)
+                        
+                        NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_uploadedFile), object: nil, userInfo: ["metadata":metadata, "errorCode":errorCode, "errorDescription":""])
+                                                        
+                    } else if errorCode == Int(CFNetworkErrors.cfurlErrorCancelled.rawValue) || errorCode == 200 {
+                        
+                        CCUtility.removeFile(atPath: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId))
+                        NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
+                        
+                        NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_clearDateReadDataSource), object: nil, userInfo: ["serverUrl":serverUrl])
+                        
+                    } else if errorCode == 401 || errorCode == 403 {
+                        
+                        NCNetworkingCheckRemoteUser.shared.checkRemoteUser(account: metadata.account)
+                        
+                        CCUtility.removeFile(atPath: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId))
+                        NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
+                        
+                        NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_clearDateReadDataSource), object: nil, userInfo: ["serverUrl":serverUrl])
+                        
+                    } else if errorCode == Int(CFNetworkErrors.cfurlErrorServerCertificateUntrusted.rawValue) {
+                        
+                        CCUtility.setCertificateError(metadata.account, error: true)
+                        
+                        CCUtility.removeFile(atPath: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId))
+                        NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
+                        
+                        NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_clearDateReadDataSource), object: nil, userInfo: ["serverUrl":serverUrl])
                         
                     } else {
                         
-                        if errorCode == 401 || errorCode == 403 {
-                            NCNetworkingCheckRemoteUser.shared.checkRemoteUser(account: metadataForUpload.account)
-                        } else if errorCode == Int(CFNetworkErrors.cfurlErrorServerCertificateUntrusted.rawValue) {
-                            CCUtility.setCertificateError(metadataForUpload.account, error: true)
-                        }
+                        metadata.session = ""
+                        metadata.sessionError = errorDescription
+                        metadata.status = Int(k_metadataStatusUploadError)
+                       
+                        if let result = NCManageDatabase.sharedInstance.addMetadata(metadata) { metadata = result }
                         
-                        NCManageDatabase.sharedInstance.setMetadataSession(nil, sessionError: errorDescription, sessionSelector: nil, sessionTaskIdentifier: Int(k_taskIdentifierDone), status: Int(k_metadataStatusUploadError), predicate: NSPredicate(format: "ocId == %@", metadataForUpload.ocId))
+                        NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_uploadedFile), object: nil, userInfo: ["metadata":metadata, "errorCode":errorCode, "errorDescription":errorDescription])
                     }
                         
-                    NCNetworkingE2EE.shared.unlock(account: metadataForUpload.account, serverUrl: metadataForUpload.session) { (_, _, _, _) in }
-                        
-                    NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_uploadedFile), object: nil, userInfo: ["metadata":metadataForUpload, "errorCode":errorCode, "errorDescription":errorDescription ?? ""])
+                    NCNetworkingE2EE.shared.unlock(account: metadata.account, serverUrl: serverUrl) { (_, _, _, _) in }
                 }
                 
-               
-                /*
-                NCManageDatabase.sharedInstance.setMetadataSession(metadataForUpload.session, sessionError: "", sessionSelector: nil, sessionTaskIdentifier: taskUpload.taskIdentifier, status: Int(k_metadataStatusUploading), predicate: NSPredicate(format: "ocId == %@", metadataForUpload.ocId))
+            } else {
                 
-                NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_uploadFileStart), object: nil, userInfo: ["ocId":metadataForUpload.ocId, "task":taskUpload, "serverUrl":metadataForUpload.serverUrl, "account": metadataForUpload.account])
-                */
-                print("[LOG] Upload file " + metadataForUpload.fileNameView)
+                NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_uploadedFile), object: nil, userInfo: ["metadata":metadata, "errorCode":errorCode, "errorDescription":errorDescription ?? ""])
             }
         }
     }

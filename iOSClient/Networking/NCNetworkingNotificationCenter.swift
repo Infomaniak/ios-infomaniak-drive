@@ -44,7 +44,7 @@ import Foundation
     @objc func downloadFileStart(_ notification: NSNotification) {
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let ocId = userInfo["ocId"] as? String, let serverUrl = userInfo["serverUrl"] as? String, let _ = userInfo["task"] as? URLSessionDownloadTask {
+            if let ocId = userInfo["ocId"] as? String, let serverUrl = userInfo["serverUrl"] as? String {
                 
                 NCMainCommon.sharedInstance.reloadDatasource(ServerUrl: serverUrl, ocId: ocId, action: Int32(k_action_MOD))
                 appDelegate.updateApplicationIconBadgeNumber()
@@ -61,12 +61,9 @@ import Foundation
                 
                 if errorCode == 0 {
                     
-                    NCMainCommon.sharedInstance.reloadDatasource(ServerUrl: metadata.serverUrl, ocId: metadata.ocId, action: Int32(k_action_MOD))
-                    
                     // Synchronized
                     if selector == selectorDownloadSynchronize {
                         appDelegate.updateApplicationIconBadgeNumber()
-                        appDelegate.startLoadAutoDownloadUpload()
                         return
                     }
                     
@@ -90,7 +87,7 @@ import Foundation
                             metadata.typeFile = k_metadataTypeFile_unknown
                         }
                         
-        #if HC
+                        #if HC
                         if metadata.typeFile == k_metadataTypeFile_imagemeter {
                             
                             if !IMUtility.shared.IMUnzip(metadata: metadata) {
@@ -108,12 +105,12 @@ import Foundation
                             
                             return
                         }
-        #else
+                        #else
                         if metadata.typeFile == k_metadataTypeFile_imagemeter {
                             NCMainCommon.sharedInstance.openIn(metadata: metadata, selector: selector)
                             return
                         }
-        #endif
+                        #endif
                         
                         if metadata.typeFile == k_metadataTypeFile_compress || metadata.typeFile == k_metadataTypeFile_unknown {
 
@@ -137,13 +134,11 @@ import Foundation
                     
                     // Save to Photo Album
                     if selector == selectorSave {
-                        
                         appDelegate.activeMain.save(toPhotoAlbum: metadata)
                     }
                     
                     // Copy File
                     if selector == selectorLoadCopy {
-                        
                         appDelegate.activeMain.copyFile(toPasteboard: metadata)
                     }
                     
@@ -152,9 +147,7 @@ import Foundation
                         
                         NCManageDatabase.sharedInstance.setLocalFile(ocId: metadata.ocId, offline: true)
                     }
-                                
-                    appDelegate.startLoadAutoDownloadUpload()
-                    
+                                         
                 } else {
                     
                     // File do not exists on server, remove in local
@@ -173,8 +166,8 @@ import Foundation
                         NCContentPresenter.shared.messageNotification("_download_file_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
                     }
                 }
-            
-                appDelegate.startLoadAutoDownloadUpload()
+                
+                NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_clearDateReadDataSource), object: nil, userInfo: ["ocId":metadata.ocId,"serverUrl":metadata.serverUrl])
             }
         }
     }
@@ -201,7 +194,7 @@ import Foundation
                 
                 if metadata.account == appDelegate.activeAccount {
                     if errorCode == 0 {
-                        appDelegate.startLoadAutoDownloadUpload()
+                        appDelegate.startLoadAutoUpload()
                     } else {
                         if errorCode != -999 && errorCode != kOCErrorServerUnauthorized && errorDescription != "" {
                             NCContentPresenter.shared.messageNotification("_upload_file_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)

@@ -23,6 +23,7 @@
 
 import FileProvider
 import NCCommunication
+import Alamofire
 
 /* -----------------------------------------------------------------------------------------------------------------------------------------------
                                                             STRUCT item
@@ -202,13 +203,15 @@ class FileProviderExtension: NSFileProviderExtension {
         
         let pathComponents = url.pathComponents
         let identifier = NSFileProviderItemIdentifier(pathComponents[pathComponents.count - 2])
+        var downloadRequest: DownloadRequest?
+        var task: URLSessionTask?
         
         if let _ = outstandingSessionTasks[url] {
             completionHandler(nil)
             return
         }
         
-        guard let metadata = fileProviderUtility.sharedInstance.getTableMetadataFromItemIdentifier(identifier) else {
+        guard var metadata = fileProviderUtility.sharedInstance.getTableMetadataFromItemIdentifier(identifier) else {
             completionHandler(NSFileProviderError(.noSuchItem))
             return
         }
@@ -221,35 +224,45 @@ class FileProviderExtension: NSFileProviderExtension {
         let serverUrlFileName = metadata.serverUrl + "/" + metadata.fileName
         let fileNameLocalPath = CCUtility.getDirectoryProviderStorageOcId(metadata.ocId, fileNameView: metadata.fileName)!
         
-        NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, progressHandler: { (progress) in }) { (account, etag, date, length, errorCode, errorDescription) in
+        NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath,  requestHandler: { (request) in
+            
+            metadata.status = Int(k_metadataStatusDownloading)
+            if let result = NCManageDatabase.sharedInstance.addMetadata(metadata) { metadata = result }
+            downloadRequest = request
+            self.outstandingSessionTasks[url] = task
+            
+        }, progressHandler: { (progress) in
+            
+            if task == nil && downloadRequest?.task != nil {
+                task = downloadRequest?.task
+                self.outstandingSessionTasks[url] = task
+                NSFileProviderManager.default.register(task!, forItemWithIdentifier: NSFileProviderItemIdentifier(identifier.rawValue)) { (error) in }
+            }
+            
+        }) { (account, etag, date, length, errorCode, errorDescription) in
             
             self.outstandingSessionTasks.removeValue(forKey: url)
             
             if errorCode == 0  {
                 
                 metadata.status = Int(k_metadataStatusNormal)
-                guard let metadataDownloaded = NCManageDatabase.sharedInstance.addMetadata(metadata) else { return }
-                _ = NCManageDatabase.sharedInstance.addLocalFile(metadata: metadataDownloaded)
+                metadata.date = date ?? NSDate()
+                metadata.etag = etag ?? ""
+                
+                NCManageDatabase.sharedInstance.addLocalFile(metadata: metadata)
+                if let result = NCManageDatabase.sharedInstance.addMetadata(metadata) { metadata = result }
                 
                 completionHandler(nil)
                 
             } else {
                 
-                // Error
-                NCManageDatabase.sharedInstance.setMetadataSession("", sessionError: "", sessionSelector: "", sessionTaskIdentifier: 0, status: Int(k_metadataStatusDownloadError), predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
-                
+                metadata.status = Int(k_metadataStatusDownloadError)
+                metadata.sessionError = errorDescription ?? ""
+                NCManageDatabase.sharedInstance.addMetadata(metadata)
+
                 completionHandler(NSFileProviderError(.noSuchItem))
             }
         }
-        
-        /*
-        if task != nil {
-            
-            outstandingSessionTasks[url] = task
-            
-            NSFileProviderManager.default.register(task!, forItemWithIdentifier: NSFileProviderItemIdentifier(identifier.rawValue)) { (error) in }
-        }
-        */
     }
     
     override func itemChanged(at url: URL) {
@@ -344,7 +357,7 @@ class FileProviderExtension: NSFileProviderExtension {
                 fileURL.stopAccessingSecurityScopedResource()
                                 
                 let metadata = NCManageDatabase.sharedInstance.createMetadata(account: fileProviderData.sharedInstance.account, fileName: fileName, ocId: ocIdTemp, serverUrl: tableDirectory.serverUrl, url: "", contentType: "")
-                metadata.session = k_upload_session_extension
+                metadata.session = NCCommunicationCommon.shared.sessionIdentifierExtension
                 metadata.size = size
                 metadata.status = Int(k_metadataStatusInUpload)
                 

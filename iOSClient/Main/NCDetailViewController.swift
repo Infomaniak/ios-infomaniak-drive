@@ -368,18 +368,12 @@ class NCDetailViewController: UIViewController {
         
         if let userInfo = notification.userInfo as NSDictionary? {
             if let metadata = userInfo["metadata"] as? tableMetadata {
-                metadata.session = k_download_session
-                metadata.sessionError = ""
-                metadata.sessionSelector = ""
-                metadata.status = Int(k_metadataStatusWaitDownload)
-                
-                self.metadata = NCManageDatabase.sharedInstance.addMetadata(metadata)
-                
+
+                NCNetworking.shared.download(metadata: metadata, selector: "")
+
                 if let index = metadatas.firstIndex(where: { $0.ocId == metadata.ocId }) {
                     metadatas[index] = self.metadata!
-                }
-                
-                appDelegate.startLoadAutoDownloadUpload()
+                }                
             }
         }
     }
@@ -681,32 +675,28 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
             }
                 
         // Automatic download for: Encripted
-        } else if metadata.session == "" && CCUtility.fileProviderStorageSize(metadata.ocId, fileNameView: metadata.fileNameView) == 0 && isFolderEncrypted{
+        } else if metadata.status == Int(k_metadataStatusNormal) && CCUtility.fileProviderStorageSize(metadata.ocId, fileNameView: metadata.fileNameView) == 0 && isFolderEncrypted{
             
             if NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@ AND session != ''", metadata.ocId)) == nil {
                 
-                let metadata = NCManageDatabase.sharedInstance.initNewMetadata(metadata)
-                                          
-                metadata.session = k_download_session
-                metadata.sessionError = ""
-                metadata.sessionSelector = ""
-                metadata.status = Int(k_metadataStatusWaitDownload)
-                                          
-                NCManageDatabase.sharedInstance.addMetadata(metadata)
-                appDelegate.startLoadAutoDownloadUpload()
+                NCNetworking.shared.download(metadata: metadata, selector: "")
             }
             
             completion(index, NCViewerImageCommon.shared.getImageOffOutline(frame: self.view.frame, type: metadata.typeFile), metadata, ZoomScale.default, nil)
             
         // Automatic download for: HEIC - GIF - SVG
-        } else if metadata.session == "" && CCUtility.fileProviderStorageSize(metadata.ocId, fileNameView: metadata.fileNameView) == 0 && ((metadata.contentType == "image/heic" &&  metadata.hasPreview == false) || ext == "GIF" || ext == "SVG") {
+        } else if metadata.status == Int(k_metadataStatusNormal) && CCUtility.fileProviderStorageSize(metadata.ocId, fileNameView: metadata.fileNameView) == 0 && ((metadata.contentType == "image/heic" &&  metadata.hasPreview == false) || ext == "GIF" || ext == "SVG") {
             
             let serverUrlFileName = metadata.serverUrl + "/" + metadata.fileName
             let fileNameLocalPath = CCUtility.getDirectoryProviderStorageOcId(metadata.ocId, fileNameView: metadata.fileName)!
             
-            metadata.session = k_download_session_foreground
+            metadata.status = Int(k_metadataStatusInDownload)
             
-            NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, progressHandler: { (progress) in
+            NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, requestHandler: { (_) in
+                
+                metadata.status = Int(k_metadataStatusDownloading)
+                
+            },  progressHandler: { (progress) in
                                 
                 self.progress(Float(progress.fractionCompleted))
                 
@@ -714,7 +704,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
                 
                 if errorCode == 0 && account == metadata.account {
                     
-                    _ = NCManageDatabase.sharedInstance.addLocalFile(metadata: metadata)
+                    NCManageDatabase.sharedInstance.addLocalFile(metadata: metadata)
                     
                     if let image = NCViewerImageCommon.shared.getImage(metadata: metadata) {
                         completion(index, image, metadata, ZoomScale.default, nil)
@@ -725,7 +715,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
                     completion(index, NCViewerImageCommon.shared.getImageOffOutline(frame: self.view.frame, type: metadata.typeFile), metadata, ZoomScale.default, nil)
                 }
                 
-                metadata.session = ""
+                metadata.status = Int(k_metadataStatusNormal)
                 self.progress(0)
             }
         
@@ -817,7 +807,9 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
                 let serverUrlFileName = metadata.serverUrl + "/" + metadata.fileNameView
                 let fileNameLocalPath = CCUtility.getDirectoryProviderStorageOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
                                 
-                NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, progressHandler: { (progress) in
+                NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, requestHandler: { (_) in
+                    
+                }, progressHandler: { (progress) in
                                     
                     self.progress(Float(progress.fractionCompleted))
                     
@@ -827,7 +819,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
                     
                     if errorCode == 0 && account == metadata.account {
                         
-                        _ = NCManageDatabase.sharedInstance.addLocalFile(metadata: metadata)
+                        NCManageDatabase.sharedInstance.addLocalFile(metadata: metadata)
                         self.viewMOV(viewerImageViewController: viewerImageViewController, metadata: metadata)
                     }
                 }

@@ -33,7 +33,7 @@
 @class tableMetadata;
 @class NCNetworkingE2EE;
 
-@interface CCNetworking : NSObject <NSURLSessionTaskDelegate, NSURLSessionDelegate, NSURLSessionDownloadDelegate>
+@interface CCNetworking : NSObject <NSURLSessionTaskDelegate, NSURLSessionDelegate>
 
 + (CCNetworking *)sharedNetworking;
 
@@ -41,10 +41,6 @@
 
 - (NSURLSession *)getSessionfromSessionDescription:(NSString *)sessionDescription;
 - (void)invalidateAndCancelAllSession;
-
-#pragma mark ===== Download =====
-
-- (void)downloadFile:(tableMetadata *)metadata taskStatus:(NSInteger)taskStatus;
 
 #pragma mark ===== Upload =====
 

@@ -113,31 +113,13 @@
 #define k_permission_can_move                           @"V"
 
 // Session
-#define k_domain_session_queue                          @"com.infomaniak.Crypto-Cloud"
-
-#define k_download_session                              @"com.infomaniak.Crypto-Cloud.download.session"
-#define k_download_session_foreground                   @"com.infomaniak.Crypto-Cloud.download.sessionforeground"
-#define k_download_session_wwan                         @"com.infomaniak.Crypto-Cloud.download.sessionwwan"
-#define k_upload_session                                @"com.infomaniak.Crypto-Cloud.upload.session"
-#define k_upload_session_foreground                     @"com.infomaniak.Crypto-Cloud.upload.sessionforeground"
-#define k_upload_session_wwan                           @"com.infomaniak.Crypto-Cloud.upload.sessionwwan"
-
-#define k_download_session_default                      @"download.default"
-#define k_upload_session_default                        @"upload.default"
-
-// Session Download Upload Extension
-#define k_upload_session_extension                      @"com.infomaniak.upload.session.extension"
-
-// OperationQueue
-#define k_queue                                         @"com.infomaniak.Crypto-Cloud.queue"
-#define k_download_queue                                @"com.infomaniak.Crypto-Cloud.download.queue"
-#define k_download_queuewwan                            @"com.infomaniak.Crypto-Cloud.download.queuewwan"
-#define k_upload_queue                                  @"com.infomaniak.Crypto-Cloud.upload.queue"
-#define k_upload_queuewwan                              @"com.infomaniak.Crypto-Cloud.upload.queuewwan"
+#define k_upload_session                                @"it.twsweb.Crypto-Cloud.upload.session"
+#define k_upload_session_foreground                     @"it.twsweb.Crypto-Cloud.upload.sessionforeground"
+#define k_upload_session_wwan                           @"it.twsweb.Crypto-Cloud.upload.sessionwwan"
 
 // Service Key Share
 #define k_serviceShareKeyChain                          @"Crypto Cloud"
-#define k_metadataKeyedUnarchiver                       @"com.infomaniak.drive.metadata"
+#define k_metadataKeyedUnarchiver                       @"it.twsweb.nextcloud.metadata"
 
 // TaskIdentifier
 #define k_taskIdentifierDone                            0
@@ -168,7 +150,7 @@
 #define k_metadataStatusUploadForcedStart               10
 
 // Timer
-#define k_timerProcessAutoDownloadUpload                5
+#define k_timerProcessAutoUpload                        5
 #define k_timerUpdateApplicationIconBadgeNumber         3
 #define k_timerErrorNetworking                          3
 
@@ -329,7 +311,7 @@
 
 #define k_notificationCenter_initializeMain             @"initializeMain"
 #define k_notificationCenter_setTitleMain               @"setTitleMain"
-#define k_notificationCenter_clearDateReadDataSource    @"clearDateReadDataSource"
+#define k_notificationCenter_clearDateReadDataSource    @"clearDateReadDataSource"          // userInfo: ocId?, serverUrl?
 #define k_notificationCenter_changeTheming              @"changeTheming"
 #define k_notificationCenter_splitViewChangeDisplayMode @"splitViewChangeDisplayMode"
 #define k_notificationCenter_synchronizationMedia       @"synchronizationMedia"             // userInfo: metadata, type
@@ -339,7 +321,7 @@
 
 #define k_notificationCenter_uploadFileStart            @"uploadFileStart"                  // userInfo: ocId, task, serverUrl, account
 #define k_notificationCenter_uploadedFile               @"uploadedFile"                     // userInfo: metadata, errorCode, errorDescription
-#define k_notificationCenter_downloadFileStart          @"downloadFileStart"                // userInfo: ocId, task, serverUrl, account
+#define k_notificationCenter_downloadFileStart          @"downloadFileStart"                // userInfo: ocId, serverUrl, account
 #define k_notificationCenter_downloadedFile             @"downloadedFile"                   // userInfo: metadata, selector, errorCode, errorDescription
 #define k_notificationCenter_progressTask               @"progressTask"                     // userInfo: account, ocId, serverUrl, status, progress, totalBytes, totalBytesExpected
 #define k_notificationCenter_createFolder               @"createFolder"                     // userInfo: fileName, serverUrl, errorCode, errorDescription
