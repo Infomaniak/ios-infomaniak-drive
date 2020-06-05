@@ -262,6 +262,16 @@ extension CCMain {
             if (!isFolderEncrypted) {
                 actions.append(
                     NCMenuAction(
+                        title: NSLocalizedString("_sharing_", comment: ""),
+                        icon: CCGraphics.changeThemingColorImage(UIImage(named: "shareTypeLink"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
+                        action: { menuAction in
+                                NCMainCommon.sharedInstance.openShare(ViewController: self, metadata: metadata, indexPage: 2)
+                        }
+                    )
+                )
+                
+                actions.append(
+                    NCMenuAction(
                         title: NSLocalizedString("_details_", comment: ""),
                         icon: CCGraphics.changeThemingColorImage(UIImage(named: "details"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                         action: { menuAction in
@@ -459,6 +469,15 @@ extension CCMain {
             )
             
             if (!isEncrypted) {
+                actions.append(
+                    NCMenuAction(
+                        title: NSLocalizedString("_sharing_", comment: ""),
+                        icon: CCGraphics.changeThemingColorImage(UIImage(named: "shareTypeLink"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
+                        action: { menuAction in
+                                NCMainCommon.sharedInstance.openShare(ViewController: self, metadata: metadata, indexPage: 2)
+                        }
+                    )
+                )
                 actions.append(
                     NCMenuAction(
                         title: NSLocalizedString("_move_or_copy_", comment: ""),
