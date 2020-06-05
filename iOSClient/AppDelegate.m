@@ -3,7 +3,7 @@
 //  Nextcloud
 //
 //  Created by Marino Faggiana on 04/09/14.
-//  Copyright (c) 2017 Marino Faggiana. All rights reserved.
+//  Copyright (c) 2014 Marino Faggiana. All rights reserved.
 //
 //  Author Marino Faggiana <marino.faggiana@nextcloud.com>
 //
@@ -22,7 +22,6 @@
 //
 
 #import "AppDelegate.h"
-#import "CCNetworking.h"
 #import "CCGraphics.h"
 #import "CCSynchronize.h"
 #import "CCMain.h"
@@ -545,7 +544,9 @@
 
     [[NCCommunication shared] unsubscribingPushNotificationWithServerUrl:url account:account user:user password:[CCUtility getPassword:account] customUserAgent:nil addCustomHeaders:nil completionHandler:^(NSString *account, NSInteger errorCode, NSString *errorDescription) {
         if (errorCode == 0) {
-            [[NCCommunication shared] unsubscribingPushProxyWithProxyServerUrl:url deviceIdentifier:deviceIdentifier signature:signature publicKey:publicKey completionHandler:^(NSInteger errorCode, NSString *errorDescription) {
+            NSString *userAgent = [NSString stringWithFormat:@"%@  (Strict VoIP)", [CCUtility getUserAgent]];
+            NSString *proxyServerPath = [NCBrandOptions sharedInstance].pushNotificationServerProxy;
+            [[NCCommunication shared] unsubscribingPushProxyWithProxyServerUrl:proxyServerPath deviceIdentifier:deviceIdentifier signature:signature publicKey:publicKey userAgent:userAgent completionHandler:^(NSInteger errorCode, NSString *errorDescription) {
                 if (errorCode == 0) {
                 
                     NSLog(@"[LOG] Unsubscribed to Push Notification server & proxy successfully.");
@@ -804,7 +805,7 @@
     
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         
-        NSInteger counterDownload = [[[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"status = %d OR status == %d OR status == %d", k_metadataStatusWaitDownload, k_metadataStatusInDownload, k_metadataStatusDownloading] sorted:@"fileName" ascending:true] count];
+        NSInteger counterDownload = [[NCOperationQueue shared] downloadCount];
         NSInteger counterUpload = [[[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"status == %d OR status == %d OR status == %d", k_metadataStatusWaitUpload, k_metadataStatusInUpload, k_metadataStatusUploading] sorted:@"fileName" ascending:true] count];
 
         NSInteger total = counterDownload + counterUpload;
@@ -978,43 +979,47 @@
     if (self.activeAccount.length == 0 || self.maintenanceMode)
         return;
     
-    if ([NCBrandOptions sharedInstance].use_themingColor) {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         
-        NSString *themingColor = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColor];
-        NSString *themingColorElement = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColorElement];
-        NSString *themingColorText = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColorText];
-
-        [CCGraphics settingThemingColor:themingColor themingColorElement:themingColorElement themingColorText:themingColorText];
-        
-        UIColor *color = NCBrandColor.sharedInstance.brand;
-        BOOL isTooLight = NCBrandColor.sharedInstance.brand.isTooLight;
-        BOOL isTooDark = NCBrandColor.sharedInstance.brand.isTooDark;
-        
-        if (isTooLight) {
-            color = [NCBrandColor.sharedInstance.brand darkerBy:10];
-        } else if (isTooDark) {
-            color = [NCBrandColor.sharedInstance.brand lighterBy:10];
-        }
-        
-        NCBrandColor.sharedInstance.brand = color;
+        if ([NCBrandOptions sharedInstance].use_themingColor) {
             
-    } else {
-    
-        NCBrandColor.sharedInstance.brand = NCBrandColor.sharedInstance.customer;
-        NCBrandColor.sharedInstance.brandElement = NCBrandColor.sharedInstance.customer;
-        NCBrandColor.sharedInstance.brandText = NCBrandColor.sharedInstance.customerText;
-    }
+            NSString *themingColor = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColor];
+            NSString *themingColorElement = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColorElement];
+            NSString *themingColorText = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColorText];
+
+            [CCGraphics settingThemingColor:themingColor themingColorElement:themingColorElement themingColorText:themingColorText];
+            
+            UIColor *color = NCBrandColor.sharedInstance.brand;
+            BOOL isTooLight = NCBrandColor.sharedInstance.brand.isTooLight;
+            BOOL isTooDark = NCBrandColor.sharedInstance.brand.isTooDark;
+            
+            if (isTooLight) {
+                color = [NCBrandColor.sharedInstance.brand darkerBy:10];
+            } else if (isTooDark) {
+                color = [NCBrandColor.sharedInstance.brand lighterBy:10];
+            }
+            
+            NCBrandColor.sharedInstance.brand = color;
+                
+        } else {
         
-    [[NCMainCommon sharedInstance] createImagesThemingColor];
+            NCBrandColor.sharedInstance.brand = NCBrandColor.sharedInstance.customer;
+            NCBrandColor.sharedInstance.brandElement = NCBrandColor.sharedInstance.customer;
+            NCBrandColor.sharedInstance.brandText = NCBrandColor.sharedInstance.customerText;
+        }
+            
+        [[NCMainCommon sharedInstance] createImagesThemingColor];
+    
+        [NCBrandColor.sharedInstance setDarkMode];
+    });
+                   
+    [self.window setTintColor:NCBrandColor.sharedInstance.textView];
     
     [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_changeTheming object:nil];
 }
 
 - (void)changeTheming:(UIViewController *)viewController tableView:(UITableView *)tableView collectionView:(UICollectionView *)collectionView form:(BOOL)form
 {
-    // Dark Mode
-    [NCBrandColor.sharedInstance setDarkMode];
-    
     // View
     if (form) viewController.view.backgroundColor = NCBrandColor.sharedInstance.backgroundForm;
     else viewController.view.backgroundColor = NCBrandColor.sharedInstance.backgroundView;
@@ -1034,23 +1039,7 @@
         viewController.tabBarController.tabBar.barTintColor = NCBrandColor.sharedInstance.backgroundView;
         viewController.tabBarController.tabBar.tintColor = NCBrandColor.sharedInstance.brandElement;
     }
-    
-    //tabBar button Plus
-    UISplitViewController *splitViewController = (UISplitViewController *)self.window.rootViewController;
-    if ([splitViewController isKindOfClass:[UISplitViewController class]]) {
-        UINavigationController *navigationController = (UINavigationController *)[splitViewController.viewControllers firstObject];
-        if ([navigationController isKindOfClass:[UINavigationController class]]) {
-            UITabBarController *tabBarController = (UITabBarController *)navigationController.topViewController;
-            if ([tabBarController isKindOfClass:[UITabBarController class]]) {
-                [tabBarController.tabBar setNeedsDisplay];
-                UIButton *button = [tabBarController.view viewWithTag:99];
-                UIImage *buttonImage = [CCGraphics changeThemingColorImage:[UIImage imageNamed:@"tabBarPlus"] width:120 height:120 color:UIColor.whiteColor];
-                [button setImage:buttonImage forState:UIControlStateNormal];
-                button.backgroundColor = NCBrandColor.sharedInstance.brand;
-            }
-        }
-    }
-                
+
     // TableView
     if (tableView) {
         if (form) tableView.backgroundColor = NCBrandColor.sharedInstance.backgroundForm;
@@ -1065,9 +1054,6 @@
         else collectionView.backgroundColor = NCBrandColor.sharedInstance.backgroundView;
         [collectionView reloadData];
     }
-    
-    // Tint Color GLOBAL WINDOW
-    [self.window setTintColor:NCBrandColor.sharedInstance.textView];
 }
 
 #pragma --------------------------------------------------------------------------------------------
@@ -1203,7 +1189,7 @@
                     metadataForUpload.status = k_metadataStatusInUpload;
                     tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
                     
-                    [[NCNetworking shared] uploadWithMetadata:metadata e2eEncrypted:true];
+                    [[NCNetworking shared] uploadWithMetadata:metadata];
                     
                     break;
                                         
@@ -1212,7 +1198,7 @@
                     metadataForUpload.status = k_metadataStatusInUpload;
                     tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
                     
-                    [[CCNetworking sharedNetworking] uploadFile:metadata taskStatus:k_taskStatusResume];
+                    [[NCNetworking shared] uploadWithMetadata:metadata];
                     
                     counterUpload++;
                     sizeUpload = sizeUpload + metadata.size;
@@ -1255,8 +1241,8 @@
                 metadataForUpload.status = k_metadataStatusInUpload;
                 tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
                                           
-                [[CCNetworking sharedNetworking] uploadFile:metadata taskStatus:k_taskStatusResume];
-                
+                [[NCNetworking shared] uploadWithMetadata:metadata];
+                                
                 break;
                 
             } else {
@@ -1264,7 +1250,7 @@
                 metadataForUpload.status = k_metadataStatusInUpload;
                 tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
                            
-                [[CCNetworking sharedNetworking] uploadFile:metadata taskStatus:k_taskStatusResume];
+                [[NCNetworking shared] uploadWithMetadata:metadata];
                            
                 counterUpload++;
                 sizeUpload = sizeUpload + metadata.size;
@@ -1310,7 +1296,7 @@
                     metadataForUpload.status = k_metadataStatusInUpload;
                     tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
                     
-                    [[CCNetworking sharedNetworking] uploadFile:metadata taskStatus:k_taskStatusResume];
+                    [[NCNetworking shared] uploadWithMetadata:metadata];
                     
                     break;
                     
@@ -1319,7 +1305,7 @@
                     metadataForUpload.status = k_metadataStatusInUpload;
                     tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
                     
-                    [[CCNetworking sharedNetworking] uploadFile:metadata taskStatus:k_taskStatusResume];
+                    [[NCNetworking shared] uploadWithMetadata:metadata];
                     
                     counterUpload++;
                     sizeUpload = sizeUpload + metadata.size;
@@ -1334,6 +1320,7 @@
     
     // Upload in pending
     //
+    /*
     NSString *sessionExtension = [[NCCommunicationCommon shared] sessionIdentifierExtension];
     NSArray *metadatasInUpload = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"session != %@ AND status == %d AND sessionTaskIdentifier == 0", sessionExtension, k_metadataStatusInUpload] sorted:nil ascending:true];
     for (tableMetadata *metadata in metadatasInUpload) {
@@ -1347,6 +1334,7 @@
     if (metadatasInUpload.count == 0) {
         [self.sessionPendingStatusInUpload removeAllObjects];
     }
+    */
     
     // Start Timer
     _timerProcessAutoUpload = [NSTimer scheduledTimerWithTimeInterval:k_timerProcessAutoUpload target:self selector:@selector(loadAutoUpload) userInfo:nil repeats:YES];
@@ -1367,7 +1355,14 @@
     NSArray *metadatasUploading = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"session != %@ AND status == %d", sessionExtension, k_metadataStatusUploading] sorted:nil ascending:true];
     for (tableMetadata *metadata in metadatasUploading) {
         
-        NSURLSession *session = [[CCNetworking sharedNetworking] getSessionfromSessionDescription:metadata.session];
+        NSURLSession *session;
+        if ([metadata.session isEqualToString:NCCommunicationCommon.shared.sessionIdentifierBackground]) {
+            session = NCCommunicationBackground.shared.sessionManagerTransfer;
+        } else if ([metadata.session isEqualToString:NCCommunicationCommon.shared.sessionIdentifierBackgroundWWan]) {
+            session = NCCommunicationBackground.shared.sessionManagerTransferWWan;
+        } else if ([metadata.session isEqualToString:NCCommunicationCommon.shared.sessionIdentifierExtension]) {
+            session = NCCommunicationBackground.shared.sessionManagerTransferExtension;
+        }
         
         [session getTasksWithCompletionHandler:^(NSArray *dataTasks, NSArray *uploadTasks, NSArray *downloadTasks) {
             
@@ -1685,7 +1680,6 @@
     if (([actualVersion compare:@"2.19.1" options:NSNumericSearch] == NSOrderedAscending)) {
 
         [[NCManageDatabase sharedInstance] clearTable:[tableMetadata class] account:nil];
-        [[NCManageDatabase sharedInstance] setClearAllDateReadDirectory];
     }
     
     if (([actualVersion compare:@"2.22.0" options:NSNumericSearch] == NSOrderedAscending)) {

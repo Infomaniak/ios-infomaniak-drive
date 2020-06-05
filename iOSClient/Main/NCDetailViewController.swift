@@ -369,7 +369,7 @@ class NCDetailViewController: UIViewController {
         if let userInfo = notification.userInfo as NSDictionary? {
             if let metadata = userInfo["metadata"] as? tableMetadata {
 
-                NCNetworking.shared.download(metadata: metadata, selector: "")
+                NCNetworking.shared.download(metadata: metadata, selector: "") { (_) in }
 
                 if let index = metadatas.firstIndex(where: { $0.ocId == metadata.ocId }) {
                     metadatas[index] = self.metadata!
@@ -679,7 +679,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
             
             if NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@ AND session != ''", metadata.ocId)) == nil {
                 
-                NCNetworking.shared.download(metadata: metadata, selector: "")
+                NCNetworking.shared.download(metadata: metadata, selector: "") { (_) in }
             }
             
             completion(index, NCViewerImageCommon.shared.getImageOffOutline(frame: self.view.frame, type: metadata.typeFile), metadata, ZoomScale.default, nil)
@@ -700,7 +700,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
                                 
                 self.progress(Float(progress.fractionCompleted))
                 
-            }) { (account, etag, date, length, errorCode, errorDescription) in
+            }) { (account, etag, date, length, error, errorCode, errorDescription) in
                 
                 if errorCode == 0 && account == metadata.account {
                     
@@ -813,7 +813,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
                                     
                     self.progress(Float(progress.fractionCompleted))
                     
-                }) { (account, etag, date, length, errorCode, errorDescription) in
+                }) { (account, etag, date, length, error, errorCode, errorDescription) in
                     
                     self.progress(0)
                     

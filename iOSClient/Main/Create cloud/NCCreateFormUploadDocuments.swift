@@ -3,7 +3,7 @@
 //  Nextcloud
 //
 //  Created by Marino Faggiana on 14/11/18.
-//  Copyright © 2017 Marino Faggiana. All rights reserved.
+//  Copyright © 2018 Marino Faggiana. All rights reserved.
 //
 //  Author Marino Faggiana <marino.faggiana@nextcloud.com>
 //
@@ -499,7 +499,7 @@ import NCCommunication
             
         }, progressHandler: { (_) in
             
-        }) { (account, etag, date, lenght, errorCode, errorDescription) in
+        }) { (account, etag, date, lenght, error, errorCode, errorDescription) in
             
             if errorCode == 0 && account == self.appDelegate.activeAccount {
                 self.collectionView.reloadItems(at: [indexPath])

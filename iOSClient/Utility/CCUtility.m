@@ -3,7 +3,7 @@
 //  Nextcloud
 //
 //  Created by Marino Faggiana on 02/02/16.
-//  Copyright (c) 2017 Marino Faggiana. All rights reserved.
+//  Copyright (c) 2016 Marino Faggiana. All rights reserved.
 //
 //  Author Marino Faggiana <marino.faggiana@nextcloud.com>
 //
@@ -640,7 +640,21 @@
 
 + (BOOL)getDarkMode
 {
-    return [[UICKeyChainStore stringForKey:@"darkMode" service:k_serviceShareKeyChain] boolValue];
+    NSString *sDisable = [UICKeyChainStore stringForKey:@"darkMode" service:k_serviceShareKeyChain];
+    if(!sDisable){
+        if (@available(iOS 13.0, *)) {
+            if ([CCUtility getDarkModeDetect]) {
+                if ([[UITraitCollection currentTraitCollection] userInterfaceStyle] == UIUserInterfaceStyleDark) {
+                    sDisable = @"YES";
+                    [CCUtility setDarkMode:YES];
+                } else {
+                    sDisable = @"NO";
+                    [CCUtility setDarkMode:NO];
+                }
+            }
+        }
+    }
+    return [sDisable boolValue];
 }
 
 + (void)setDarkMode:(BOOL)disable
@@ -1458,6 +1472,7 @@
                 
                 NSString *fileNameJPEG = [[metadata.fileName lastPathComponent] stringByDeletingPathExtension];
                 fileName = [fileNameJPEG stringByAppendingString:@".jpg"];
+                newMetadata.contentType = @"image/jpeg";
             }
             
             NSString *fileNamePath = [NSTemporaryDirectory() stringByAppendingString:fileName];

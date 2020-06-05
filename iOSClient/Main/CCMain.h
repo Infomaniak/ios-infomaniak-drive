@@ -3,7 +3,7 @@
 //  Nextcloud
 //
 //  Created by Marino Faggiana on 04/09/14.
-//  Copyright (c) 2017 Marino Faggiana. All rights reserved.
+//  Copyright (c) 2014 Marino Faggiana. All rights reserved.
 //
 //  Author Marino Faggiana <marino.faggiana@nextcloud.com>
 //
@@ -29,8 +29,6 @@
 
 #import "NSString+TruncateToWidth.h"
 #import "CCLogin.h"
-#import "CCCellMain.h"
-#import "CCCellMainTransfer.h"
 #import "CCGraphics.h"
 #import "CCSection.h"
 #import "CCUtility.h"
@@ -75,10 +73,6 @@
 - (void)readFileReloadFolder;
 
 - (void)uploadFileAsset:(NSMutableArray *)assets urls:(NSMutableArray *)urls serverUrl:(NSString *)serverUrl useSubFolder:(BOOL)useSubFolder session:(NSString *)session;
-
-- (void)reloadDatasource:(NSString *)serverUrl ocId:(NSString *)ocId action:(NSInteger)action;
-
-- (void)clearDateReadDataSource:(NSNotification *)notification;
 
 - (void)openAssetsPickerController;
 - (void)openImportDocumentPicker;

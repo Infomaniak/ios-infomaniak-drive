@@ -23,7 +23,6 @@
 
 #import "NCManageEndToEndEncryption.h"
 #import "AppDelegate.h"
-#import "CCNetworking.h"
 #import <TOPasscodeViewController/TOPasscodeViewController.h>
 
 #import "NCBridgeSwift.h"
@@ -388,7 +387,7 @@
 - (void)endToEndInitializeSuccess
 {
     // Reload All Datasource
-    [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_clearDateReadDataSource object:nil];
+    [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_reloadDataSource object:nil];
 
     [self initializeForm];
 }
