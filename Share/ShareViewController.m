@@ -181,8 +181,8 @@
         NSString *themingColorText = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColorText];
         [CCGraphics settingThemingColor:themingColor themingColorElement:themingColorElement themingColorText:themingColorText];
     }
-    self.navigationController.navigationBar.barTintColor = NCBrandColor.sharedInstance.brand;
-    self.navigationController.navigationBar.tintColor = NCBrandColor.sharedInstance.brandText;
+    self.navigationController.navigationBar.barTintColor = NCBrandColor.sharedInstance.backgroundView;
+    self.navigationController.navigationBar.tintColor = NCBrandColor.sharedInstance.brand;
     
     self.toolBar.barTintColor = NCBrandColor.sharedInstance.tabBar;
     self.toolBar.tintColor = [UIColor grayColor];
