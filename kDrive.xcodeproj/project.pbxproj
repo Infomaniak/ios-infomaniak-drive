@@ -420,7 +420,6 @@
 		3781B9B123DB2B9F006B4B1D /* CCMain+Menu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CCMain+Menu.swift"; sourceTree = "<group>"; };
 		3781B9B323DB2BC9006B4B1D /* CCFavorites+Menu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CCFavorites+Menu.swift"; sourceTree = "<group>"; };
 		37C83A0C24532B7200618A3B /* AppDelegate+Swift.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppDelegate+Swift.swift"; sourceTree = "<group>"; };
-		37C83A0E24532BA600618A3B /* CCMain+Swift.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CCMain+Swift.swift"; sourceTree = "<group>"; };
 		37D8ACFF242E0590004BAD24 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfomaniakLocalizable.strings; sourceTree = "<group>"; };
 		37D8AD01242E0599004BAD24 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/InfomaniakLocalizable.strings; sourceTree = "<group>"; };
 		37D8AD02242E05A0004BAD24 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/InfomaniakLocalizable.strings; sourceTree = "<group>"; };
@@ -950,7 +949,6 @@
 				371B5A2F23D0B04B00FAFAE9 /* Menu */,
 				F710D1F624057C9400A6033D /* NCDetailNavigationController.swift */,
 				37C83A0C24532B7200618A3B /* AppDelegate+Swift.swift */,
-				37C83A0E24532BA600618A3B /* CCMain+Swift.swift */,
 				3770320A24656C4F008DA76A /* CCMain+Swift.swift */,
 				F710D1F824057C9D00A6033D /* NCDetailViewController.swift */,
 				F7D6650620FF341600BFBA9E /* NCMainCommon.swift */,
