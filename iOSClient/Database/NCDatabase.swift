@@ -22,8 +22,9 @@
 //
 
 import RealmSwift
+import XLForm
 
-class tableAccount: Object {
+class tableAccount: Object, XLFormOptionObject {
 
     @objc dynamic var account = ""
     @objc dynamic var active: Bool = false
@@ -88,6 +89,15 @@ class tableAccount: Object {
     override static func primaryKey() -> String {
         return "account"
     }
+    
+    func formDisplayText() -> String {
+        self.displayName
+    }
+    
+    func formValue() -> Any {
+        self.account
+    }
+    
 }
 
 class tableActivity: Object {
