@@ -32,11 +32,11 @@ import NCCommunication
         return instance
     }()
     
-    var downloadQueue = Queuer(name: "downloadQueue", maxConcurrentOperationCount: 5, qualityOfService: .default)
-    let readFolderSyncQueue = Queuer(name: "readFolderSyncQueue", maxConcurrentOperationCount: 1, qualityOfService: .default)
-    let downloadThumbnailQueue = Queuer(name: "downloadThumbnailQueue", maxConcurrentOperationCount: 10, qualityOfService: .default)
+    private var downloadQueue = Queuer(name: "downloadQueue", maxConcurrentOperationCount: 5, qualityOfService: .default)
+    private let readFolderSyncQueue = Queuer(name: "readFolderSyncQueue", maxConcurrentOperationCount: 1, qualityOfService: .default)
+    private let downloadThumbnailQueue = Queuer(name: "downloadThumbnailQueue", maxConcurrentOperationCount: 10, qualityOfService: .default)
     
-    // Download
+    // Download file
     @objc func download(metadata: tableMetadata, selector: String, setFavorite: Bool) {
         downloadQueue.addOperation(NCOperationDownload.init(metadata: metadata, selector: selector, setFavorite: setFavorite))
     }
@@ -47,16 +47,28 @@ import NCCommunication
         return downloadQueue.operationCount
     }
     
-    //
+    // Read Folder Synchronize
     @objc func readFolderSync(serverUrl: String, selector: String ,account: String) {
         readFolderSyncQueue.addOperation(NCOperationReadFolderSync.init(serverUrl: serverUrl, selector: selector, account: account))
     }
+    @objc func readFolderSyncCancelAll() {
+        readFolderSyncQueue.cancelAll()
+    }
     
-    //
+    // Download Thumbnail
     @objc func downloadThumbnail(metadata: tableMetadata, activeUrl: String, view: Any, indexPath: IndexPath) {
         if metadata.hasPreview && (!CCUtility.fileProviderStorageIconExists(metadata.ocId, fileNameView: metadata.fileName) || metadata.typeFile == k_metadataTypeFile_document) {
+            
+            for operation in  downloadThumbnailQueue.operations {
+                if (operation as! NCOperationDownloadThumbnail).metadata.ocId == metadata.ocId {
+                    return
+                }
+            }
             downloadThumbnailQueue.addOperation(NCOperationDownloadThumbnail.init(metadata: metadata, activeUrl: activeUrl, view: view, indexPath: indexPath))
         }
+    }
+    @objc func downloadThumbnailCancelAll() {
+        downloadThumbnailQueue.cancelAll()
     }
 }
 
@@ -100,19 +112,23 @@ class NCOperationReadFolderSync: ConcurrentOperation {
     }
     
     override func start() {
-        NCCommunication.shared.readFileOrFolder(serverUrlFileName: serverUrl, depth: "1", showHiddenFiles: CCUtility.getShowHiddenFiles()) { (account, files, errorCode, errorDescription) in
-            
-            if errorCode == 0 && files != nil {
-                NCManageDatabase.sharedInstance.convertNCCommunicationFilesToMetadatas(files!, useMetadataFolder: true, account: account) { (metadataFolder, metadatasFolder, metadatas) in
-                    
-                    if metadatas.count > 0 {
-                        CCSynchronize.shared()?.readFolder(withAccount: account, serverUrl: self.serverUrl, metadataFolder: metadataFolder, metadatas: metadatas, selector: self.selector)
-                    }
-                }
-            } else if errorCode == 404 {
-                NCManageDatabase.sharedInstance.deleteDirectoryAndSubDirectory(serverUrl: self.serverUrl, account: account)
-            }
+        if isCancelled {
             self.finish()
+        } else {
+            NCCommunication.shared.readFileOrFolder(serverUrlFileName: serverUrl, depth: "1", showHiddenFiles: CCUtility.getShowHiddenFiles()) { (account, files, errorCode, errorDescription) in
+                
+                if errorCode == 0 && files != nil {
+                    NCManageDatabase.sharedInstance.convertNCCommunicationFilesToMetadatas(files!, useMetadataFolder: true, account: account) { (metadataFolder, metadatasFolder, metadatas) in
+                        
+                        if metadatas.count > 0 {
+                            CCSynchronize.shared()?.readFolder(withAccount: account, serverUrl: self.serverUrl, metadataFolder: metadataFolder, metadatas: metadatas, selector: self.selector)
+                        }
+                    }
+                } else if errorCode == 404 {
+                    NCManageDatabase.sharedInstance.deleteDirectoryAndSubDirectory(serverUrl: self.serverUrl, account: account)
+                }
+                self.finish()
+            }
         }
     }
 }
@@ -121,10 +137,10 @@ class NCOperationReadFolderSync: ConcurrentOperation {
 
 class NCOperationDownloadThumbnail: ConcurrentOperation {
    
-    private var metadata: tableMetadata
-    private var activeUrl: String
-    private var view: Any
-    private var indexPath: IndexPath
+    var metadata: tableMetadata
+    var activeUrl: String
+    var view: Any
+    var indexPath: IndexPath
     
     init(metadata: tableMetadata, activeUrl: String, view: Any, indexPath: IndexPath) {
         self.metadata = metadata
@@ -135,40 +151,46 @@ class NCOperationDownloadThumbnail: ConcurrentOperation {
     
     override func start() {
 
-        let fileNamePath = CCUtility.returnFileNamePath(fromFileName: metadata.fileName, serverUrl: metadata.serverUrl, activeUrl: activeUrl)!
-        let fileNameLocalPath = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
-
-        NCCommunication.shared.downloadPreview(fileNamePathOrFileId: fileNamePath, fileNameLocalPath: fileNameLocalPath, width: Int(k_sizePreview), height: Int(k_sizePreview)) { (account, data, errorCode, errorMessage) in
-            var cell: NCImageCellProtocol?
-            if self.view is UICollectionView && NCMainCommon.sharedInstance.isValidIndexPath(self.indexPath, view: self.view) {
-                cell = (self.view as! UICollectionView).cellForItem(at: self.indexPath) as? NCImageCellProtocol
-            } else if self.view is UITableView && NCMainCommon.sharedInstance.isValidIndexPath(self.indexPath, view: self.view) {
-                cell = (self.view as! UITableView).cellForRow(at: self.indexPath) as? NCImageCellProtocol
-            }
-
-            if (cell != nil) {
-                var previewImage: UIImage!
-                if errorCode == 0 && data != nil {
-                    if let image = UIImage(data: data!) {
-                        previewImage = image
-                    }
-                } else {
-                    if self.metadata.iconName.count > 0 {
-                        previewImage = UIImage(named: self.metadata.iconName)
-                    } else {
-                        previewImage = UIImage(named: "file")
-                    }
-                }
-                cell!.filePreviewImageView.backgroundColor = nil
-                UIView.transition(with: cell!.filePreviewImageView,
-                    duration: 0.75,
-                    options: .transitionCrossDissolve,
-                    animations: { cell!.filePreviewImageView.image = previewImage! },
-                    completion: nil)
-            }
+        if isCancelled {
             self.finish()
+        } else {
+        
+            let fileNamePath = CCUtility.returnFileNamePath(fromFileName: metadata.fileName, serverUrl: metadata.serverUrl, activeUrl: activeUrl)!
+            let fileNameLocalPath = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
 
+            NCCommunication.shared.downloadPreview(fileNamePathOrFileId: fileNamePath, fileNameLocalPath: fileNameLocalPath, width: Int(k_sizePreview), height: Int(k_sizePreview)) { (account, data, errorCode, errorMessage) in
+                
+                var cell: NCImageCellProtocol?
+                if self.view is UICollectionView && NCMainCommon.sharedInstance.isValidIndexPath(self.indexPath, view: self.view) {
+                    cell = (self.view as! UICollectionView).cellForItem(at: self.indexPath) as? NCImageCellProtocol
+                } else if self.view is UITableView && NCMainCommon.sharedInstance.isValidIndexPath(self.indexPath, view: self.view) {
+                    cell = (self.view as! UITableView).cellForRow(at: self.indexPath) as? NCImageCellProtocol
+                }
+
+                if (cell != nil) {
+                    var previewImage: UIImage!
+                    if errorCode == 0 && data != nil {
+                        if let image = UIImage(data: data!) {
+                            previewImage = image
+                        }
+                    } else {
+                        if self.metadata.iconName.count > 0 {
+                            previewImage = UIImage(named: self.metadata.iconName)
+                        } else {
+                            previewImage = UIImage(named: "file")
+                        }
+                    }
+                    cell!.filePreviewImageView.backgroundColor = nil
+                    UIView.transition(with: cell!.filePreviewImageView,
+                        duration: 0.75,
+                        options: .transitionCrossDissolve,
+                        animations: { cell!.filePreviewImageView.image = previewImage! },
+                        completion: nil)
+                }
+                self.finish()
+            }
         }
     }
 }
+
 

@@ -93,7 +93,6 @@
     self.arrayMoveServerUrlTo = [NSMutableArray new];
     self.arrayCopyMetadata = [NSMutableArray new];
     self.arrayCopyServerUrlTo = [NSMutableArray new];
-    self.sessionPendingStatusInUpload = [NSMutableArray new];
     
     // Push Notification
     [application registerForRemoteNotifications];
@@ -232,11 +231,6 @@
         [[NCService shared] middlewarePing];
     }
 
-    // verify upload task lost
-    [[NCNetworking shared] verifyDownloadRequestLost];
-    [[NCNetworking shared] verifyUploadRequestLost];
-    [self verifyTaskLost];
-    
     // verify delete Asset Local Identifiers in auto upload
     [[NCUtility sharedInstance] deleteAssetLocalIdentifiersWithAccount:self.activeAccount sessionSelector:selectorUploadAutoUpload];
    
@@ -979,39 +973,50 @@
     if (self.activeAccount.length == 0 || self.maintenanceMode)
         return;
     
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    if ([NCBrandOptions sharedInstance].use_themingColor) {
         
-        if ([NCBrandOptions sharedInstance].use_themingColor) {
-            
-            NSString *themingColor = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColor];
-            NSString *themingColorElement = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColorElement];
-            NSString *themingColorText = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColorText];
+        NSString *themingColor = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColor];
+        NSString *themingColorElement = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColorElement];
+        NSString *themingColorText = [[NCManageDatabase sharedInstance] getCapabilitiesServerStringWithAccount:self.activeAccount elements:NCElementsJSON.shared.capabilitiesThemingColorText];
 
-            [CCGraphics settingThemingColor:themingColor themingColorElement:themingColorElement themingColorText:themingColorText];
-            
-            UIColor *color = NCBrandColor.sharedInstance.brand;
-            BOOL isTooLight = NCBrandColor.sharedInstance.brand.isTooLight;
-            BOOL isTooDark = NCBrandColor.sharedInstance.brand.isTooDark;
-            
-            if (isTooLight) {
-                color = [NCBrandColor.sharedInstance.brand darkerBy:10];
-            } else if (isTooDark) {
-                color = [NCBrandColor.sharedInstance.brand lighterBy:10];
-            }
-            
-            NCBrandColor.sharedInstance.brand = color;
-                
-        } else {
+        [CCGraphics settingThemingColor:themingColor themingColorElement:themingColorElement themingColorText:themingColorText];
         
-            NCBrandColor.sharedInstance.brand = NCBrandColor.sharedInstance.customer;
-            NCBrandColor.sharedInstance.brandElement = NCBrandColor.sharedInstance.customer;
-            NCBrandColor.sharedInstance.brandText = NCBrandColor.sharedInstance.customerText;
+        UIColor *color = NCBrandColor.sharedInstance.brand;
+        BOOL isTooLight = NCBrandColor.sharedInstance.brand.isTooLight;
+        BOOL isTooDark = NCBrandColor.sharedInstance.brand.isTooDark;
+        
+        if (isTooLight) {
+            color = [NCBrandColor.sharedInstance.brand darkerBy:10];
+        } else if (isTooDark) {
+            color = [NCBrandColor.sharedInstance.brand lighterBy:10];
         }
+        
+        NCBrandColor.sharedInstance.brand = color;
             
-        [[NCMainCommon sharedInstance] createImagesThemingColor];
+    } else {
     
-        [NCBrandColor.sharedInstance setDarkMode];
-    });
+        NCBrandColor.sharedInstance.brand = NCBrandColor.sharedInstance.customer;
+        NCBrandColor.sharedInstance.brandElement = NCBrandColor.sharedInstance.customer;
+        NCBrandColor.sharedInstance.brandText = NCBrandColor.sharedInstance.customerText;
+    }
+        
+    [NCBrandColor.sharedInstance setDarkMode];
+    [[NCMainCommon sharedInstance] createImagesThemingColor];
+    
+    // Tab bar
+    UISplitViewController *splitViewController = (UISplitViewController *)self.window.rootViewController;
+    if ([splitViewController isKindOfClass:[UISplitViewController class]]) {
+        UINavigationController *masterNavigationController = [splitViewController.viewControllers firstObject];
+        if ([masterNavigationController isKindOfClass:[UINavigationController class]]) {
+            UITabBarController *tabBarController = [masterNavigationController.viewControllers firstObject];
+            if ([tabBarController isKindOfClass:[UITabBarController class]]) {
+                tabBarController.tabBar.translucent = NO;
+                tabBarController.tabBar.barTintColor = NCBrandColor.sharedInstance.backgroundView;
+                tabBarController.tabBar.tintColor = NCBrandColor.sharedInstance.brandElement;
+                tabBarController.tabBar.backgroundColor = NCBrandColor.sharedInstance.backgroundView;
+            }
+        }
+    }
                    
     [self.window setTintColor:NCBrandColor.sharedInstance.textView];
     
@@ -1020,26 +1025,12 @@
 
 - (void)changeTheming:(UIViewController *)viewController tableView:(UITableView *)tableView collectionView:(UICollectionView *)collectionView form:(BOOL)form
 {
+    [self configureNavBarForViewController:viewController];
+
     // View
     if (form) viewController.view.backgroundColor = NCBrandColor.sharedInstance.backgroundForm;
     else viewController.view.backgroundColor = NCBrandColor.sharedInstance.backgroundView;
-        
-    // NavigationBar
-    if (viewController.navigationController.navigationBar) {
-        if (!NCCommunication.shared.isNetworkReachable) {
-           [viewController.navigationController.navigationBar setTitleTextAttributes:@{NSForegroundColorAttributeName : NCBrandColor.sharedInstance.connectionNo}];
-        }
-    }
-    
-    [self configureNavBarForViewController:viewController];
-    
-    //tabBar
-    if (viewController.tabBarController.tabBar) {
-        viewController.tabBarController.tabBar.translucent = NO;
-        viewController.tabBarController.tabBar.barTintColor = NCBrandColor.sharedInstance.backgroundView;
-        viewController.tabBarController.tabBar.tintColor = NCBrandColor.sharedInstance.brandElement;
-    }
-
+            
     // TableView
     if (tableView) {
         if (form) tableView.backgroundColor = NCBrandColor.sharedInstance.backgroundForm;
@@ -1099,15 +1090,11 @@
 {
     NSLog(@"[LOG] Start handle Events For Background URLSession: %@", identifier);
     
-    // after 20 sec
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 20 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-        
+    dispatch_async(dispatch_get_main_queue(), ^{
         self.backgroundSessionCompletionHandler = completionHandler;
         void (^completionHandler)() = self.backgroundSessionCompletionHandler;
         self.backgroundSessionCompletionHandler = nil;
         completionHandler();
-        
-        NSLog(@"[LOG] End 20 sec. Start handle Events For Background URLSession: %@", identifier);
     });
 }
 
@@ -1123,7 +1110,6 @@
     tableMetadata *metadataForUpload;
     long counterUpload = 0;
     NSUInteger sizeUpload = 0;
-    NSMutableArray *uploaded = [NSMutableArray new];
     NSPredicate *predicate;
     
     long maxConcurrentOperationUpload = k_maxConcurrentOperation;
@@ -1143,7 +1129,7 @@
         sizeUpload = sizeUpload + metadata.size;
     }
     
-    NSLog(@"%@", [NSString stringWithFormat:@"[LOG] PROCESS-AUTO-UPLOAD Upload %ld - %@", counterUpload, [CCUtility transformedSize:sizeUpload]]);
+    NSLog(@"%@", [NSString stringWithFormat:@"[LOG] PROCESS-AUTO-UPLOAD %ld - %@", counterUpload, [CCUtility transformedSize:sizeUpload]]);
     
     // Stop Timer
     [_timerProcessAutoUpload invalidate];
@@ -1164,53 +1150,31 @@
                 
         metadataForUpload = [[NCManageDatabase sharedInstance] getMetadataWithPredicate:predicate sorted:@"date" ascending:YES];
         
-        // Verify modify file
-        if ([uploaded containsObject:[NSString stringWithFormat:@"%@%@%@", metadataForUpload.account, metadataForUpload.serverUrl, metadataForUpload.fileName]]) {
-            break;
-        }
-        
         if (metadataForUpload) {
-            
-            // Verify modify file
-            BOOL isAleadyInUpload = false;
-            for (tableMetadata *metadata in metadatasUpload) {
-                if ([metadataForUpload.account isEqualToString:metadata.account] && [metadataForUpload.serverUrl isEqualToString:metadata.serverUrl] && [metadataForUpload.fileName isEqualToString:metadata.fileName]) {
-                    isAleadyInUpload = true;
-                }
-            }
-            
-            if (isAleadyInUpload == false) {
+                            
+            if ([CCUtility isFolderEncrypted:metadataForUpload.serverUrl e2eEncrypted:metadataForUpload.e2eEncrypted account:metadataForUpload.account]) {
                 
-                if ([CCUtility isFolderEncrypted:metadataForUpload.serverUrl e2eEncrypted:metadataForUpload.e2eEncrypted account:metadataForUpload.account]) {
-                
-                    if ([[UIApplication sharedApplication] applicationState] == UIApplicationStateBackground) { break; }
-                    maxConcurrentOperationUpload = 1;
+                if ([[UIApplication sharedApplication] applicationState] == UIApplicationStateBackground) { break; }
+                maxConcurrentOperationUpload = 1;
                     
-                    metadataForUpload.status = k_metadataStatusInUpload;
-                    tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
+                metadataForUpload.status = k_metadataStatusInUpload;
+                tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
                     
-                    [[NCNetworking shared] uploadWithMetadata:metadata];
+                [[NCNetworking shared] uploadWithMetadata:metadata];
                     
-                    break;
-                                        
-                } else {
-                    
-                    metadataForUpload.status = k_metadataStatusInUpload;
-                    tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
-                    
-                    [[NCNetworking shared] uploadWithMetadata:metadata];
-                    
-                    counterUpload++;
-                    sizeUpload = sizeUpload + metadata.size;
-                    
-                    // For verify modify file
-                    [uploaded addObject:[NSString stringWithFormat:@"%@%@%@", metadata.account, metadata.serverUrl, metadata.fileName]];
-                }
-                
-            } else {
                 break;
+                                        
+            } else {
+                    
+                metadataForUpload.status = k_metadataStatusInUpload;
+                tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
+                    
+                [[NCNetworking shared] uploadWithMetadata:metadata];
+                    
+                counterUpload++;
+                sizeUpload = sizeUpload + metadata.size;
             }
-            
+                
         } else {
             break;
         }
@@ -1318,23 +1282,20 @@
         }
     }
     
-    // Upload in pending
-    //
-    /*
-    NSString *sessionExtension = [[NCCommunicationCommon shared] sessionIdentifierExtension];
-    NSArray *metadatasInUpload = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"session != %@ AND status == %d AND sessionTaskIdentifier == 0", sessionExtension, k_metadataStatusInUpload] sorted:nil ascending:true];
-    for (tableMetadata *metadata in metadatasInUpload) {
-        if ([self.sessionPendingStatusInUpload containsObject:metadata.ocId]) {
-            metadata.status = k_metadataStatusWaitUpload;
-            (void)[[NCManageDatabase sharedInstance] addMetadata:metadata];
-        } else {
-            [self.sessionPendingStatusInUpload addObject:metadata.ocId];
+    // No upload available ? --> Retry Upload in Error
+    if (counterUpload == 0) {
+        
+        NSArray *metadatas = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"status == %d", k_metadataStatusUploadError] sorted:nil ascending:NO];
+        for (tableMetadata *metadata in metadatas) {
+            
+            metadata.session = NCCommunicationCommon.shared.sessionIdentifierBackground;
+            metadata.sessionError = @"";
+            metadata.sessionTaskIdentifier = 0;
+            metadata.status = k_metadataStatusInUpload;
+            
+            [[NCManageDatabase sharedInstance] addMetadata:metadata];
         }
     }
-    if (metadatasInUpload.count == 0) {
-        [self.sessionPendingStatusInUpload removeAllObjects];
-    }
-    */
     
     // Start Timer
     _timerProcessAutoUpload = [NSTimer scheduledTimerWithTimeInterval:k_timerProcessAutoUpload target:self selector:@selector(loadAutoUpload) userInfo:nil repeats:YES];
@@ -1344,44 +1305,6 @@
 {
     if (self.timerProcessAutoUpload.isValid) {
         [self performSelectorOnMainThread:@selector(loadAutoUpload) withObject:nil waitUntilDone:YES];
-    }
-}
-
-- (void)verifyTaskLost
-{
-    // UPLOAD
-    //
-    NSString *sessionExtension = [[NCCommunicationCommon shared] sessionIdentifierExtension];
-    NSArray *metadatasUploading = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"session != %@ AND status == %d", sessionExtension, k_metadataStatusUploading] sorted:nil ascending:true];
-    for (tableMetadata *metadata in metadatasUploading) {
-        
-        NSURLSession *session;
-        if ([metadata.session isEqualToString:NCCommunicationCommon.shared.sessionIdentifierBackground]) {
-            session = NCCommunicationBackground.shared.sessionManagerTransfer;
-        } else if ([metadata.session isEqualToString:NCCommunicationCommon.shared.sessionIdentifierBackgroundWWan]) {
-            session = NCCommunicationBackground.shared.sessionManagerTransferWWan;
-        } else if ([metadata.session isEqualToString:NCCommunicationCommon.shared.sessionIdentifierExtension]) {
-            session = NCCommunicationBackground.shared.sessionManagerTransferExtension;
-        }
-        
-        [session getTasksWithCompletionHandler:^(NSArray *dataTasks, NSArray *uploadTasks, NSArray *downloadTasks) {
-            
-            NSURLSessionTask *findTask;
-            
-            for (NSURLSessionTask *task in uploadTasks) {
-                if (task.taskIdentifier == metadata.sessionTaskIdentifier) {
-                    findTask = task;
-                }
-            }
-            
-            if (!findTask) {
-                
-                metadata.sessionTaskIdentifier = k_taskIdentifierDone;
-                metadata.status = k_metadataStatusWaitUpload;
-                
-                (void)[[NCManageDatabase sharedInstance] addMetadata:metadata];
-            }
-        }];
     }
 }
 

@@ -231,6 +231,11 @@
     if (self.navigationController.viewControllers.firstObject == self && self.serverUrl == nil) {
         self.serverUrl = [CCUtility getHomeServerUrlActiveUrl:appDelegate.activeUrl];
     }
+    
+    // Query data source
+    if (self.searchController.isActive == false) {
+        [self reloadDatasource:self.serverUrl ocId:nil];
+    }
 }
 
 - (void)viewDidAppear:(BOOL)animated
@@ -267,11 +272,6 @@
     
     // Title
     [self setTitle];
-    
-    // Query data source
-    if (self.searchController.isActive == false) {
-        [self reloadDatasource:self.serverUrl ocId:nil];
-    }
 }
 
 - (void)viewWillDisappear:(BOOL)animated
