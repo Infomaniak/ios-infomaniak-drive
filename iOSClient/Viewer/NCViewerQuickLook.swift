@@ -29,9 +29,10 @@ import QuickLook
     let previewController = QLPreviewController()
     var previewItems: [PreviewItem] = []
     var viewController: UIViewController?
+    var metadata: tableMetadata!
         
-    @objc func quickLook(url: URL, viewController: UIViewController) {
-        
+    @objc func quickLook(metadata: tableMetadata, url: URL, viewController: UIViewController) {
+        self.metadata = metadata
         self.viewController = viewController
         
         URLSession.shared.dataTask(with: url) { data, response, error in
@@ -54,12 +55,30 @@ import QuickLook
                 self.previewController.delegate = self
                 self.previewController.dataSource = self
                 self.previewController.currentPreviewItemIndex = 0
-                self.viewController?.present(self.previewController, animated: true)
+                let navigationViewController = UINavigationController(rootViewController: self.previewController)
+                navigationViewController.navigationBar.tintColor = NCBrandColor.sharedInstance.brandElement
+                navigationViewController.modalPresentationStyle = .fullScreen
+                self.previewController.navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .stop, target: self, action: #selector(self.closeQuickLook))
+                if(InfomaniakUtils.isDocumentModifiableWithOnlyOffice(mimeType: metadata.contentType)){
+                    self.previewController.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .compose, target: self, action: #selector(self.openInOnlyOffice))
+                }
+                self.viewController?.present(navigationViewController, animated: true)
             }
             
         }.resume()
         
         UIApplication.shared.isNetworkActivityIndicatorVisible = true
+    }
+    
+    @objc func closeQuickLook() {
+        self.previewController.navigationController?.dismiss(animated: true, completion: nil)
+    }
+    
+    @objc func openInOnlyOffice(){
+        let result = InfomaniakUtils.openOnlyOffice(metadata: metadata)
+        if !result {
+            self.presentAlertController(with: NSLocalizedString("_read_file_error_", comment: ""))
+        }
     }
     
     func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem { previewItems[index] }
@@ -72,7 +91,7 @@ import QuickLook
          // present your alert controller from the main thread
         DispatchQueue.main.async {
             UIApplication.shared.isNetworkActivityIndicatorVisible = false
-            let alert = UIAlertController(title: "Alert", message: message, preferredStyle: .alert)
+            let alert = UIAlertController(title: NSLocalizedString("_error_", comment: ""), message: message, preferredStyle: .alert)
             alert.addAction(.init(title: "OK", style: .default))
             self.viewController?.present(alert, animated: true)
         }
