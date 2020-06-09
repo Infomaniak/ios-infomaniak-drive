@@ -84,7 +84,7 @@
 
 // Database Realm
 #define k_databaseDefault                               @"nextcloud.realm"
-#define k_databaseSchemaVersion                         110
+#define k_databaseSchemaVersion                         111
 
 // Intro selector
 #define k_intro_login                                   0
@@ -115,9 +115,6 @@
 // Service Key Share
 #define k_serviceShareKeyChain                          @"Crypto Cloud"
 #define k_metadataKeyedUnarchiver                       @"it.twsweb.nextcloud.metadata"
-
-// TaskIdentifier
-#define k_taskIdentifierDone                            0
 
 // TaskStatus
 #define k_taskStatusCancel                              -1

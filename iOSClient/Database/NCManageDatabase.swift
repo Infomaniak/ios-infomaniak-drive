@@ -101,7 +101,6 @@ class NCManageDatabase: NSObject {
                     
                     if oldSchemaVersion < 95 {
                         migration.deleteData(forType: tableE2eEncryptionLock.className())
-                        migration.deleteData(forType: tableDirectory.className())
                     }
                     
                     if oldSchemaVersion < 104 {
@@ -112,9 +111,10 @@ class NCManageDatabase: NSObject {
                         migration.deleteData(forType: tableComments.className())
                     }
                     
-                    if oldSchemaVersion < 110 {
+                    if oldSchemaVersion < 111 {
                         migration.deleteData(forType: tableMetadata.className())
                         migration.deleteData(forType: tableMedia.className())
+                        migration.deleteData(forType: tableDirectory.className())
                     }
                     
                 }, shouldCompactOnLaunch: { totalBytes, usedBytes in
@@ -1270,7 +1270,7 @@ class NCManageDatabase: NSObject {
         }
     }
     
-    @objc func setDirectory(ocId: String, serverUrl: String, richWorkspace: String, account: String) {
+    @objc func setDirectory(ocId: String, serverUrl: String, richWorkspace: String?, account: String) {
         
         let realm = try! Realm()
         realm.beginWrite()
@@ -1284,7 +1284,9 @@ class NCManageDatabase: NSObject {
             addObject.ocId = ocId
         }
         addObject.account = account
-        addObject.richWorkspace = richWorkspace
+        if let richWorkspace = richWorkspace {
+            addObject.richWorkspace = richWorkspace
+        }
         addObject.serverUrl = serverUrl
         
         realm.add(addObject, update: .all)
@@ -2360,6 +2362,35 @@ class NCManageDatabase: NSObject {
         }
     }
     
+    @objc func isLivePhoto(metadata: tableMetadata) -> tableMetadata? {
+           
+        let realm = try! Realm()
+        realm.refresh()
+        
+        if metadata.typeFile != k_metadataTypeFile_image && metadata.typeFile != k_metadataTypeFile_video  { return nil }
+        if !CCUtility.getLivePhoto() {return nil }
+        let ext = (metadata.fileNameView as NSString).pathExtension.lowercased()
+        var predicate = NSPredicate()
+        
+        if ext == "mov" {
+               
+            let fileNameJPG = (metadata.fileNameView as NSString).deletingPathExtension + ".jpg"
+            let fileNameHEIC = (metadata.fileNameView as NSString).deletingPathExtension + ".heic"
+            predicate = NSPredicate(format: "account == %@ AND serverUrl == %@ AND (fileNameView LIKE[c] %@ OR fileNameView LIKE[c] %@)", metadata.account, metadata.serverUrl, fileNameJPG, fileNameHEIC)
+            
+        } else {
+               
+            let fileName = (metadata.fileNameView as NSString).deletingPathExtension + ".mov"
+            predicate = NSPredicate(format: "account == %@ AND serverUrl == %@ AND fileNameView LIKE[c] %@", metadata.account, metadata.serverUrl, fileName)
+        }
+        
+        guard let result = realm.objects(tableMetadata.self).filter(predicate).first else {
+            return nil
+        }
+        
+        return tableMetadata.init(value: result)
+    }
+    
     //MARK: -
     //MARK: Table Media
  
@@ -2387,6 +2418,7 @@ class NCManageDatabase: NSObject {
         }
                 
         var metadatas = [tableMetadata]()
+        var metadatasMOVLivePhoto = [tableMetadata]()
         
         // For Live Photo
         var fileNameImages = [String]()
@@ -2403,9 +2435,15 @@ class NCManageDatabase: NSObject {
 
             if !(ext == "MOV" && fileNameImages.contains(fileName)) {
                 metadatas.append(tableMetadata.init(value: metadata))
+            } else {
+                metadatasMOVLivePhoto.append(tableMetadata.init(value: metadata))
             }
         }
-      
+        
+        if metadatasMOVLivePhoto.count > 0 {
+            self.addMetadatas(metadatasMOVLivePhoto)
+        }
+        
         return metadatas
     }
     

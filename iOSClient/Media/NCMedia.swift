@@ -112,12 +112,12 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         NotificationCenter.default.addObserver(self, selector: #selector(moveFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_moveFile), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(renameFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_renameFile), object: nil)
         
-        plusButton = UIBarButtonItem(title: " + ", style: .plain, target: self, action: #selector(zoomGrid))
+        plusButton = UIBarButtonItem(title: " + ", style: .plain, target: self, action: #selector(dezoomGrid))
         plusButton.isEnabled = !(self.gridLayout.itemPerLine == self.kMaxImageGrid - 1)
         separatorButton = UIBarButtonItem(title: "/", style: .plain, target: nil, action: nil)
         separatorButton.isEnabled = false
         separatorButton.setTitleTextAttributes([NSAttributedString.Key.foregroundColor : NCBrandColor.sharedInstance.brandElement], for: .disabled)
-        minusButton =  UIBarButtonItem(title: " - ", style: .plain, target: self, action: #selector(dezoomGrid))
+        minusButton =  UIBarButtonItem(title: " - ", style: .plain, target: self, action: #selector(zoomGrid))
         minusButton.isEnabled = !(self.gridLayout.itemPerLine == 1)
         gridButton = UIBarButtonItem(image: CCGraphics.changeThemingColorImage(UIImage(named: "grid"), width: 50, height: 50, color: NCBrandColor.sharedInstance.textView), style: .plain, target: self, action: #selector(enableZoomGridButtons))
         self.navigationItem.leftBarButtonItem = gridButton
@@ -386,15 +386,6 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         
-        let photoDataSource: NSMutableArray = []
-        
-        for ocId: String in sectionDatasource.allOcId as! [String] {
-            let metadata = sectionDatasource.allRecordsDataSource.object(forKey: ocId) as! tableMetadata
-            if metadata.typeFile == k_metadataTypeFile_image {
-                photoDataSource.add(metadata)
-            }
-        }
-        
         if let segueNavigationController = segue.destination as? UINavigationController {
             if let segueViewController = segueNavigationController.topViewController as? NCDetailViewController {
             
@@ -605,7 +596,7 @@ extension NCMedia {
         DispatchQueue.global().async {
             
             let metadatas = NCManageDatabase.sharedInstance.getMedias(account: self.appDelegate.activeAccount, predicate: NSPredicate(format: "account == %@", self.appDelegate.activeAccount))
-            self.sectionDatasource = CCSectionMetadata.creataDataSourseSectionMetadata(metadatas, listProgressMetadata: nil, groupByField: "date", filterTypeFileImage: self.filterTypeFileImage, filterTypeFileVideo: self.filterTypeFileVideo, filterLivePhoto: true, sorted: "date", ascending: false, activeAccount: self.appDelegate.activeAccount)
+            self.sectionDatasource = CCSectionMetadata.creataDataSourseSectionMetadata(metadatas, listProgressMetadata: nil, groupByField: "date", filterTypeFileImage: self.filterTypeFileImage, filterTypeFileVideo: self.filterTypeFileVideo, filterLivePhoto: false, sorted: "date", ascending: false, activeAccount: self.appDelegate.activeAccount)
             
             DispatchQueue.main.async {
                 
@@ -668,7 +659,8 @@ extension NCMedia {
         
         if addPast {
             DispatchQueue.main.async {
-                NCUtility.sharedInstance.startActivityIndicator(view: self.view, bottom: 60)
+                let height = self.tabBarController?.tabBar.frame.size.height ?? 0
+                NCUtility.sharedInstance.startActivityIndicator(view: self.view, bottom: height + 50)
             }
         }
         loadingSearch = true
@@ -808,6 +800,18 @@ extension NCMedia {
             }
         }
     }
+    
+    private func removeDeletedFile() {
+        return;
+        guard let collectionView = self.collectionView else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            for item in collectionView.indexPathsForVisibleItems {
+                if let metadata = NCMainCommon.sharedInstance.getMetadataFromSectionDataSourceIndexPath(item, sectionDataSource: self.sectionDatasource) {
+                    NCOperationQueue.shared.removeDeletedFile(metadata: metadata)
+                }
+            }
+        }
+    }
 
 }
 
@@ -822,10 +826,12 @@ extension NCMedia: UIScrollViewDelegate {
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
         if !decelerate {
             selectSearchSections()
+            self.removeDeletedFile()
         }
     }
     
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
         selectSearchSections()
+        self.removeDeletedFile()
     }
 }

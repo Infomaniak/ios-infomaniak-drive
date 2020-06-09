@@ -529,6 +529,12 @@
         return YES;
 }
 
+- (CGFloat)verticalOffsetForEmptyDataSet:(UIScrollView *)scrollView
+{
+    //CGFloat height = self.tabBarController.tabBar.frame.size.height;
+    return 0;
+}
+
 - (UIColor *)backgroundColorForEmptyDataSet:(UIScrollView *)scrollView
 {
     return NCBrandColor.sharedInstance.backgroundView;
@@ -1421,7 +1427,7 @@
         
         UITextField *fileName = alertController.textFields.firstObject;
         
-        [[NCNetworking shared] createFolderWithFileName:fileName.text serverUrl:serverUrl account:appDelegate.activeAccount url:appDelegate.activeUrl overwrite:false completion:^(NSInteger errorCode, NSString *errorDescription) { }];
+        [[NCNetworking shared] createFolderWithFileName:[fileName.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] serverUrl:serverUrl account:appDelegate.activeAccount url:appDelegate.activeUrl overwrite:false completion:^(NSInteger errorCode, NSString *errorDescription) { }];
     }];
     
     okAction.enabled = NO;
@@ -2007,7 +2013,7 @@
     
     if (localFile) {
         [alertController addAction: [UIAlertAction actionWithTitle:NSLocalizedString(@"_remove_local_file_", nil) style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
-            tableMetadata *metadataLivePhoto = [[NCUtility sharedInstance] isLivePhotoWithMetadata:metadata];
+            tableMetadata *metadataLivePhoto = [[NCManageDatabase sharedInstance] isLivePhotoWithMetadata:metadata];
             
             [[NCManageDatabase sharedInstance] deleteLocalFileWithPredicate:[NSPredicate predicateWithFormat:@"ocId == %@", metadata.ocId]];
             [[NSFileManager defaultManager] removeItemAtPath:[CCUtility getDirectoryProviderStorageOcId:metadata.ocId] error:nil];

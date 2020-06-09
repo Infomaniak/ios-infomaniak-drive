@@ -413,6 +413,7 @@ import Alamofire
                 
                 metadata.session = ""
                 metadata.sessionError = ""
+                metadata.sessionTaskIdentifier = 0
                 metadata.status = Int(k_metadataStatusNormal)
                         
                 if let result = NCManageDatabase.sharedInstance.addMetadata(metadata) { metadata = result }
@@ -421,7 +422,6 @@ import Alamofire
                     CCUtility.removeFile(atPath: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId))
                 } else {
                     NCManageDatabase.sharedInstance.addLocalFile(metadata: metadata)
-
                 }
                 
                 #if !EXTENSION
@@ -446,7 +446,6 @@ import Alamofire
                     
                     CCUtility.removeFile(atPath: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId))
                     NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
-                                        
                 }
                 
             } else if errorCode == 401 || errorCode == 403 {
@@ -457,7 +456,6 @@ import Alamofire
                 
                 CCUtility.removeFile(atPath: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId))
                 NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
-                
                 
             } else if errorCode == Int(CFNetworkErrors.cfurlErrorServerCertificateUntrusted.rawValue) {
                 
@@ -470,6 +468,7 @@ import Alamofire
                 
                 metadata.session = ""
                 metadata.sessionError = errorDescription
+                metadata.sessionTaskIdentifier = 0
                 metadata.status = Int(k_metadataStatusUploadError)
                 
                 NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_uploadedFile), object: nil, userInfo: ["metadata":metadata, "errorCode":errorCode, "errorDescription":errorDescription])
@@ -517,7 +516,7 @@ import Alamofire
             }
         }
         
-        // upload background
+        // k_metadataStatusUploading (BACKGROUND)
         let sessionBackground = NCCommunicationCommon.shared.sessionIdentifierBackground
         let sessionBackgroundWWan = NCCommunicationCommon.shared.sessionIdentifierBackgroundWWan
         if let metadatas = NCManageDatabase.sharedInstance.getMetadatas(predicate: NSPredicate(format: "(session == %@ OR session == %@) AND status == %d", sessionBackground, sessionBackgroundWWan, k_metadataStatusUploading), sorted: nil, ascending: true) {
@@ -543,15 +542,14 @@ import Alamofire
                     
                     if !findTask {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                            if let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId)) {
-                                if metadata.sessionTaskIdentifier != Int(k_taskIdentifierDone) {
-                                    metadata.session = NCCommunicationCommon.shared.sessionIdentifierBackground
-                                    metadata.sessionError = ""
-                                    metadata.sessionTaskIdentifier = Int(k_taskIdentifierDone)
-                                    metadata.status = Int(k_metadataStatusWaitUpload)
+                            if let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@ AND status == %d", metadata.ocId, k_metadataStatusUploading)) {
                                     
-                                    NCManageDatabase.sharedInstance.addMetadata(metadata)
-                                }
+                                metadata.session = NCCommunicationCommon.shared.sessionIdentifierBackground
+                                metadata.sessionError = ""
+                                metadata.sessionTaskIdentifier = 0
+                                metadata.status = Int(k_metadataStatusWaitUpload)
+                                    
+                                NCManageDatabase.sharedInstance.addMetadata(metadata)
                             }
                         }
                     }
@@ -559,20 +557,19 @@ import Alamofire
             }
         }
         
-        // verify k_metadataStatusInUpload
-        if let metadatas = NCManageDatabase.sharedInstance.getMetadatas(predicate: NSPredicate(format: "(session == %@ OR session == %@) AND status == %d", sessionBackground, sessionBackgroundWWan, k_metadataStatusInUpload), sorted: nil, ascending: true) {
+        // verify k_metadataStatusInUpload (BACKGROUND)
+        if let metadatas = NCManageDatabase.sharedInstance.getMetadatas(predicate: NSPredicate(format: "(session == %@ OR session == %@) AND status == %d AND sessionTaskIdentifier == 0", sessionBackground, sessionBackgroundWWan, k_metadataStatusInUpload), sorted: nil, ascending: true) {
             
             for metadata in metadatas {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                    if let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId)) {
-                        if metadata.sessionTaskIdentifier == Int(k_taskIdentifierDone) {
-                            metadata.session = NCCommunicationCommon.shared.sessionIdentifierBackground
-                            metadata.sessionError = ""
-                            metadata.sessionTaskIdentifier = Int(k_taskIdentifierDone)
-                            metadata.status = Int(k_metadataStatusWaitUpload)
+                    if let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@ AND status == %d AND sessionTaskIdentifier == 0", metadata.ocId, k_metadataStatusInUpload)) {
+                       
+                        metadata.session = NCCommunicationCommon.shared.sessionIdentifierBackground
+                        metadata.sessionError = ""
+                        metadata.sessionTaskIdentifier = 0
+                        metadata.status = Int(k_metadataStatusWaitUpload)
                             
-                            NCManageDatabase.sharedInstance.addMetadata(metadata)
-                        }
+                        NCManageDatabase.sharedInstance.addMetadata(metadata)
                     }
                 }
             }
@@ -583,7 +580,7 @@ import Alamofire
     
     @objc func readFolder(serverUrl: String, account: String, completion: @escaping (_ account: String, _ metadataFolder: tableMetadata?, _ metadatas: [tableMetadata]?, _ errorCode: Int, _ errorDescription: String)->()) {
         
-        NCCommunication.shared.readFileOrFolder(serverUrlFileName: serverUrl, depth: "1", showHiddenFiles: CCUtility.getShowHiddenFiles()) { (account, files, errorCode, errorDescription) in
+        NCCommunication.shared.readFileOrFolder(serverUrlFileName: serverUrl, depth: "1", showHiddenFiles: CCUtility.getShowHiddenFiles()) { (account, files, responseData, errorCode, errorDescription) in
             
             if errorCode == 0 && files != nil {
                               
@@ -635,7 +632,7 @@ import Alamofire
     
     @objc func readFile(serverUrlFileName: String, account: String, completion: @escaping (_ account: String, _ metadata: tableMetadata?, _ errorCode: Int, _ errorDescription: String)->()) {
         
-        NCCommunication.shared.readFileOrFolder(serverUrlFileName: serverUrlFileName, depth: "0", showHiddenFiles: CCUtility.getShowHiddenFiles()) { (account, files, errorCode, errorDescription) in
+        NCCommunication.shared.readFileOrFolder(serverUrlFileName: serverUrlFileName, depth: "0", showHiddenFiles: CCUtility.getShowHiddenFiles()) { (account, files, responseData, errorCode, errorDescription) in
 
             if errorCode == 0 && files != nil {
                 if files?.count ?? 0 == 1 {
@@ -712,7 +709,7 @@ import Alamofire
     @objc func deleteMetadata(_ metadata: tableMetadata, account: String, url: String, completion: @escaping (_ errorCode: Int, _ errorDescription: String)->()) {
                 
         let isDirectoryEncrypted = CCUtility.isFolderEncrypted(metadata.serverUrl, e2eEncrypted: metadata.e2eEncrypted, account: metadata.account)
-        let metadataLive = NCUtility.sharedInstance.isLivePhoto(metadata: metadata)
+        let metadataLive = NCManageDatabase.sharedInstance.isLivePhoto(metadata: metadata)
         
         if isDirectoryEncrypted {
             #if !EXTENSION
@@ -781,7 +778,7 @@ import Alamofire
 
     @objc func favoriteMetadata(_ metadata: tableMetadata, url: String, completion: @escaping (_ errorCode: Int, _ errorDescription: String)->()) {
         
-        if let metadataLive = NCUtility.sharedInstance.isLivePhoto(metadata: metadata) {
+        if let metadataLive = NCManageDatabase.sharedInstance.isLivePhoto(metadata: metadata) {
             favoriteMetadataPlain(metadataLive, url: url) { (errorCode, errorDescription) in
                 if errorCode == 0 {
                     self.favoriteMetadataPlain(metadata, url: url, completion: completion)
@@ -816,7 +813,7 @@ import Alamofire
     @objc func renameMetadata(_ metadata: tableMetadata, fileNameNew: String, url: String, viewController: UIViewController?, completion: @escaping (_ errorCode: Int, _ errorDescription: String?)->()) {
         
         let isDirectoryEncrypted = CCUtility.isFolderEncrypted(metadata.serverUrl, e2eEncrypted: metadata.e2eEncrypted, account: metadata.account)
-        let metadataLive = NCUtility.sharedInstance.isLivePhoto(metadata: metadata)
+        let metadataLive = NCManageDatabase.sharedInstance.isLivePhoto(metadata: metadata)
         let fileNameNewLive = (fileNameNew as NSString).deletingPathExtension + ".mov"
 
         if isDirectoryEncrypted {
@@ -910,7 +907,7 @@ import Alamofire
     
     @objc func moveMetadata(_ metadata: tableMetadata, serverUrlTo: String, overwrite: Bool, completion: @escaping (_ errorCode: Int, _ errorDescription: String?)->()) {
         
-        if let metadataLive = NCUtility.sharedInstance.isLivePhoto(metadata: metadata) {
+        if let metadataLive = NCManageDatabase.sharedInstance.isLivePhoto(metadata: metadata) {
             moveMetadataPlain(metadataLive, serverUrlTo: serverUrlTo, overwrite: overwrite) { (errorCode, errorDescription) in
                 if errorCode == 0 {
                     self.moveMetadataPlain(metadata, serverUrlTo: serverUrlTo, overwrite: overwrite, completion: completion)
@@ -961,7 +958,7 @@ import Alamofire
     
     @objc func copyMetadata(_ metadata: tableMetadata, serverUrlTo: String, overwrite: Bool, completion: @escaping (_ errorCode: Int, _ errorDescription: String?)->()) {
         
-        if let metadataLive = NCUtility.sharedInstance.isLivePhoto(metadata: metadata) {
+        if let metadataLive = NCManageDatabase.sharedInstance.isLivePhoto(metadata: metadata) {
             copyMetadataPlain(metadataLive, serverUrlTo: serverUrlTo, overwrite: overwrite) { (errorCode, errorDescription) in
                 if errorCode == 0 {
                     self.copyMetadataPlain(metadata, serverUrlTo: serverUrlTo, overwrite: overwrite, completion: completion)
