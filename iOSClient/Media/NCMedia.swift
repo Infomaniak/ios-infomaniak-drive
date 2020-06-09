@@ -112,13 +112,19 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         NotificationCenter.default.addObserver(self, selector: #selector(moveFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_moveFile), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(renameFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_renameFile), object: nil)
         
-        plusButton = UIBarButtonItem(title: " + ", style: .plain, target: self, action: #selector(dezoomGrid))
+        plusButton = UIBarButtonItem(title: "+", style: .plain, target: self, action: #selector(dezoomGrid))
         plusButton.isEnabled = !(self.gridLayout.itemPerLine == 1)
+        plusButton.setTitleTextAttributes([NSAttributedString.Key.font : UIFont.systemFont(ofSize: 26)], for: .normal)
+        plusButton.setTitleTextAttributes([NSAttributedString.Key.font : UIFont.systemFont(ofSize: 26)], for: .disabled)
+        plusButton.setTitleTextAttributes([NSAttributedString.Key.font : UIFont.systemFont(ofSize: 26)], for: .selected)
         separatorButton = UIBarButtonItem(title: "/", style: .plain, target: nil, action: nil)
         separatorButton.isEnabled = false
-        separatorButton.setTitleTextAttributes([NSAttributedString.Key.foregroundColor : NCBrandColor.sharedInstance.brandElement], for: .disabled)
-        minusButton =  UIBarButtonItem(title: " - ", style: .plain, target: self, action: #selector(zoomGrid))
+        separatorButton.setTitleTextAttributes([NSAttributedString.Key.foregroundColor : NCBrandColor.sharedInstance.brandElement, NSAttributedString.Key.font : UIFont.systemFont(ofSize: 26)], for: .disabled)
+        minusButton =  UIBarButtonItem(title: "-", style: .plain, target: self, action: #selector(zoomGrid))
         minusButton.isEnabled = !(self.gridLayout.itemPerLine == self.kMaxImageGrid - 1)
+        minusButton.setTitleTextAttributes([NSAttributedString.Key.font : UIFont.systemFont(ofSize: 26)], for: .normal)
+        minusButton.setTitleTextAttributes([NSAttributedString.Key.font : UIFont.systemFont(ofSize: 26)], for: .disabled)
+        minusButton.setTitleTextAttributes([NSAttributedString.Key.font : UIFont.systemFont(ofSize: 26)], for: .selected)
         gridButton = UIBarButtonItem(image: CCGraphics.changeThemingColorImage(UIImage(named: "grid"), width: 50, height: 50, color: NCBrandColor.sharedInstance.textView), style: .plain, target: self, action: #selector(enableZoomGridButtons))
         self.navigationItem.leftBarButtonItem = gridButton
 
