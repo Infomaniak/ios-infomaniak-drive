@@ -105,7 +105,7 @@
     
     // Section : Screen --------------------------------------------------------------
     
-    section = [XLFormSectionDescriptor formSectionWithTitle:NSLocalizedString(@"_screen_", nil)];
+    /*section = [XLFormSectionDescriptor formSectionWithTitle:NSLocalizedString(@"_screen_", nil)];
     [form addFormSection:section];
     
     // Dark Mode
@@ -130,7 +130,7 @@
         if ([CCUtility getDarkMode]) row.value = @1;
         else row.value = @0;
         [section addFormRow:row];
-    }
+    }*/
     
     // Section : E2EEncryption From Nextcloud 19 --------------------------------------------------------------
 

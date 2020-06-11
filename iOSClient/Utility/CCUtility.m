@@ -640,21 +640,11 @@
 
 + (BOOL)getDarkMode
 {
-    NSString *sDisable = [UICKeyChainStore stringForKey:@"darkMode" service:k_serviceShareKeyChain];
-    if(!sDisable){
-        if (@available(iOS 13.0, *)) {
-            if ([CCUtility getDarkModeDetect]) {
-                if ([[UITraitCollection currentTraitCollection] userInterfaceStyle] == UIUserInterfaceStyleDark) {
-                    sDisable = @"YES";
-                    [CCUtility setDarkMode:YES];
-                } else {
-                    sDisable = @"NO";
-                    [CCUtility setDarkMode:NO];
-                }
-            }
-        }
+    if (@available(iOS 13.0, *)) {
+        return [[UITraitCollection currentTraitCollection] userInterfaceStyle] == UIUserInterfaceStyleDark;
+    } else {
+        return false;
     }
-    return [sDisable boolValue];
 }
 
 + (void)setDarkMode:(BOOL)disable
@@ -665,15 +655,8 @@
 
 + (BOOL)getDarkModeDetect
 {
-    NSString *valueString = [UICKeyChainStore stringForKey:@"darkModeDetect" service:k_serviceShareKeyChain];
-    
-    // Default TRUE
-    if (valueString == nil) {
-        [self setDarkModeDetect:YES];
-        return true;
-    }
-    
-    return [valueString boolValue];
+   [self setDarkModeDetect:YES];
+    return true;
 }
 
 + (void)setDarkModeDetect:(BOOL)disable
