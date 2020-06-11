@@ -640,11 +640,28 @@
 
 + (BOOL)getDarkMode
 {
+    //kDrive - Infomaniak only
     if (@available(iOS 13.0, *)) {
         return [[UITraitCollection currentTraitCollection] userInterfaceStyle] == UIUserInterfaceStyleDark;
     } else {
         return false;
     }
+    
+    NSString *sDisable = [UICKeyChainStore stringForKey:@"darkMode" service:k_serviceShareKeyChain];
+    if(!sDisable){
+        if (@available(iOS 13.0, *)) {
+            if ([CCUtility getDarkModeDetect]) {
+                if ([[UITraitCollection currentTraitCollection] userInterfaceStyle] == UIUserInterfaceStyleDark) {
+                    sDisable = @"YES";
+                    [CCUtility setDarkMode:YES];
+                } else {
+                    sDisable = @"NO";
+                    [CCUtility setDarkMode:NO];
+                }
+            }
+        }
+    }
+    return [sDisable boolValue];
 }
 
 + (void)setDarkMode:(BOOL)disable
@@ -655,8 +672,19 @@
 
 + (BOOL)getDarkModeDetect
 {
-   [self setDarkModeDetect:YES];
-    return true;
+    //kDrive - Infomaniak only
+    [self setDarkModeDetect:YES];
+     return true;
+    
+    NSString *valueString = [UICKeyChainStore stringForKey:@"darkModeDetect" service:k_serviceShareKeyChain];
+    
+    // Default TRUE
+    if (valueString == nil) {
+        [self setDarkModeDetect:YES];
+        return true;
+    }
+    
+    return [valueString boolValue];
 }
 
 + (void)setDarkModeDetect:(BOOL)disable
