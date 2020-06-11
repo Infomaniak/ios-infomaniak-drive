@@ -674,7 +674,7 @@
 {
     //kDrive - Infomaniak only
     [self setDarkModeDetect:YES];
-     return true;
+    return true;
     
     NSString *valueString = [UICKeyChainStore stringForKey:@"darkModeDetect" service:k_serviceShareKeyChain];
     
