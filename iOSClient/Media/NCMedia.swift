@@ -29,45 +29,32 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     @IBOutlet weak var collectionView : UICollectionView!
     
     private var mediaCommandView: NCMediaCommandView?
-    
-    //Grid control buttons
-    private var plusButton: UIBarButtonItem!
-    private var separatorButton: UIBarButtonItem!
-    private var minusButton: UIBarButtonItem!
-    private var gridButton: UIBarButtonItem!
-    
-    private let appDelegate = UIApplication.shared.delegate as! AppDelegate
-    public var metadatas: [tableMetadata] = []
+    private var gridLayout: NCGridMediaLayout!
 
+    private let appDelegate = UIApplication.shared.delegate as! AppDelegate
+    
+    public var metadatas: [tableMetadata] = []
     private var metadataPush: tableMetadata?
+    
     private var isEditMode = false
     private var selectocId: [String] = []
     
     private var filterTypeFileImage = false;
     private var filterTypeFileVideo = false;
-        
-    private var autoUploadFileName = ""
-    private var autoUploadDirectory = ""
-    
-    private var gridLayout: NCGridMediaLayout!
-        
-    private let sectionHeaderHeight: CGFloat = 10
-    private let footerHeight: CGFloat = 50
-    
+            
     private var stepImageWidth: CGFloat = 10
     private let kMaxImageGrid: CGFloat = 5
     
-    private var isDistantPast = false
-
     private var oldInProgress = false
     private var newInProgress = false
-
     
     struct cacheImages {
         static var cellPlayImage = UIImage()
         static var cellFavouriteImage = UIImage()
     }
 
+    // MARK: - View Life Cycle
+    
     required init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
 
@@ -79,14 +66,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // Cell
         collectionView.register(UINib.init(nibName: "NCGridMediaCell", bundle: nil), forCellWithReuseIdentifier: "gridCell")
-        
-        // Header
-        collectionView.register(UINib.init(nibName: "NCSectionMediaHeader", bundle: nil), forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: "sectionHeader")
-        
-        // Footer
-        collectionView.register(UINib.init(nibName: "NCSectionFooter", bundle: nil), forSupplementaryViewOfKind: UICollectionView.elementKindSectionFooter, withReuseIdentifier: "sectionFooter")
         
         collectionView.alwaysBounceVertical = true
         collectionView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 50, right: 0);
@@ -111,9 +91,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         NotificationCenter.default.addObserver(self, selector: #selector(changeTheming), name: NSNotification.Name(rawValue: k_notificationCenter_changeTheming), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(moveFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_moveFile), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(renameFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_renameFile), object: nil)
-    
-        self.navigationItem.leftBarButtonItem = gridButton
-        
+            
         mediaCommandView = Bundle.main.loadNibNamed("NCMediaCommandView", owner: self, options: nil)?.first as? NCMediaCommandView
         self.view.addSubview(mediaCommandView!)
         mediaCommandView?.mediaView = self
@@ -130,6 +108,40 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         }
         
         changeTheming()
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        mediaCommandTitle()
+        readFiles()
+        searchNewPhotoVideo()
+    }
+    
+    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        
+        coordinator.animate(alongsideTransition: nil) { _ in
+            self.reloadDataThenPerform { }
+        }
+    }
+    
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        return .lightContent
+    }
+    
+    //MARK: - Command
+    
+    func mediaCommandTitle() {
+        if let cell = collectionView?.visibleCells.first as? NCGridMediaCell {
+            if cell.date != nil {
+                mediaCommandView!.title.text = CCUtility.getTitleSectionDate(cell.date)
+            }
+        }
     }
     
     @objc func zoomOutGrid() {
@@ -162,144 +174,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         })
     }
     
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-    }
-    
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        
-        mediaCommandTitle()
-        searchNewPhotoVideo()
-    }
-    
-    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
-        super.viewWillTransition(to: size, with: coordinator)
-        
-        coordinator.animate(alongsideTransition: nil) { _ in
-            self.reloadDataThenPerform { }
-        }
-    }
-    
-    //MARK: - NotificationCenter
-
-    @objc func changeTheming() {
-        appDelegate.changeTheming(self, tableView: nil, collectionView: collectionView, form: false)
-        
-        cacheImages.cellPlayImage = CCGraphics.changeThemingColorImage(UIImage.init(named: "play"), width: 100, height: 100, color: .white)
-        cacheImages.cellFavouriteImage = CCGraphics.changeThemingColorImage(UIImage.init(named: "favorite"), width: 100, height: 100, color: NCBrandColor.sharedInstance.yellowFavorite)
-        
-        self.navigationController?.setNavigationBarHidden(true, animated: false)
-    }
-    
-    override var preferredStatusBarStyle: UIStatusBarStyle {
-        return .lightContent
-    }
-
-    @objc func deleteFile(_ notification: NSNotification) {
-        if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int {
-                
-                DispatchQueue.global().async {
-                    let metadatas = self.metadatas.filter { $0.ocId != metadata.ocId }
-                    DispatchQueue.main.async {
-                        self.metadatas = metadatas
-                        
-                        if self.metadatas.count  > 0 {
-                            self.mediaCommandView?.isHidden = false
-                        } else {
-                            self.mediaCommandView?.isHidden = true
-                        }
-                        self.reloadDataThenPerform {
-                            self.mediaCommandTitle()
-                        }
-                        
-                        if errorCode == 0 && (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
-                            let userInfo: [String : Any] = ["metadata": metadata, "type": "delete"]
-                            NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_synchronizationMedia), object: nil, userInfo: userInfo)
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    @objc func moveFile(_ notification: NSNotification) {
-        if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let metadataNew = userInfo["metadataNew"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int {
-                
-                self.reloadDataSource()
-
-                if errorCode == 0 && (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
-                    let userInfo: [String : Any] = ["metadata": metadata, "metadataNew": metadataNew, "type": "move"]
-                    NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_synchronizationMedia), object: nil, userInfo: userInfo)
-                }
-            }
-        }
-    }
-    
-    @objc func renameFile(_ notification: NSNotification) {
-        if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int {
-                
-                self.reloadDataSource()
-
-                if errorCode == 0 && (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
-                    let userInfo: [String : Any] = ["metadata": metadata, "type": "rename"]
-                    NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_synchronizationMedia), object: nil, userInfo: userInfo)
-                }
-            }
-        }
-    }
-    
-    // MARK: DZNEmpty
-    
-    func backgroundColor(forEmptyDataSet scrollView: UIScrollView) -> UIColor? {
-        return NCBrandColor.sharedInstance.backgroundView
-    }
-    
-    func image(forEmptyDataSet scrollView: UIScrollView) -> UIImage? {
-        return CCGraphics.changeThemingColorImage(UIImage.init(named: "media"), width: 300, height: 300, color: NCBrandColor.sharedInstance.brandElement)
-    }
-    
-    func title(forEmptyDataSet scrollView: UIScrollView) -> NSAttributedString? {
-        
-        var text = "\n" + NSLocalizedString("_tutorial_photo_view_", comment: "")
-
-        if oldInProgress || newInProgress {
-            text = "\n" + NSLocalizedString("_search_in_progress_", comment: "")
-        }
-        
-        let attributes = [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 20), NSAttributedString.Key.foregroundColor: UIColor.lightGray]
-        return NSAttributedString.init(string: text, attributes: attributes)
-    }
-    
-    func emptyDataSetShouldAllowScroll(_ scrollView: UIScrollView) -> Bool {
-        return true
-    }
-    
-    // MARK: IBAction
-    
-    @objc func touchUpInsideMenuButtonSwitch(_ sender: Any) {
-                
-        UIView.animate(withDuration: 0.0, animations: {
-            if(self.gridLayout.itemPerLine + 1 < self.kMaxImageGrid && self.gridLayout.increasing) {
-                self.gridLayout.itemPerLine+=1
-            } else {
-                self.gridLayout.increasing = false
-                self.gridLayout.itemPerLine-=1
-            }
-            if(self.gridLayout.itemPerLine == 0) {
-                self.gridLayout.increasing = true
-                self.gridLayout.itemPerLine = 2
-            }
-            
-            self.collectionView.collectionViewLayout.invalidateLayout()
-            CCUtility.setMediaWidthImage(Int(self.gridLayout.itemPerLine))
-        })
-    }
-    
-    @objc func touchUpInsideMenuButtonMore(_ sender: Any) {
+    @objc func openMenuButtonMore(_ sender: Any) {
         let mainMenuViewController = UIStoryboard.init(name: "NCMenu", bundle: nil).instantiateViewController(withIdentifier: "NCMainMenuTableViewController") as! NCMainMenuTableViewController
         var actions: [NCMenuAction] = []
 
@@ -345,8 +220,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
                     action: { menuAction in
                         self.isEditMode = false
                         self.selectocId.removeAll()
-                        self.reloadDataThenPerform {
-                        }
+                        self.reloadDataThenPerform { }
                     }
                 )
             )
@@ -356,7 +230,12 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
                     title: NSLocalizedString("_delete_", comment: ""),
                     icon: CCGraphics.changeThemingColorImage(UIImage(named: "trash"), width: 50, height: 50, color: .red),
                     action: { menuAction in
-                        self.deleteItems()
+                        self.isEditMode = false
+                        for ocId in self.selectocId {
+                            if let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", ocId)) {
+                                NCNetworking.shared.deleteMetadata(metadata, account: self.appDelegate.activeAccount, url: self.appDelegate.activeUrl) { (errorCode, errorDescription) in }
+                            }
+                        }
                     }
                 )
             )
@@ -370,6 +249,99 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         menuPanelController.track(scrollView: mainMenuViewController.tableView)
 
         self.present(menuPanelController, animated: true, completion: nil)
+    }
+    
+    //MARK: - NotificationCenter
+
+    @objc func changeTheming() {
+        appDelegate.changeTheming(self, tableView: nil, collectionView: collectionView, form: false)
+        
+        cacheImages.cellPlayImage = CCGraphics.changeThemingColorImage(UIImage.init(named: "play"), width: 100, height: 100, color: .white)
+        cacheImages.cellFavouriteImage = CCGraphics.changeThemingColorImage(UIImage.init(named: "favorite"), width: 100, height: 100, color: NCBrandColor.sharedInstance.yellowFavorite)
+        
+        self.navigationController?.setNavigationBarHidden(true, animated: false)
+    }
+
+    @objc func deleteFile(_ notification: NSNotification) {
+        if let userInfo = notification.userInfo as NSDictionary? {
+            if let metadata = userInfo["metadata"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int {
+                
+                let metadatas = self.metadatas.filter { $0.ocId != metadata.ocId }
+                self.metadatas = metadatas
+                    
+                if self.metadatas.count  > 0 {
+                    self.mediaCommandView?.isHidden = false
+                } else {
+                    self.mediaCommandView?.isHidden = true
+                }
+                self.reloadDataThenPerform {
+                    self.mediaCommandTitle()
+                }
+                    
+                if errorCode == 0 && (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
+                    let userInfo: [String : Any] = ["metadata": metadata, "type": "delete"]
+                    NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_synchronizationMedia), object: nil, userInfo: userInfo)
+                }
+            }
+        }
+    }
+    
+    @objc func moveFile(_ notification: NSNotification) {
+        if let userInfo = notification.userInfo as NSDictionary? {
+            if let metadata = userInfo["metadata"] as? tableMetadata, let metadataNew = userInfo["metadataNew"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int {
+                
+                self.reloadDataSource()
+
+                if errorCode == 0 && (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
+                    let userInfo: [String : Any] = ["metadata": metadata, "metadataNew": metadataNew, "type": "move"]
+                    NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_synchronizationMedia), object: nil, userInfo: userInfo)
+                }
+            }
+        }
+    }
+    
+    @objc func renameFile(_ notification: NSNotification) {
+        if let userInfo = notification.userInfo as NSDictionary? {
+            if let metadata = userInfo["metadata"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int {
+                
+                self.reloadDataSource()
+
+                if errorCode == 0 && (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
+                    let userInfo: [String : Any] = ["metadata": metadata, "type": "rename"]
+                    NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_synchronizationMedia), object: nil, userInfo: userInfo)
+                }
+            }
+        }
+    }
+    
+    // MARK: DZNEmpty
+    
+    func verticalOffset(forEmptyDataSet scrollView: UIScrollView!) -> CGFloat {
+        return 0
+    }
+    
+    func backgroundColor(forEmptyDataSet scrollView: UIScrollView) -> UIColor? {
+        return NCBrandColor.sharedInstance.backgroundView
+    }
+    
+    func image(forEmptyDataSet scrollView: UIScrollView) -> UIImage? {
+        return CCGraphics.changeThemingColorImage(UIImage.init(named: "media"), width: 300, height: 300, color: NCBrandColor.sharedInstance.brandElement)
+    }
+    
+    func title(forEmptyDataSet scrollView: UIScrollView) -> NSAttributedString? {
+        
+        var text = "\n" + NSLocalizedString("_tutorial_photo_view_", comment: "")
+
+        if oldInProgress || newInProgress {
+            text = "\n" + NSLocalizedString("_search_in_progress_", comment: "")
+        }
+        
+        let attributes = [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 20), NSAttributedString.Key.foregroundColor: UIColor.lightGray]
+        return NSAttributedString.init(string: text, attributes: attributes)
+    }
+    
+    func emptyDataSetShouldAllowScroll(_ scrollView: UIScrollView) -> Bool {
+        return true
     }
     
     // MARK: SEGUE
@@ -452,53 +424,6 @@ extension NCMedia: UICollectionViewDataSource {
         CATransaction.commit()
     }
     
-    func mediaCommandTitle() {
-        if let cell = collectionView?.visibleCells.first as? NCGridMediaCell {
-            if cell.date != nil {
-                mediaCommandView!.title.text = CCUtility.getTitleSectionDate(cell.date)
-            }
-        }
-    }
-    
-    /*
-    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
-        
-        switch kind {
-        case UICollectionView.elementKindSectionFooter:
-            let footer = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: "sectionFooter", for: indexPath) as! NCSectionFooter
-            footer.setTitleLabel(sectionDatasource: sectionDatasource)
-            return footer
-            
-        default:
-            return UICollectionReusableView()
-        }
-            /*
-      
-            let header = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: "sectionHeader", for: indexPath) as! NCSectionMediaHeader
-            
-            header.setTitleLabel(sectionDatasource: sectionDatasource, section: indexPath.section)
-            header.labelSection.textColor = .white
-            header.labelHeightConstraint.constant = 20
-            header.labelSection.layer.cornerRadius = 10
-            header.labelSection.layer.backgroundColor = UIColor(red: 152.0/255.0, green: 167.0/255.0, blue: 181.0/255.0, alpha: 0.8).cgColor
-            let width = header.labelSection.intrinsicContentSize.width + 30
-            let leading = collectionView.bounds.width / 2 - width / 2
-            header.labelWidthConstraint.constant = width
-            header.labelLeadingConstraint.constant = leading
-            
-            return header
-      
-        */
-    }
-    */
-    
-    /*
-    func numberOfSections(in collectionView: UICollectionView) -> Int {
-        let sections = sectionDatasource.sectionArrayRow.allKeys.count
-        return sections
-    }
-    */
-    
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         
         return metadatas.count
@@ -572,7 +497,7 @@ extension NCMedia: UICollectionViewDataSource {
 extension NCMedia: UICollectionViewDelegateFlowLayout {
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, referenceSizeForHeaderInSection section: Int) -> CGSize {
-        return CGSize(width: collectionView.frame.width, height: sectionHeaderHeight)
+        return CGSize(width: collectionView.frame.width, height: 0)
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, referenceSizeForFooterInSection section: Int) -> CGSize {
@@ -703,26 +628,6 @@ extension NCMedia {
         }
     }
     
-    func deleteItems() {
-        
-        self.isEditMode = false
-        
-        if (appDelegate.activeAccount == nil || appDelegate.activeAccount.count == 0 || appDelegate.maintenanceMode == true) {
-            return
-        }
-        
-        // copy in arrayDeleteMetadata
-        for ocId in selectocId {
-            if let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", ocId)) {
-                appDelegate.arrayDeleteMetadata.add(metadata)
-            }
-        }
-        if let metadata = appDelegate.arrayDeleteMetadata.firstObject {
-            appDelegate.arrayDeleteMetadata.removeObject(at: 0)
-            NCNetworking.shared.deleteMetadata(metadata as! tableMetadata, account: appDelegate.activeAccount, url: appDelegate.activeUrl) { (errorCode, errorDescription) in }
-        }
-    }
-    
     private func downloadThumbnail() {
         guard let collectionView = self.collectionView else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -733,12 +638,12 @@ extension NCMedia {
         }
     }
     
-    private func removeDeletedFile() {
+    private func readFiles() {
         guard let collectionView = self.collectionView else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             for indexPath in collectionView.indexPathsForVisibleItems {
                 let metadata = self.metadatas[indexPath.row]
-                NCOperationQueue.shared.removeDeletedFile(metadata: metadata)
+                NCOperationQueue.shared.readFileForMedia(metadata: metadata)
             }
         }
     }
@@ -755,7 +660,7 @@ extension NCMedia: UIScrollViewDelegate {
     
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
         if !decelerate {
-            self.removeDeletedFile()
+            self.readFiles()
             
             if (scrollView.contentOffset.y >= (scrollView.contentSize.height - scrollView.frame.size.height)) {
                 searchOldPhotoVideo()
@@ -764,7 +669,7 @@ extension NCMedia: UIScrollViewDelegate {
     }
     
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-        self.removeDeletedFile()
+        self.readFiles()
         
         if (scrollView.contentOffset.y >= (scrollView.contentSize.height - scrollView.frame.size.height)) {
             searchOldPhotoVideo()
@@ -803,7 +708,7 @@ class NCMediaCommandView: UIView {
     }
     
     @IBAction func moreButtonPressed(_ sender: UIButton) {
-        mediaView?.touchUpInsideMenuButtonMore(sender)
+        mediaView?.openMenuButtonMore(sender)
     }
     
     @IBAction func zoomInPressed(_ sender: UIButton) {

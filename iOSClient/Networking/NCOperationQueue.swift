@@ -35,13 +35,13 @@ import NCCommunication
     private var downloadQueue = Queuer(name: "downloadQueue", maxConcurrentOperationCount: 5, qualityOfService: .default)
     private let readFolderSyncQueue = Queuer(name: "readFolderSyncQueue", maxConcurrentOperationCount: 1, qualityOfService: .default)
     private let downloadThumbnailQueue = Queuer(name: "downloadThumbnailQueue", maxConcurrentOperationCount: 10, qualityOfService: .default)
-    private let removeDeletedFileQueue = Queuer(name: "removeDeletedFileQueue", maxConcurrentOperationCount: 10, qualityOfService: .default)
+    private let readFileForMediaQueue = Queuer(name: "readFileForMediaQueue", maxConcurrentOperationCount: 10, qualityOfService: .default)
 
     @objc func cancelAllQueue() {
         downloadCancelAll()
         readFolderSyncCancelAll()
         downloadThumbnailCancelAll()
-        removeDeletedFileCancelAll()
+        readFileForMediaCancelAll()
     }
     
     // Download file
@@ -86,16 +86,16 @@ import NCCommunication
         downloadThumbnailQueue.cancelAll()
     }
     
-    // Remove deleted file
-    @objc func removeDeletedFile(metadata: tableMetadata) {
+    // Verify exists yet file
+    @objc func readFileForMedia(metadata: tableMetadata) {
         
-        for operation in  removeDeletedFileQueue.operations {
-            if (operation as! NCOperationRemoveDeletedFileQueue).metadata.ocId == metadata.ocId { return }
+        for operation in  readFileForMediaQueue.operations {
+            if (operation as! NCOperationReadFileForMediaQueue).metadata.ocId == metadata.ocId { return }
         }
-        removeDeletedFileQueue.addOperation(NCOperationRemoveDeletedFileQueue.init(metadata: metadata))
+        readFileForMediaQueue.addOperation(NCOperationReadFileForMediaQueue.init(metadata: metadata))
     }
-    @objc func removeDeletedFileCancelAll() {
-        removeDeletedFileQueue.cancelAll()
+    @objc func readFileForMediaCancelAll() {
+        readFileForMediaQueue.cancelAll()
     }
 }
 
@@ -221,7 +221,7 @@ class NCOperationDownloadThumbnail: ConcurrentOperation {
 
 //MARK: -
 
-class NCOperationRemoveDeletedFileQueue: ConcurrentOperation {
+class NCOperationReadFileForMediaQueue: ConcurrentOperation {
    
     var metadata: tableMetadata
     
@@ -235,7 +235,15 @@ class NCOperationRemoveDeletedFileQueue: ConcurrentOperation {
             self.finish()
         } else {
             let serverUrlFileName = metadata.serverUrl + "/" + metadata.fileName
-            NCCommunication.shared.readFileOrFolder(serverUrlFileName: serverUrlFileName, depth: "0", showHiddenFiles: CCUtility.getShowHiddenFiles()) { (account, files, responseData, errorCode, errorDescription) in
+            
+            let requestBody =
+            """
+            <?xml version=\"1.0\" encoding=\"UTF-8\"?>
+            <d:propfind xmlns:d=\"DAV:\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\">
+            </d:propfind>
+            """
+            
+            NCCommunication.shared.readFileOrFolder(serverUrlFileName: serverUrlFileName, depth: "0", requestBody: requestBody.data(using: .utf8)) { (account, files, responseData, errorCode, errorDescription) in
                 if errorCode == 404 {
                     NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "ocId == %@", self.metadata.ocId))
                     NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_deleteFile), object: nil, userInfo: ["metadata": self.metadata, "errorCode": errorCode])
