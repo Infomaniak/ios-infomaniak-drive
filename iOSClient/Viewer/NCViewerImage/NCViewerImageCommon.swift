@@ -55,7 +55,7 @@ class NCViewerImageCommon: NSObject {
             var datasourceAscending = true
             (_, datasourceSorted, datasourceAscending, _, _) = NCUtility.sharedInstance.getLayoutForView(key: k_layout_view_offline)
             if let files = NCManageDatabase.sharedInstance.getTableLocalFiles(predicate: NSPredicate(format: "account == %@ AND offline == true", metadata.account), sorted: datasourceSorted, ascending: datasourceAscending) {
-                var ocIds = [String]()
+                var ocIds: [String] = []
                 for file: tableLocalFile in files {
                     ocIds.append(file.ocId)
                 }
@@ -70,8 +70,8 @@ class NCViewerImageCommon: NSObject {
     
     func getThumbnailImage(metadata: tableMetadata) -> UIImage? {
         
-        if CCUtility.fileProviderStorageIconExists(metadata.ocId, fileNameView: metadata.fileNameView) {
-            let imagePath = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
+        if CCUtility.fileProviderStoragePreviewIconExists(metadata.ocId, fileNameView: metadata.fileNameView) {
+            let imagePath = CCUtility.getDirectoryProviderStoragePreviewOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
             return UIImage.init(contentsOfFile: imagePath)
         }
         
@@ -85,12 +85,12 @@ class NCViewerImageCommon: NSObject {
         
         if CCUtility.fileProviderStorageSize(metadata.ocId, fileNameView: metadata.fileNameView) > 0 && metadata.typeFile == k_metadataTypeFile_image {
            
-            let iconPath = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
+            let previewPath = CCUtility.getDirectoryProviderStoragePreviewOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
             let imagePath = CCUtility.getDirectoryProviderStorageOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
             
             if ext == "GIF" {
-                if !FileManager().fileExists(atPath: iconPath) {
-                    CCGraphics.createNewImage(from: metadata.fileNameView, ocId: metadata.ocId, filterGrayScale: false, typeFile: metadata.typeFile, writeImage: true)
+                if !FileManager().fileExists(atPath: previewPath) {
+                    CCGraphics.createNewImage(from: metadata.fileNameView, ocId: metadata.ocId, typeFile: metadata.typeFile)
                 }
                 image = UIImage.animatedImage(withAnimatedGIFURL: URL(fileURLWithPath: imagePath))
             } else if ext == "SVG" {
@@ -98,9 +98,9 @@ class NCViewerImageCommon: NSObject {
                     let scale = svgImage.size.height / svgImage.size.width
                     svgImage.size = CGSize(width: CGFloat(k_sizePreview), height: (CGFloat(k_sizePreview) * scale))
                     if let image = svgImage.uiImage {
-                        if !FileManager().fileExists(atPath: iconPath) {
+                        if !FileManager().fileExists(atPath: previewPath) {
                             do {
-                                try image.pngData()?.write(to: URL(fileURLWithPath: iconPath), options: .atomic)
+                                try image.pngData()?.write(to: URL(fileURLWithPath: previewPath), options: .atomic)
                             } catch { }
                         }
                         return image
@@ -111,8 +111,8 @@ class NCViewerImageCommon: NSObject {
                     return nil
                 }
             } else {
-                if !FileManager().fileExists(atPath: iconPath) {
-                    CCGraphics.createNewImage(from: metadata.fileNameView, ocId: metadata.ocId, filterGrayScale: false, typeFile: metadata.typeFile, writeImage: true)
+                if !FileManager().fileExists(atPath: previewPath) {
+                    CCGraphics.createNewImage(from: metadata.fileNameView, ocId: metadata.ocId, typeFile: metadata.typeFile)
                 }
                 image = UIImage.init(contentsOfFile: imagePath)
             }

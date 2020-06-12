@@ -35,9 +35,9 @@ class NCTrash: UIViewController, UIGestureRecognizerDelegate, NCTrashListCellDel
     private let appDelegate = UIApplication.shared.delegate as! AppDelegate
     
     private var isEditMode = false
-    private var selectocId = [String]()
+    private var selectocId: [String] = []
     
-    private var datasource = [tableTrash]()
+    private var datasource: [tableTrash] = []
     
     private var typeLayout = ""
     private var datasourceSorted = ""
@@ -194,7 +194,7 @@ class NCTrash: UIViewController, UIGestureRecognizerDelegate, NCTrashListCellDel
     func tapOrderHeaderMenu(sender: Any) {
         let mainMenuViewController = UIStoryboard.init(name: "NCMenu", bundle: nil).instantiateViewController(withIdentifier: "NCMainMenuTableViewController") as! NCMainMenuTableViewController
         
-        var actions = [NCMenuAction]()
+        var actions: [NCMenuAction] = []
         
         actions.append(
             NCMenuAction(
@@ -267,7 +267,7 @@ class NCTrash: UIViewController, UIGestureRecognizerDelegate, NCTrashListCellDel
     func tapMoreHeaderMenu(sender: Any) {
         let mainMenuViewController = UIStoryboard.init(name: "NCMenu", bundle: nil).instantiateViewController(withIdentifier: "NCMainMenuTableViewController") as! NCMainMenuTableViewController
         
-        var actions = [NCMenuAction]()
+        var actions: [NCMenuAction] = []
                 
         if isEditMode {
             actions.append(
@@ -334,7 +334,7 @@ class NCTrash: UIViewController, UIGestureRecognizerDelegate, NCTrashListCellDel
         if !isEditMode {
             let mainMenuViewController = UIStoryboard.init(name: "NCMenu", bundle: nil).instantiateViewController(withIdentifier: "NCMainMenuTableViewController") as! NCMainMenuTableViewController
 
-            var actions = [NCMenuAction]()
+            var actions: [NCMenuAction] = []
 
             guard let tableTrash = NCManageDatabase.sharedInstance.getTrashItem(fileId: objectId, account: appDelegate.activeAccount) else {
                 return
@@ -389,7 +389,7 @@ class NCTrash: UIViewController, UIGestureRecognizerDelegate, NCTrashListCellDel
         if !isEditMode {
             let mainMenuViewController = UIStoryboard.init(name: "NCMenu", bundle: nil).instantiateViewController(withIdentifier: "NCMainMenuTableViewController") as! NCMainMenuTableViewController
 
-            var actions = [NCMenuAction]()
+            var actions: [NCMenuAction] = []
 
             guard let tableTrash = NCManageDatabase.sharedInstance.getTrashItem(fileId: objectId, account: appDelegate.activeAccount) else {
                 return
@@ -538,7 +538,7 @@ extension NCTrash: UICollectionViewDataSource {
         if FileManager().fileExists(atPath: CCUtility.getDirectoryProviderStorageIconOcId(tableTrash.fileId, fileNameView: tableTrash.fileName)) {
             image = UIImage.init(contentsOfFile: CCUtility.getDirectoryProviderStorageIconOcId(tableTrash.fileId, fileNameView: tableTrash.fileName))
         } else {
-            if tableTrash.hasPreview && !CCUtility.fileProviderStorageIconExists(tableTrash.fileId, fileNameView: tableTrash.fileName) {
+            if tableTrash.hasPreview && !CCUtility.fileProviderStoragePreviewIconExists(tableTrash.fileId, fileNameView: tableTrash.fileName) {
                 downloadThumbnail(with: tableTrash, indexPath: indexPath)
             }
         }
@@ -743,16 +743,17 @@ extension NCTrash {
     
     func downloadThumbnail(with tableTrash: tableTrash, indexPath: IndexPath) {
         
-        let fileNameLocalPath = CCUtility.getDirectoryProviderStorageIconOcId(tableTrash.fileId, fileNameView: tableTrash.fileName)!
+        let fileNamePreviewLocalPath = CCUtility.getDirectoryProviderStoragePreviewOcId(tableTrash.fileId, fileNameView: tableTrash.fileName)!
+        let fileNameIconLocalPath = CCUtility.getDirectoryProviderStorageIconOcId(tableTrash.fileId, fileNameView: tableTrash.fileName)!
         
-        NCCommunication.shared.downloadPreview(fileNamePathOrFileId: tableTrash.fileId, fileNameLocalPath: fileNameLocalPath, width: Int(k_sizePreview), height: Int(k_sizePreview), downloadFromTrash: true) { (account, data, errorCode, errorDescription) in
+        NCCommunication.shared.downloadPreview(fileNamePathOrFileId: tableTrash.fileId, fileNamePreviewLocalPath: fileNamePreviewLocalPath, widthPreview: Int(k_sizePreview), heightPreview: Int(k_sizePreview), fileNameIconLocalPath: fileNameIconLocalPath, sizeIcon: Int(k_sizeIcon), endpointTrashbin: true) { (account, imagePreview, imageIcon, errorCode, errorDescription) in
             
-            if errorCode == 0 && data != nil && account == self.appDelegate.activeAccount {
-                if let cell = self.collectionView.cellForItem(at: indexPath), let image = UIImage.init(data: data!) {
+            if errorCode == 0 && imageIcon != nil && account == self.appDelegate.activeAccount {
+                if let cell = self.collectionView.cellForItem(at: indexPath) {
                     if cell is NCTrashListCell {
-                        (cell as! NCTrashListCell).imageItem.image = image
+                        (cell as! NCTrashListCell).imageItem.image = imageIcon
                     } else if cell is NCGridCell {
-                        (cell as! NCGridCell).imageItem.image = image
+                        (cell as! NCGridCell).imageItem.image = imageIcon
                     }
                 }
             }

@@ -81,10 +81,11 @@
 #define k_maxErrorAutoUploadAll                         100
 
 #define k_sizePreview                                   1024
+#define k_sizeIcon                                      512
 
 // Database Realm
 #define k_databaseDefault                               @"nextcloud.realm"
-#define k_databaseSchemaVersion                         111
+#define k_databaseSchemaVersion                         120
 
 // Intro selector
 #define k_intro_login                                   0

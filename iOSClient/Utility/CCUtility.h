@@ -45,12 +45,6 @@
 + (void)deleteAllChainStore;
 + (void)storeAllChainInService;
 
-+ (NSString *)getVersion;
-+ (NSString *)setVersion;
-
-+ (NSString *)getBuild;
-+ (NSString *)setBuild;
-
 + (NSString *)getPasscode;
 + (void)setPasscode:(NSString *)passcode;
 
@@ -209,9 +203,10 @@
 + (NSString *)getDirectoryProviderStorageOcId:(NSString *)ocId;
 + (NSString *)getDirectoryProviderStorageOcId:(NSString *)ocId fileNameView:(NSString *)fileNameView;
 + (NSString *)getDirectoryProviderStorageIconOcId:(NSString *)ocId fileNameView:(NSString *)fileNameView;
++ (NSString *)getDirectoryProviderStoragePreviewOcId:(NSString *)ocId fileNameView:(NSString *)fileNameView;
 + (BOOL)fileProviderStorageExists:(NSString *)ocId fileNameView:(NSString *)fileNameView;
 + (double)fileProviderStorageSize:(NSString *)ocId fileNameView:(NSString *)fileNameView;
-+ (BOOL)fileProviderStorageIconExists:(NSString *)ocId fileNameView:(NSString *)fileNameView;
++ (BOOL)fileProviderStoragePreviewIconExists:(NSString *)ocId fileNameView:(NSString *)fileNameView;
 
 + (void)removeGroupApplicationSupport;
 + (void)removeGroupLibraryDirectory;

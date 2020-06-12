@@ -231,12 +231,15 @@
     [appDelegate maintenanceMode:YES];
     
     [[NCMainCommon sharedInstance] cancelAllTransfer];
+    [[NCOperationQueue shared] cancelAllQueue];
 
     [[NSURLCache sharedURLCache] setMemoryCapacity:0];
     [[NSURLCache sharedURLCache] setDiskCapacity:0];
     [KTVHTTPCache cacheDeleteAllCaches];
     
     [[NCManageDatabase sharedInstance] clearDatabaseWithAccount:appDelegate.activeAccount removeAccount:false];
+    [[NCManageDatabase sharedInstance] setAccountDateUpdateNewMediaWithClear:true];
+    [[NCManageDatabase sharedInstance] setAccountDateLessMediaWithDate:nil];
     
     [CCUtility removeGroupDirectoryProviderStorage];
     [CCUtility removeGroupLibraryDirectory];

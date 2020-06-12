@@ -60,34 +60,6 @@
 
 #pragma ------------------------------ GET/SET
 
-+ (NSString *)getVersion
-{
-    return [UICKeyChainStore stringForKey:@"version" service:k_serviceShareKeyChain];
-}
-
-+ (NSString *)setVersion
-{
-    NSString *version = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
-    
-    [UICKeyChainStore setString:version forKey:@"version" service:k_serviceShareKeyChain];
-    
-    return version;
-}
-
-+ (NSString *)getBuild
-{
-    return [UICKeyChainStore stringForKey:@"build" service:k_serviceShareKeyChain];
-}
-
-+ (NSString *)setBuild
-{
-    NSString *build = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleVersion"];
-    
-    [UICKeyChainStore setString:build forKey:@"build" service:k_serviceShareKeyChain];
-    
-    return build;
-}
-
 + (NSString *)getPasscode
 {
     return [UICKeyChainStore stringForKey:@"passcodeBlock" service:k_serviceShareKeyChain];
@@ -1163,7 +1135,12 @@
 
 + (NSString *)getDirectoryProviderStorageIconOcId:(NSString *)ocId fileNameView:(NSString *)fileNameView
 {
-    return [NSString stringWithFormat:@"%@/%@.ico", [self getDirectoryProviderStorageOcId:ocId], fileNameView];
+    return [NSString stringWithFormat:@"%@/%@.small.ico", [self getDirectoryProviderStorageOcId:ocId], fileNameView];
+}
+
++ (NSString *)getDirectoryProviderStoragePreviewOcId:(NSString *)ocId fileNameView:(NSString *)fileNameView
+{
+    return [NSString stringWithFormat:@"%@/%@.preview.ico", [self getDirectoryProviderStorageOcId:ocId], fileNameView];
 }
 
 + (BOOL)fileProviderStorageExists:(NSString *)ocId fileNameView:(NSString *)fileNameView
@@ -1192,6 +1169,18 @@
     unsigned long long fileSize = [[[NSFileManager defaultManager] attributesOfItemAtPath:fileNamePath error:nil] fileSize];
     
     if (fileSize > 0) return true;
+    else return false;
+}
+
++ (BOOL)fileProviderStoragePreviewIconExists:(NSString *)ocId fileNameView:(NSString *)fileNameView
+{
+    NSString *fileNamePathPreview = [self getDirectoryProviderStoragePreviewOcId:ocId fileNameView:fileNameView];
+    NSString *fileNamePathIcon = [self getDirectoryProviderStorageIconOcId:ocId fileNameView:fileNameView];
+    
+    unsigned long long fileSizePreview = [[[NSFileManager defaultManager] attributesOfItemAtPath:fileNamePathPreview error:nil] fileSize];
+    unsigned long long fileSizeIcon = [[[NSFileManager defaultManager] attributesOfItemAtPath:fileNamePathIcon error:nil] fileSize];
+    
+    if (fileSizePreview > 0 && fileSizeIcon > 0) return true;
     else return false;
 }
 
@@ -1244,7 +1233,7 @@
         
     } else {
         
-        title = [NSDateFormatter localizedStringFromDate:date dateStyle:NSDateFormatterFullStyle timeStyle:0];
+        title = [NSDateFormatter localizedStringFromDate:date dateStyle:NSDateFormatterLongStyle timeStyle:0];
         
         if ([date isEqualToDate:[CCUtility datetimeWithOutTime:today]])
             title = [NSString stringWithFormat:NSLocalizedString(@"_today_", nil)];

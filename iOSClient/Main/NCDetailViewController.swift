@@ -39,7 +39,7 @@ class NCDetailViewController: UIViewController {
     @objc var offlineFilterImage: Bool = false
     
     @objc var viewerImageViewController: NCViewerImageViewController?
-    @objc var metadatas = [tableMetadata]()
+    @objc var metadatas: [tableMetadata] = []
     
     private var maxProgress: Float = 0
     private var videoLayer: AVPlayerLayer?
@@ -210,10 +210,8 @@ class NCDetailViewController: UIViewController {
             if let type = userInfo["type"] as? String {
                 
                 if (self.metadata?.typeFile == k_metadataTypeFile_image || self.metadata?.typeFile == k_metadataTypeFile_video || self.metadata?.typeFile == k_metadataTypeFile_audio) && self.mediaFilterImage {
-                    
-                    if let metadatas = appDelegate.activeMedia.sectionDatasource.metadatas as? [tableMetadata] {
-                        self.metadatas = metadatas
-                    }
+                                        
+                    self.metadatas = appDelegate.activeMedia.metadatas
                     
                     if type == "delete" {
                         if metadatas.count > 0 {
@@ -494,7 +492,7 @@ class NCDetailViewController: UIViewController {
                 let editor = NCUtility.sharedInstance.isDirectEditing(metadata)!
                 if editor == k_editor_text || editor == k_editor_onlyoffice {
                     
-                    NCUtility.sharedInstance.startActivityIndicator(view: backgroundView, bottom: 0)
+                    NCUtility.sharedInstance.startActivityIndicator(view: backgroundView)
 
                     if metadata.url == "" {
                         
@@ -543,7 +541,7 @@ class NCDetailViewController: UIViewController {
             // RichDocument: Collabora
             if NCUtility.sharedInstance.isRichDocument(metadata) &&  NCCommunication.shared.isNetworkReachable() {
                 
-                NCUtility.sharedInstance.startActivityIndicator(view: backgroundView, bottom: 0)
+                NCUtility.sharedInstance.startActivityIndicator(view: backgroundView)
                 
                 if metadata.url == "" {
                     
@@ -643,7 +641,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
         
         if index >= metadatas.count { return }
         let metadata = metadatas[index]
-        let isPreview = CCUtility.fileProviderStorageIconExists(metadata.ocId, fileNameView: metadata.fileNameView)
+        let isPreview = CCUtility.fileProviderStoragePreviewIconExists(metadata.ocId, fileNameView: metadata.fileNameView)
         let isImage = CCUtility.fileProviderStorageSize(metadata.ocId, fileNameView: metadata.fileNameView) > 0
         let ext = CCUtility.getExtension(metadata.fileNameView)
         let isFolderEncrypted = CCUtility.isFolderEncrypted(metadata.serverUrl, e2eEncrypted: metadata.e2eEncrypted, account: metadata.account)
@@ -662,7 +660,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
         // Preview for Video
         if metadata.typeFile == k_metadataTypeFile_video && !isPreview && isImage {
             
-            CCGraphics.createNewImage(from: metadata.fileNameView, ocId: metadata.ocId, filterGrayScale: false, typeFile: metadata.typeFile, writeImage: true)
+            CCGraphics.createNewImage(from: metadata.fileNameView, ocId: metadata.ocId, typeFile: metadata.typeFile)
         }
         
         // Original only for actual
@@ -731,11 +729,12 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
         } else if metadata.hasPreview {
                 
             let fileNamePath = CCUtility.returnFileNamePath(fromFileName: metadata.fileName, serverUrl: metadata.serverUrl, activeUrl: appDelegate.activeUrl)!
-            let fileNameLocalPath = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
+            let fileNamePreviewLocalPath = CCUtility.getDirectoryProviderStoragePreviewOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
+            let fileNameIconLocalPath = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
                     
-            NCCommunication.shared.downloadPreview(fileNamePathOrFileId: fileNamePath, fileNameLocalPath: fileNameLocalPath, width: Int(k_sizePreview), height: Int(k_sizePreview)) { (account, data, errorCode, errorMessage) in
-                if errorCode == 0 && data != nil {
-                    completion(index, UIImage.init(data: data!), metadata, ZoomScale.default, nil)
+            NCCommunication.shared.downloadPreview(fileNamePathOrFileId: fileNamePath, fileNamePreviewLocalPath: fileNamePreviewLocalPath, widthPreview: Int(k_sizePreview), heightPreview: Int(k_sizePreview), fileNameIconLocalPath: fileNameIconLocalPath, sizeIcon: Int(k_sizeIcon)) { (account, imagePreview, imageIcon,  errorCode, errorMessage) in
+                if errorCode == 0 && imagePreview != nil {
+                    completion(index, imagePreview, metadata, ZoomScale.default, nil)
                 } else {
                     completion(index, NCViewerImageCommon.shared.getImageOffOutline(frame: self.view.frame, type: metadata.typeFile), metadata, ZoomScale.default, nil)
                 }

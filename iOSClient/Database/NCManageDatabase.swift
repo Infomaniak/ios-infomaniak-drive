@@ -99,21 +99,11 @@ class NCManageDatabase: NSObject {
                         migration.deleteData(forType: tableTrash.className())
                     }
                     
-                    if oldSchemaVersion < 95 {
+                    if oldSchemaVersion < 120 {
                         migration.deleteData(forType: tableE2eEncryptionLock.className())
-                    }
-                    
-                    if oldSchemaVersion < 104 {
                         migration.deleteData(forType: tableCapabilities.className())
-                    }
-                    
-                    if oldSchemaVersion < 107 {
                         migration.deleteData(forType: tableComments.className())
-                    }
-                    
-                    if oldSchemaVersion < 111 {
                         migration.deleteData(forType: tableMetadata.className())
-                        migration.deleteData(forType: tableMedia.className())
                         migration.deleteData(forType: tableDirectory.className())
                     }
                     
@@ -208,7 +198,6 @@ class NCManageDatabase: NSObject {
         self.clearTable(tableExternalSites.self, account: account)
         self.clearTable(tableGPS.self, account: nil)
         self.clearTable(tableLocalFile.self, account: account)
-        self.clearTable(tableMedia.self, account: account)
         self.clearTable(tableMetadata.self, account: account)
         self.clearTable(tablePhotoLibrary.self, account: account)
         self.clearTable(tableShare.self, account: account)
@@ -674,22 +663,34 @@ class NCManageDatabase: NSObject {
     }
     #endif
     
-    @objc func setAccountDateSearchContentTypeImageVideo(_ date: Date) {
-        
-        guard let activeAccount = self.getAccountActive() else {
-            return
-        }
+    @objc func setAccountDateUpdateNewMedia(clear: Bool = false) {
         
         let realm = try! Realm()
-        
+
         do {
             try realm.write {
-                
-                guard let result = realm.objects(tableAccount.self).filter("account == %@", activeAccount.account).first else {
-                    return
+                if let result = realm.objects(tableAccount.self).filter("active == true").first {
+                    if clear {
+                        result.dateUpdateNewMedia = nil
+                    } else {
+                        result.dateUpdateNewMedia = Date() as NSDate
+                    }
                 }
-                
-                result.dateSearchContentTypeImageVideo = date
+            }
+        } catch let error {
+            print("[LOG] Could not write to database: ", error)
+        }
+    }
+    
+    @objc func setAccountDateLessMedia(date: NSDate?) {
+        
+        let realm = try! Realm()
+
+        do {
+            try realm.write {
+                if let result = realm.objects(tableAccount.self).filter("active == true").first {
+                    result.dateLessMedia = date
+                }
             }
         } catch let error {
             print("[LOG] Could not write to database: ", error)
@@ -791,7 +792,7 @@ class NCManageDatabase: NSObject {
         let results = realm.objects(tableActivity.self).filter(predicate).sorted(byKeyPath: "idActivity", ascending: false)
         let allActivity = Array(results.map { tableActivity.init(value:$0) })
         if filterFileId != nil {
-            var resultsFilter = [tableActivity]()
+            var resultsFilter: [tableActivity] = []
             for result in results {
                 let resultsActivitySubjectRich = realm.objects(tableActivitySubjectRich.self).filter("account == %@ && idActivity == %d", result.account, result.idActivity)
                 for resultActivitySubjectRich in resultsActivitySubjectRich {
@@ -832,7 +833,7 @@ class NCManageDatabase: NSObject {
         let realm = try! Realm()
         realm.refresh()
         
-        var results = [tableActivityPreview]()
+        var results: [tableActivityPreview] = []
         
         for id in orderKeysId {
             if let result = realm.objects(tableActivityPreview.self).filter("account == %@ && idActivity == %d && fileId == %d", account, idActivity, Int(id) ?? 0).first {
@@ -933,7 +934,7 @@ class NCManageDatabase: NSObject {
     @objc func getCapabilitiesServerArray(account: String, elements: Array<String>) -> [String]? {
 
         let realm = try! Realm()
-        var resultArray = [String]()
+        var resultArray: [String] = []
         realm.refresh()
         
         guard let result = realm.objects(tableCapabilities.self).filter("account == %@", account).first else {
@@ -1772,11 +1773,11 @@ class NCManageDatabase: NSObject {
     
         var counter: Int = 0
         var isEncrypted: Bool = false
-        var listServerUrl = [String:Bool]()
+        var listServerUrl: [String: Bool] = [:]
         
         var metadataFolder = tableMetadata()
-        var metadataFolders = [tableMetadata]()
-        var metadatas = [tableMetadata]()
+        var metadataFolders: [tableMetadata] = []
+        var metadatas: [tableMetadata] = []
 
         for file in files {
                         
@@ -1844,7 +1845,7 @@ class NCManageDatabase: NSObject {
     @discardableResult
     @objc func addMetadatas(_ metadatas: [tableMetadata]) -> [tableMetadata]? {
         
-        var directoryToClearDate = [String:String]()
+        var directoryToClearDate: [String: String] = [:]
 
         let realm = try! Realm()
 
@@ -1923,7 +1924,7 @@ class NCManageDatabase: NSObject {
     
     @objc func deleteMetadata(predicate: NSPredicate) {
         
-        var directoryToClearDate = [String:String]()
+        var directoryToClearDate: [String: String] = [:]
         
         let realm = try! Realm()
 
@@ -2188,7 +2189,7 @@ class NCManageDatabase: NSObject {
         realm.refresh()
         
         let results: Results<tableMetadata>
-        var finals = [tableMetadata]()
+        var finals: [tableMetadata] = []
                     
         if (tableMetadata().objectSchema.properties.contains { $0.name == sorted }) {
             results = realm.objects(tableMetadata.self).filter(predicate).sorted(byKeyPath: sorted, ascending: ascending)
@@ -2197,7 +2198,7 @@ class NCManageDatabase: NSObject {
         }
         
         // For Live Photo
-        var fileNameImages = [String]()
+        var fileNameImages: [String] = []
         let filtered = results.filter{ $0.typeFile.contains(k_metadataTypeFile_image) }
         filtered.forEach { print($0)
             let fileName = ($0.fileNameView as NSString).deletingPathExtension
@@ -2233,7 +2234,7 @@ class NCManageDatabase: NSObject {
         
             let nFrom = (page - 1) * limit
             let nTo = nFrom + (limit - 1)
-            var metadatas = [tableMetadata]()
+            var metadatas: [tableMetadata] = []
             
             for n in nFrom...nTo {
                 if n == results.count {
@@ -2277,9 +2278,9 @@ class NCManageDatabase: NSObject {
         return tableMetadata.init(value: result)
     }
     
-    @objc func getTableMetadatasDirectoryFavoriteIdentifierRank(account: String) -> [String:NSNumber] {
+    @objc func getTableMetadatasDirectoryFavoriteIdentifierRank(account: String) -> [String: NSNumber] {
         
-        var listIdentifierRank = [String:NSNumber]()
+        var listIdentifierRank: [String: NSNumber] = [:]
 
         let realm = try! Realm()
         realm.refresh()
@@ -2333,7 +2334,7 @@ class NCManageDatabase: NSObject {
         
         let realm = try! Realm()
         realm.refresh()
-        var assetLocalIdentifiers = [String]()
+        var assetLocalIdentifiers: [String] = []
         
         let results = realm.objects(tableMetadata.self).filter("account == %@ AND assetLocalIdentifier != '' AND deleteAssetLocalIdentifier == true AND sessionSelector == %@", account, sessionSelector)
         for result in results {
@@ -2391,96 +2392,43 @@ class NCManageDatabase: NSObject {
         return tableMetadata.init(value: result)
     }
     
-    //MARK: -
-    //MARK: Table Media
- 
-    @objc func getMedia(predicate: NSPredicate) -> tableMetadata? {
-        
-        let realm = try! Realm()
-        realm.refresh()
-        
-        guard let result = realm.objects(tableMedia.self).filter(predicate).first else {
-            return nil
-        }
-        
-        return tableMetadata.init(value: result)
-    }
-   
-    @objc func getMedias(account: String, predicate: NSPredicate) -> [tableMetadata]? {
-        
-        let realm = try! Realm()
-        realm.refresh()
-        
-        let sortProperties = [SortDescriptor(keyPath: "date", ascending: false), SortDescriptor(keyPath: "fileNameView", ascending: false)]
-        let results = realm.objects(tableMedia.self).filter(predicate).sorted(by: sortProperties)
-        if results.count == 0 {
-            return nil
-        }
+    @objc func getMetadatasMedia(predicate: NSPredicate, completion: @escaping (_ metadatas: [tableMetadata])->()) {
                 
-        var metadatas = [tableMetadata]()
-        var metadatasMOVLivePhoto = [tableMetadata]()
+        DispatchQueue.global().async {
+            autoreleasepool {
         
-        // For Live Photo
-        var fileNameImages = [String]()
-        let filtered = results.filter{ $0.typeFile.contains(k_metadataTypeFile_image) }
-        filtered.forEach { 
-            let fileName = ($0.fileNameView as NSString).deletingPathExtension
-            fileNameImages.append(fileName)
-        }
+                let realm = try! Realm()
+                realm.refresh()
+                var metadatas = [tableMetadata]()
                 
-        for result in results {
-            let metadata = tableMetadata.init(value: result)
-            let ext = (metadata.fileNameView as NSString).pathExtension.uppercased()
-            let fileName = (metadata.fileNameView as NSString).deletingPathExtension
-
-            if !(ext == "MOV" && fileNameImages.contains(fileName)) {
-                metadatas.append(tableMetadata.init(value: metadata))
-            } else {
-                metadatasMOVLivePhoto.append(tableMetadata.init(value: metadata))
-            }
-        }
-        
-        if metadatasMOVLivePhoto.count > 0 {
-            self.addMetadatas(metadatasMOVLivePhoto)
-        }
-        
-        return metadatas
-    }
-    
-    @objc func deleteMedia(predicate: NSPredicate) {
-                
-        let realm = try! Realm()
-
-        realm.beginWrite()
-
-        let results = realm.objects(tableMedia.self).filter(predicate)
-        
-        realm.delete(results)
-        
-        do {
-            try realm.commitWrite()
-        } catch let error {
-            print("[LOG] Could not write to database: ", error)
-        }
-    }
-    
-    @objc func moveMedia(ocId: String, serverUrlTo: String) {
-        
-        let realm = try! Realm()
-
-        do {
-            try realm.write {
-                let result = realm.objects(tableMedia.self).filter("ocId == %@", ocId).first
-                if result != nil {
-                    result!.serverUrl = serverUrlTo
+                let sortProperties = [SortDescriptor(keyPath: "date", ascending: false), SortDescriptor(keyPath: "fileNameView", ascending: false)]
+                let results = realm.objects(tableMetadata.self).filter(predicate).sorted(by: sortProperties) //.distinct(by: ["fileName"])
+                if (results.count > 0) {
+                    
+                    // For Live Photo
+                    var fileNameImages = [String]()
+                    let filtered = results.filter{ $0.typeFile.contains(k_metadataTypeFile_image) }
+                    filtered.forEach {
+                        let fileName = ($0.fileNameView as NSString).deletingPathExtension
+                        fileNameImages.append(fileName)
+                    }
+                    
+                    for result in results {
+                        let metadata = tableMetadata.init(value: result)
+                        let ext = (metadata.fileNameView as NSString).pathExtension.uppercased()
+                        let fileName = (metadata.fileNameView as NSString).deletingPathExtension
+                        if !(ext == "MOV" && fileNameImages.contains(fileName)) {
+                            metadatas.append(tableMetadata.init(value: metadata))
+                        }
+                    }
                 }
+                
+                completion(metadatas)
             }
-        } catch let error {
-            print("[LOG] Could not write to database: ", error)
         }
     }
     
-    func createTableMedia(_ metadatasSource: [tableMetadata], lteDate: Date, gteDate: Date, account: String) -> (isDifferent: Bool, newInsert: Int) {
+    func updateMetadatasMedia(_ metadatasSource: [tableMetadata], lteDate: Date, gteDate: Date, account: String) -> (isDifferent: Bool, newInsert: Int) {
 
         let realm = try! Realm()
         realm.refresh()
@@ -2488,8 +2436,8 @@ class NCManageDatabase: NSObject {
         var numDelete: Int = 0
         var numInsert: Int = 0
         
-        var etagsDelete = [String]()
-        var etagsInsert = [String]()
+        var etagsDelete: [String] = []
+        var etagsInsert: [String] = []
         
         var isDifferent: Bool = false
         var newInsert: Int = 0
@@ -2498,12 +2446,12 @@ class NCManageDatabase: NSObject {
             try realm.write {
                 
                 // DELETE
-                let results = realm.objects(tableMedia.self).filter("account == %@ AND date >= %@ AND date <= %@", account, gteDate, lteDate)
+                let results = realm.objects(tableMetadata.self).filter("account == %@ AND date >= %@ AND date <= %@ AND (typeFile == %@ OR typeFile == %@ OR typeFile == %@)", account, gteDate, lteDate, k_metadataTypeFile_image, k_metadataTypeFile_video, k_metadataTypeFile_audio)
                 etagsDelete = Array(results.map { $0.etag })
                 numDelete = results.count
                 
                 // INSERT
-                let photos = Array(metadatasSource.map { tableMedia.init(value:$0) })
+                let photos = Array(metadatasSource.map { tableMetadata.init(value:$0) })
                 etagsInsert = Array(photos.map { $0.etag })
                 numInsert = photos.count
                 
@@ -2525,37 +2473,7 @@ class NCManageDatabase: NSObject {
         
         return(isDifferent, newInsert)
     }
-    
-    @objc func getTableMediaDate(account: String, order: ComparisonResult) -> Date {
-        
-        let realm = try! Realm()
-        realm.refresh()
-        
-        if let entities = realm.objects(tableMedia.self).filter("account == %@", account).max(by: { $0.date.compare($1.date as Date) == order }) {
-            return Calendar.current.date(bySettingHour: 0, minute: 0, second: 0, of: entities.date as Date)!
-        }
-        
-        return Calendar.current.date(bySettingHour: 0, minute: 0, second: 0, of: Date())!
-    }
-    
-    @objc func renameMedia(fileNameTo: String, ocId: String) {
-        
-        var result: tableMedia?
-        let realm = try! Realm()
-        
-        do {
-            try realm.write {
-                result = realm.objects(tableMedia.self).filter("ocId == %@", ocId).first
-                if result != nil {
-                    result!.fileName = fileNameTo
-                    result!.fileNameView = fileNameTo
-                }
-            }
-        } catch let error {
-            print("[LOG] Could not write to database: ", error)
-        }
-    }
-    
+
     //MARK: -
     //MARK: Table Photo Library
     

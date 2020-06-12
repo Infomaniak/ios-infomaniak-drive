@@ -37,6 +37,13 @@ import NCCommunication
     private let downloadThumbnailQueue = Queuer(name: "downloadThumbnailQueue", maxConcurrentOperationCount: 10, qualityOfService: .default)
     private let removeDeletedFileQueue = Queuer(name: "removeDeletedFileQueue", maxConcurrentOperationCount: 10, qualityOfService: .default)
 
+    @objc func cancelAllQueue() {
+        downloadCancelAll()
+        readFolderSyncCancelAll()
+        downloadThumbnailCancelAll()
+        removeDeletedFileCancelAll()
+    }
+    
     // Download file
     @objc func download(metadata: tableMetadata, selector: String, setFavorite: Bool) {
         downloadQueue.addOperation(NCOperationDownload.init(metadata: metadata, selector: selector, setFavorite: setFavorite))
@@ -58,7 +65,7 @@ import NCCommunication
     
     // Download Thumbnail
     @objc func downloadThumbnail(metadata: tableMetadata, activeUrl: String, view: Any, indexPath: IndexPath) {
-        if metadata.hasPreview && (!CCUtility.fileProviderStorageIconExists(metadata.ocId, fileNameView: metadata.fileName) || metadata.typeFile == k_metadataTypeFile_document) {
+        if metadata.hasPreview && (!CCUtility.fileProviderStoragePreviewIconExists(metadata.ocId, fileNameView: metadata.fileName) || metadata.typeFile == k_metadataTypeFile_document) {
             
             for operation in  downloadThumbnailQueue.operations {
                 if (operation as! NCOperationDownloadThumbnail).metadata.ocId == metadata.ocId { return }
@@ -77,6 +84,9 @@ import NCCommunication
             if (operation as! NCOperationRemoveDeletedFileQueue).metadata.ocId == metadata.ocId { return }
         }
         removeDeletedFileQueue.addOperation(NCOperationRemoveDeletedFileQueue.init(metadata: metadata))
+    }
+    @objc func removeDeletedFileCancelAll() {
+        removeDeletedFileQueue.cancelAll()
     }
 }
 
@@ -164,9 +174,10 @@ class NCOperationDownloadThumbnail: ConcurrentOperation {
         } else {
         
             let fileNamePath = CCUtility.returnFileNamePath(fromFileName: metadata.fileName, serverUrl: metadata.serverUrl, activeUrl: activeUrl)!
-            let fileNameLocalPath = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
+            let fileNamePreviewLocalPath = CCUtility.getDirectoryProviderStoragePreviewOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
+            let fileNameIconLocalPath = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
 
-            NCCommunication.shared.downloadPreview(fileNamePathOrFileId: fileNamePath, fileNameLocalPath: fileNameLocalPath, width: Int(k_sizePreview), height: Int(k_sizePreview)) { (account, data, errorCode, errorMessage) in
+            NCCommunication.shared.downloadPreview(fileNamePathOrFileId: fileNamePath, fileNamePreviewLocalPath: fileNamePreviewLocalPath , widthPreview: Int(k_sizePreview), heightPreview: Int(k_sizePreview), fileNameIconLocalPath: fileNameIconLocalPath, sizeIcon: Int(k_sizeIcon)) { (account, imagePreview, imageIcon,  errorCode, errorDescription) in
                 
                 var cell: NCImageCellProtocol?
                 if self.view is UICollectionView && NCMainCommon.sharedInstance.isValidIndexPath(self.indexPath, view: self.view) {
@@ -177,10 +188,8 @@ class NCOperationDownloadThumbnail: ConcurrentOperation {
 
                 if (cell != nil) {
                     var previewImage: UIImage!
-                    if errorCode == 0 && data != nil {
-                        if let image = UIImage(data: data!) {
-                            previewImage = image
-                        }
+                    if errorCode == 0 && imageIcon != nil {
+                        previewImage = imageIcon
                     } else {
                         if self.metadata.iconName.count > 0 {
                             previewImage = UIImage(named: self.metadata.iconName)

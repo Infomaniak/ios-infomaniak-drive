@@ -42,8 +42,8 @@ import Alamofire
     var delegate: NCNetworkingDelegate?
     
     var lastReachability: Bool = true
-    var downloadRequest = [String:DownloadRequest]()
-    var uploadRequest = [String:UploadRequest]()
+    var downloadRequest: [String: DownloadRequest] = [:]
+    var uploadRequest: [String: UploadRequest] = [:]
 
     //MARK: - Communication Delegate
        
@@ -379,6 +379,10 @@ import Alamofire
             metadata.sessionTaskIdentifier = task.taskIdentifier
             NCManageDatabase.sharedInstance.addMetadata(metadata)
             
+            #if !EXTENSION
+            CCGraphics.createNewImage(from: metadata.fileNameView, ocId: metadata.ocId, typeFile: metadata.typeFile)
+            #endif
+            
             NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_uploadFileStart), object: nil, userInfo: ["ocId":metadata.ocId, "task":task, "serverUrl":metadata.serverUrl, "account":metadata.account])
             NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_reloadDataSource), object: nil, userInfo: ["ocId":metadata.ocId,"serverUrl":metadata.serverUrl])
         }
@@ -424,9 +428,7 @@ import Alamofire
                     NCManageDatabase.sharedInstance.addLocalFile(metadata: metadata)
                 }
                 
-                #if !EXTENSION
-                CCGraphics.createNewImage(from: metadata.fileNameView, ocId: metadata.ocId, filterGrayScale: false, typeFile: metadata.typeFile, writeImage: true)
-                
+                #if !EXTENSION                
                 NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_uploadedFile), object: nil, userInfo: ["metadata":metadata, "errorCode":errorCode, "errorDescription":""])
                 #endif
                 
@@ -740,7 +742,7 @@ import Alamofire
         }
     }
     
-    func deleteMetadataPlain(_ metadata: tableMetadata, addCustomHeaders: [String:String]?, completion: @escaping (_ errorCode: Int, _ errorDescription: String)->()) {
+    func deleteMetadataPlain(_ metadata: tableMetadata, addCustomHeaders: [String: String]?, completion: @escaping (_ errorCode: Int, _ errorDescription: String)->()) {
         
         // verify permission
         let permission = NCUtility.sharedInstance.permissionsContainsString(metadata.permissions, permissions: k_permission_can_delete)
@@ -760,7 +762,6 @@ import Alamofire
                 } catch { }
                                        
                 NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
-                NCManageDatabase.sharedInstance.deleteMedia(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
                 NCManageDatabase.sharedInstance.deleteLocalFile(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
 
                 if metadata.directory {
@@ -869,7 +870,6 @@ import Alamofire
             if errorCode == 0 {
                         
                 NCManageDatabase.sharedInstance.renameMetadata(fileNameTo: fileNameNew, ocId: metadata.ocId)
-                NCManageDatabase.sharedInstance.renameMedia(fileNameTo: fileNameNew, ocId: metadata.ocId)
                         
                 if metadata.directory {
                             
@@ -886,12 +886,13 @@ import Alamofire
                     // Move file system
                     let atPath = CCUtility.getDirectoryProviderStorageOcId(metadata.ocId) + "/" + metadata.fileName
                     let toPath = CCUtility.getDirectoryProviderStorageOcId(metadata.ocId) + "/" + fileNameNew
-                    do {
-                        try FileManager.default.moveItem(atPath: atPath, toPath: toPath)
-                    } catch { }
+                    let atPathPreview = CCUtility.getDirectoryProviderStoragePreviewOcId(metadata.ocId, fileNameView: metadata.fileName)!
+                    let toPathPreview = CCUtility.getDirectoryProviderStoragePreviewOcId(metadata.ocId, fileNameView: fileNameNew)!
                     let atPathIcon = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, fileNameView: metadata.fileName)!
                     let toPathIcon = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, fileNameView: fileNameNew)!
                     do {
+                        try FileManager.default.moveItem(atPath: atPath, toPath: toPath)
+                        try FileManager.default.moveItem(atPath: atPathPreview, toPath: toPathPreview)
                         try FileManager.default.moveItem(atPath: atPathIcon, toPath: toPathIcon)
                     } catch { }
                 }
@@ -944,7 +945,6 @@ import Alamofire
                 if let metadataMove = NCManageDatabase.sharedInstance.moveMetadata(ocId: metadata.ocId, serverUrlTo: serverUrlTo) {
                     metadataNew = metadataMove
                 }
-                NCManageDatabase.sharedInstance.moveMedia(ocId: metadata.ocId, serverUrlTo: serverUrlTo)
                                 
                 NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_reloadDataSource), object: nil, userInfo: ["serverUrl":metadata.serverUrl])
                 NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_reloadDataSource), object: nil, userInfo: ["serverUrl":serverUrlTo])
