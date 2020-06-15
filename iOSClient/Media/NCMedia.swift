@@ -105,9 +105,6 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         mediaCommandView?.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 0).isActive = true
         mediaCommandView?.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: 0).isActive = true
         mediaCommandView?.heightAnchor.constraint(equalToConstant: 150).isActive = true
-        if self.metadatas.count == 0 {
-            self.mediaCommandView?.isHidden = true
-        }
         
         changeTheming()
     }
@@ -278,12 +275,6 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
                 let metadatas = self.metadatas.filter { $0.ocId != metadata.ocId }
                 self.metadatas = metadatas
                     
-                if self.metadatas.count  > 0 {
-                    self.mediaCommandView?.isHidden = false
-                } else {
-                    self.mediaCommandView?.isHidden = true
-                }
-                
                 self.reloadDataSource()
                     
                 if errorCode == 0 && (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
@@ -542,11 +533,6 @@ extension NCMedia {
             DispatchQueue.main.sync {
                 self.metadatas = metadatas
                 
-                if self.metadatas.count  > 0 {
-                    self.mediaCommandView?.isHidden = false
-                } else {
-                    self.mediaCommandView?.isHidden = true
-                }
                 self.reloadDataThenPerform {
                     self.mediaCommandTitle()
                 }
