@@ -42,11 +42,13 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     private var filterTypeFileImage = false;
     private var filterTypeFileVideo = false;
             
-    private var stepImageWidth: CGFloat = 10
     private let kMaxImageGrid: CGFloat = 5
-    
+    private var cellHeigth: CGFloat = 0
+
     private var oldInProgress = false
     private var newInProgress = false
+    
+    private var lastContentOffsetY: CGFloat = 0
     
     struct cacheImages {
         static var cellPlayImage = UIImage()
@@ -138,9 +140,13 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     
     func mediaCommandTitle() {
         mediaCommandView?.title.text = ""
-        if let cell = collectionView?.visibleCells.first as? NCGridMediaCell {
-            if cell.date != nil {
-                mediaCommandView?.title.text = CCUtility.getTitleSectionDate(cell.date)
+        
+        if let visibleCells = self.collectionView?.indexPathsForVisibleItems.sorted(by: { $0.row < $1.row }).compactMap({ self.collectionView?.cellForItem(at: $0) }) {
+        
+            if let cell = visibleCells.first as? NCGridMediaCell {
+                if cell.date != nil {
+                    mediaCommandView?.title.text = CCUtility.getTitleSectionDate(cell.date)
+                }
             }
         }
     }
@@ -196,6 +202,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
                     icon: CCGraphics.changeThemingColorImage(UIImage(named: filterTypeFileImage ? "imageno" : "imageyes"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                     action: { menuAction in
                         self.filterTypeFileImage = !self.filterTypeFileImage
+                        self.filterTypeFileVideo = false
                         self.reloadDataSource()
                     }
                 )
@@ -207,6 +214,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
                     icon: CCGraphics.changeThemingColorImage(UIImage(named: filterTypeFileVideo ? "videono" : "videoyes"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                     action: { menuAction in
                         self.filterTypeFileVideo = !self.filterTypeFileVideo
+                        self.filterTypeFileImage = false
                         self.reloadDataSource()
                     }
                 )
@@ -275,9 +283,8 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
                 } else {
                     self.mediaCommandView?.isHidden = true
                 }
-                self.reloadDataThenPerform {
-                    self.mediaCommandTitle()
-                }
+                
+                self.reloadDataSource()
                     
                 if errorCode == 0 && (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
                     let userInfo: [String : Any] = ["metadata": metadata, "type": "delete"]
@@ -449,6 +456,7 @@ extension NCMedia: UICollectionViewDataSource {
         let metadata = metadatas[indexPath.row]
         
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "gridCell", for: indexPath) as! NCGridMediaCell
+        self.cellHeigth = cell.frame.size.height
 
         if FileManager().fileExists(atPath: CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, fileNameView: metadata.fileNameView)) {
             cell.imageItem.backgroundColor = nil
@@ -522,9 +530,7 @@ extension NCMedia {
         
         var predicate: NSPredicate?
         
-        if filterTypeFileImage && filterTypeFileVideo { // HAS SENSE ???
-            predicate = NSPredicate(format: "account == %@ AND typeFile == ''", appDelegate.activeAccount)
-        } else if filterTypeFileImage {
+        if filterTypeFileImage {
             predicate = NSPredicate(format: "account == %@ AND typeFile == %@", appDelegate.activeAccount, k_metadataTypeFile_video)
         } else if filterTypeFileVideo {
             predicate = NSPredicate(format: "account == %@ AND typeFile == %@", appDelegate.activeAccount, k_metadataTypeFile_image)
@@ -533,7 +539,7 @@ extension NCMedia {
         }
                 
         NCManageDatabase.sharedInstance.getMetadatasMedia(predicate: predicate!) { (metadatas) in
-            DispatchQueue.main.async {
+            DispatchQueue.main.sync {
                 self.metadatas = metadatas
                 
                 if self.metadatas.count  > 0 {
@@ -582,10 +588,14 @@ extension NCMedia {
                 
                 self.reloadDataSource()
             }
+            
+            if errorCode == 0 && files != nil && files!.count == 0 && self.metadatas.count == 0 {
+                self.searchOldPhotoVideo()
+            }
         }
     }
     
-    private func searchOldPhotoVideo(greaterDate: Date? = nil) {
+    private func searchOldPhotoVideo(value: Int = -30) {
         
         if oldInProgress { return }
         else { oldInProgress = true }
@@ -596,17 +606,18 @@ extension NCMedia {
         if let date = tableAccount?.dateLessMedia {
             lessDate = date as Date
         }
-
-        let height = self.tabBarController?.tabBar.frame.size.height ?? 0
+        var greaterDate: Date
         
-        var greaterDate = greaterDate
-        if greaterDate == nil {
-            greaterDate = Calendar.current.date(byAdding: .day, value: -30, to: lessDate)
+        if value == -999 {
+            greaterDate = Date.distantPast
+        } else {
+            greaterDate = Calendar.current.date(byAdding: .day, value:value, to: lessDate)!
         }
-
+        
+        let height = self.tabBarController?.tabBar.frame.size.height ?? 0
         NCUtility.sharedInstance.startActivityIndicator(view: self.view, bottom: height + 50)
 
-        NCCommunication.shared.searchMedia(lessDate: lessDate, greaterDate: greaterDate!, elementDate: "d:getlastmodified/" ,showHiddenFiles: CCUtility.getShowHiddenFiles(), user: appDelegate.activeUser) { (account, files, errorCode, errorDescription) in
+        NCCommunication.shared.searchMedia(lessDate: lessDate, greaterDate: greaterDate, elementDate: "d:getlastmodified/" ,showHiddenFiles: CCUtility.getShowHiddenFiles(), user: appDelegate.activeUser) { (account, files, errorCode, errorDescription) in
             
             self.oldInProgress = false
             NCUtility.sharedInstance.stopActivityIndicator()
@@ -621,12 +632,12 @@ extension NCMedia {
                     
                 } else {
                     
-                    if greaterDate == Calendar.current.date(byAdding: .day, value: -30, to: lessDate) {
-                        self.searchOldPhotoVideo(greaterDate: Calendar.current.date(byAdding: .day, value: -90, to: lessDate))
-                    } else if greaterDate == Calendar.current.date(byAdding: .day, value: -90, to: lessDate) {
-                        self.searchOldPhotoVideo(greaterDate: Calendar.current.date(byAdding: .day, value: -180, to: lessDate))
-                    } else {
-                        self.searchOldPhotoVideo(greaterDate: Date.distantPast)
+                    if value == -30 {
+                        self.searchOldPhotoVideo(value: -90)
+                    } else if value == -90 {
+                        self.searchOldPhotoVideo(value: -180)
+                    } else if value == -180 {
+                        self.searchOldPhotoVideo(value: -999)
                     }
                 }
             }
@@ -658,12 +669,21 @@ extension NCMedia {
 
 extension NCMedia: UIScrollViewDelegate {
     
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        
+        if lastContentOffsetY == 0 || lastContentOffsetY + cellHeigth/2 <= scrollView.contentOffset.y  || lastContentOffsetY - cellHeigth/2 >= scrollView.contentOffset.y {
+
+            mediaCommandTitle()
+            lastContentOffsetY = scrollView.contentOffset.y
+        }
+    }
+    
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-        mediaCommandTitle()
         mediaCommandView?.collapseControlButtonView(true)
     }
     
     func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        
         if !decelerate {
             self.readFiles()
             

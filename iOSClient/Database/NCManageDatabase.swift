@@ -249,6 +249,10 @@ class NCManageDatabase: NSObject {
     //MARK: -
     //MARK: Table Account
     
+    @objc func copyObject(account: tableAccount) -> tableAccount {
+        return tableAccount.init(value: account)
+    }
+    
     @objc func addAccount(_ account: String, url: String, user: String, password: String) {
 
         let realm = try! Realm()
@@ -1102,6 +1106,10 @@ class NCManageDatabase: NSObject {
     //MARK: -
     //MARK: Table Directory
     
+    @objc func copyObject(directory: tableDirectory) -> tableDirectory {
+        return tableDirectory.init(value: directory)
+    }
+    
     @discardableResult
     @objc func addDirectory(encrypted: Bool, favorite: Bool, ocId: String, fileId: String, etag: String?, permissions: String?, serverUrl: String, richWorkspace: String?, account: String) -> tableDirectory? {
         
@@ -1582,6 +1590,10 @@ class NCManageDatabase: NSObject {
     //MARK: -
     //MARK: Table LocalFile
     
+    @objc func copyObject(localFile: tableLocalFile) -> tableLocalFile {
+        return tableLocalFile.init(value: localFile)
+    }
+    
     @discardableResult
     @objc func addLocalFile(metadata: tableMetadata) -> tableLocalFile? {
         
@@ -1710,7 +1722,7 @@ class NCManageDatabase: NSObject {
     //MARK: -
     //MARK: Table Metadata
     
-    @objc func initNewMetadata(_ metadata: tableMetadata) -> tableMetadata {
+    @objc func copyObject(metadata: tableMetadata) -> tableMetadata {
         return tableMetadata.init(value: metadata)
     }
     
@@ -2028,11 +2040,6 @@ class NCManageDatabase: NSObject {
         }
                 
         return tableMetadata.init(value: metadata)
-    }
-    
-    @objc func copyMetadata(_ object: tableMetadata) -> tableMetadata? {
-        
-        return tableMetadata.init(value: object)
     }
     
     @objc func setMetadataSession(_ session: String?, sessionError: String?, sessionSelector: String?, sessionTaskIdentifier: Int, status: Int, predicate: NSPredicate) {
@@ -2414,11 +2421,10 @@ class NCManageDatabase: NSObject {
                     }
                     
                     for result in results {
-                        let metadata = tableMetadata.init(value: result)
-                        let ext = (metadata.fileNameView as NSString).pathExtension.uppercased()
-                        let fileName = (metadata.fileNameView as NSString).deletingPathExtension
+                        let ext = (result.fileNameView as NSString).pathExtension.uppercased()
+                        let fileName = (result.fileNameView as NSString).deletingPathExtension
                         if !(ext == "MOV" && fileNameImages.contains(fileName)) {
-                            metadatas.append(tableMetadata.init(value: metadata))
+                            metadatas.append(tableMetadata.init(value: result))
                         }
                     }
                 }

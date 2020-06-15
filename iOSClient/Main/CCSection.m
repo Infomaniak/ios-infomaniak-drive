@@ -116,8 +116,11 @@
             if (ascending) return [obj1.date compare:obj2.date];
             else return [obj2.date compare:obj1.date];
         } else if ([sorted isEqualToString:@"sessionTaskIdentifier"]) {
-            if (ascending) return (obj1.sessionTaskIdentifier > obj2.sessionTaskIdentifier);
-            else return (obj2.sessionTaskIdentifier < obj1.sessionTaskIdentifier);
+            if (ascending) return (obj1.sessionTaskIdentifier < obj2.sessionTaskIdentifier);
+            else return (obj1.sessionTaskIdentifier > obj2.sessionTaskIdentifier);
+        } else if ([sorted isEqualToString:@"size"]) {
+            if (ascending) return (obj1.size < obj2.size);
+            else return (obj1.size > obj2.size);
         } else {
             NSComparisonResult comparisonResult = [InfomaniakUtils sortInfomaniakFolderWithAscending:ascending obj1:obj1 obj2:obj2];
             if (comparisonResult != NSOrderedSame) return comparisonResult;

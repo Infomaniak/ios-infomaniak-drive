@@ -221,14 +221,14 @@
     // Test Maintenance
     if (self.activeAccount.length == 0 || self.maintenanceMode)
         return;
-    
+        
     // middelware ping
     if ([[NCBrandOptions sharedInstance] use_middlewarePing]) {
         NSLog(@"[LOG] Middleware Ping");
         [[NCService shared] middlewarePing];
     }
 
-    // verify delete Asset Local Identifiers in auto upload
+    // verify delete Asset Local Identifiers in auto upload (Photos album)
     [[NCUtility sharedInstance] deleteAssetLocalIdentifiersWithAccount:self.activeAccount sessionSelector:selectorUploadAutoUpload];
    
     // Brand
@@ -711,7 +711,7 @@
     NSInteger errorCode = [userInfo[@"errorCode"] integerValue];
    
     if (errorCode == 0) {
-        // verify delete Asset Local Identifiers in auto upload
+        // verify delete Asset Local Identifiers in auto upload (Photos album)
         [[NCUtility sharedInstance] deleteAssetLocalIdentifiersWithAccount:metadata.account sessionSelector:selectorUploadAutoUpload];
     }
 }
@@ -1492,7 +1492,7 @@
     
     if ([[CCUtility getPasscode] length] == 0 || [self.activeAccount length] == 0 || [CCUtility getNotPasscodeAtStart]) return;
     
-    if (!self.passcodeViewController.view.window) {
+    if (self.passcodeViewController == nil) {
            
         self.passcodeViewController = [[TOPasscodeViewController alloc] initWithStyle:TOPasscodeViewStyleTranslucentLight passcodeType:TOPasscodeTypeSixDigits];
         if (@available(iOS 13.0, *)) {
@@ -1530,7 +1530,9 @@
             [[LAContext new] evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics localizedReason:[[NCBrandOptions sharedInstance] brand] reply:^(BOOL success, NSError * _Nullable error) {
                 if (success) {
                     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
-                        [self.passcodeViewController dismissViewControllerAnimated:YES completion:nil];
+                        [self.passcodeViewController dismissViewControllerAnimated:YES completion:^{
+                            self.passcodeViewController = nil;
+                        }];
                     });
                 }
             }];
@@ -1538,9 +1540,11 @@
     });
 }
 
-- (void)didTapCancelInPasscodeViewController:(TOPasscodeViewController *)passcodeViewController
+- (void)didInputCorrectPasscodeInPasscodeViewController:(TOPasscodeViewController *)passcodeViewController
 {
-    [passcodeViewController dismissViewControllerAnimated:YES completion:nil];
+    [passcodeViewController dismissViewControllerAnimated:YES completion:^{
+        self.passcodeViewController = nil;
+    }];
 }
 
 - (BOOL)passcodeViewController:(TOPasscodeViewController *)passcodeViewController isCorrectCode:(NSString *)code
@@ -1553,7 +1557,9 @@
     [[LAContext new] evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics localizedReason:[[NCBrandOptions sharedInstance] brand] reply:^(BOOL success, NSError * _Nullable error) {
         if (success) {
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
-                [passcodeViewController dismissViewControllerAnimated:YES completion:nil];
+                [passcodeViewController dismissViewControllerAnimated:YES completion:^{
+                    self.passcodeViewController = nil;
+                }];
             });
         }
     }];
