@@ -160,7 +160,7 @@ class NCService: NSObject {
                 // File Sharing
                 let isFilesSharingEnabled = NCManageDatabase.sharedInstance.getCapabilitiesServerBool(account: account, elements: NCElementsJSON.shared.capabilitiesFileSharingApiEnabled, exists: false)
                 if (isFilesSharingEnabled && self.appDelegate.activeMain != nil) {
-                
+                    
                     OCNetworking.sharedManager()?.readShare(withAccount: account, completion: { (account, items, message, errorCode) in
                         if errorCode == 0 && account == self.appDelegate.activeAccount {
                             
