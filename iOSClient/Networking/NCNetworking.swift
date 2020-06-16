@@ -197,8 +197,8 @@ import Alamofire
         metadata.session = NCCommunicationCommon.shared.sessionIdentifierDownload
         if let result = NCManageDatabase.sharedInstance.addMetadata(metadata) { metadata = result }
         
-        NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_reloadDataSource), object: nil, userInfo: ["ocId":metadata.ocId, "serverUrl":metadata.serverUrl])
-                
+        NotificationCenter.default.postOnMainThread(name: k_notificationCenter_reloadDataSource, object: nil, userInfo: ["ocId":metadata.ocId, "serverUrl":metadata.serverUrl])
+        
         NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, requestHandler: { (request) in
             
             self.downloadRequest[fileNameLocalPath] = request

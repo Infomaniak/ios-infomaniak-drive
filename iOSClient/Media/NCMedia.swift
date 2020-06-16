@@ -71,10 +71,10 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         collectionView.register(UINib.init(nibName: "NCGridMediaCell", bundle: nil), forCellWithReuseIdentifier: "gridCell")
         
         collectionView.alwaysBounceVertical = true
-        collectionView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 50, right: 0);
+        collectionView.contentInset = UIEdgeInsets(top: 75, left: 0, bottom: 50, right: 0);
                 
         gridLayout = NCGridMediaLayout()
-        gridLayout.itemPerLine = CGFloat(min(CCUtility.getMediaWidthImage(), 5))
+        gridLayout.itemPerLine = CGFloat(min(CCUtility.getMediaWidthImage(), 4))
         gridLayout.sectionHeadersPinToVisibleBounds = true
 
         collectionView.collectionViewLayout = gridLayout
@@ -105,6 +105,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         mediaCommandView?.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 0).isActive = true
         mediaCommandView?.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: 0).isActive = true
         mediaCommandView?.heightAnchor.constraint(equalToConstant: 150).isActive = true
+        self.updateMediaControlVisibility()
         
         changeTheming()
     }
@@ -183,15 +184,17 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         var actions: [NCMenuAction] = []
 
         if !isEditMode {
-            actions.append(
-                NCMenuAction(
-                    title: NSLocalizedString("_select_", comment: ""),
-                    icon: CCGraphics.changeThemingColorImage(UIImage(named: "selectFull"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
-                    action: { menuAction in
-                        self.isEditMode = true
-                    }
+            if metadatas.count > 0{
+                actions.append(
+                    NCMenuAction(
+                        title: NSLocalizedString("_select_", comment: ""),
+                        icon: CCGraphics.changeThemingColorImage(UIImage(named: "selectFull"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
+                        action: { menuAction in
+                            self.isEditMode = true
+                        }
+                    )
                 )
-            )
+            }
 
             actions.append(
                 NCMenuAction(
@@ -275,6 +278,8 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
                 let metadatas = self.metadatas.filter { $0.ocId != metadata.ocId }
                 self.metadatas = metadatas
                     
+                self.updateMediaControlVisibility()
+                
                 self.reloadDataSource()
                     
                 if errorCode == 0 && (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
@@ -533,10 +538,26 @@ extension NCMedia {
             DispatchQueue.main.sync {
                 self.metadatas = metadatas
                 
+                self.updateMediaControlVisibility()
+                
                 self.reloadDataThenPerform {
                     self.mediaCommandTitle()
                 }
             }
+        }
+    }
+    
+    func updateMediaControlVisibility() {
+        if self.metadatas.count == 0 {
+            if !self.filterTypeFileImage && !self.filterTypeFileVideo {
+                self.mediaCommandView?.isHidden = true
+            } else {
+                self.mediaCommandView?.toggleEmptyView(isEmpty: true)
+                self.mediaCommandView?.isHidden = false
+            }
+        } else {
+            self.mediaCommandView?.toggleEmptyView(isEmpty: false)
+            self.mediaCommandView?.isHidden = false
         }
     }
     
@@ -716,6 +737,16 @@ class NCMediaCommandView: UIView {
         layer.insertSublayer(gradient, at: 0)
         
         title.text = ""
+    }
+    
+    func toggleEmptyView(isEmpty: Bool) {
+        if isEmpty {
+            self.gradient.isHidden = true
+            self.controlButtonView.isHidden = true
+        } else {
+            self.gradient.isHidden = false
+            self.controlButtonView.isHidden = false
+        }
     }
     
     @IBAction func moreButtonPressed(_ sender: UIButton) {
