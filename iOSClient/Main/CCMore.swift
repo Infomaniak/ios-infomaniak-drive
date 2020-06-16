@@ -89,13 +89,14 @@ class CCMore: UIViewController, UITableViewDelegate, UITableViewDataSource {
         item.url = "segueTransfers"
         functionMenu.append(item)
 
+        /* Infomaniak Only
         // ITEM : Notification
         item = NCCommunicationExternalSite()
         item.name = "_notification_"
         item.icon = "notification"
         item.url = "segueNotification"
         functionMenu.append(item)
-
+        */
         // ITEM : Activity
         item = NCCommunicationExternalSite()
         item.name = "_activity_"
