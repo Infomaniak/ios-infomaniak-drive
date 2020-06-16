@@ -70,14 +70,7 @@ class InfomaniakUtils: NSObject {
     }
 
     static func openOnlyOffice(metadata: tableMetadata?) -> Bool {
-        var type = ""
-        if self.isDoc(mimeType: metadata?.contentType) {
-            type = "text"
-        } else if self.isSpreadsheet(mimeType: metadata?.contentType) {
-            type = "spreadsheet"
-        } else if self.isPresentation(mimeType: metadata?.contentType) {
-            type = "presentation"
-        } else {
+        if !self.isDoc(mimeType: metadata?.contentType) && !self.isSpreadsheet(mimeType: metadata?.contentType) && !self.isPresentation(mimeType: metadata?.contentType) {
             return false
         }
 
@@ -87,7 +80,7 @@ class InfomaniakUtils: NSObject {
         let regexFileID = try? NSRegularExpression(pattern: "^0*", options: .caseInsensitive)
         let fileID = regexFileID?.stringByReplacingMatches(in: stringFileId ?? "", options: [], range: NSRange(location: 0, length: stringFileId?.count ?? 0), withTemplate: "")
 
-        let url = "https://drive.infomaniak.com/app/drive/\(driveID)/preview/\(type)/\(fileID ?? "")"
+        let url = "https://drive.infomaniak.com/app/office/\(driveID)/\(fileID ?? "")"
 
         if let url = URL(string: url) {
             UIApplication.shared.open(url)
