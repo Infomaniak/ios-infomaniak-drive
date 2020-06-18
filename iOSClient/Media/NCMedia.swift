@@ -274,17 +274,17 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     @objc func deleteFile(_ notification: NSNotification) {
         if let userInfo = notification.userInfo as NSDictionary? {
             if let metadata = userInfo["metadata"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int {
-                
-                let metadatas = self.metadatas.filter { $0.ocId != metadata.ocId }
-                self.metadatas = metadatas
-                    
-                self.updateMediaControlVisibility()
-                
-                self.reloadDataSource()
-                    
-                if errorCode == 0 && (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
-                    let userInfo: [String : Any] = ["metadata": metadata, "type": "delete"]
-                    NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_synchronizationMedia), object: nil, userInfo: userInfo)
+                if metadata.account == appDelegate.activeAccount {
+                    let metadatas = self.metadatas.filter { $0.ocId != metadata.ocId }
+                    self.metadatas = metadatas
+                    self.updateMediaControlVisibility()
+                    self.reloadDataSourceWithCompletion() {
+                        
+                        if errorCode == 0 && (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
+                            let userInfo: [String : Any] = ["metadata": metadata, "type": "delete"]
+                            NotificationCenter.default.postOnMainThread(name: k_notificationCenter_synchronizationMedia, userInfo: userInfo)
+                        }
+                    }
                 }
             }
         }
@@ -293,12 +293,14 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     @objc func moveFile(_ notification: NSNotification) {
         if let userInfo = notification.userInfo as NSDictionary? {
             if let metadata = userInfo["metadata"] as? tableMetadata, let metadataNew = userInfo["metadataNew"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int {
-                
-                self.reloadDataSource()
+                if metadata.account == appDelegate.activeAccount {
+                    self.reloadDataSourceWithCompletion() {
 
-                if errorCode == 0 && (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
-                    let userInfo: [String : Any] = ["metadata": metadata, "metadataNew": metadataNew, "type": "move"]
-                    NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_synchronizationMedia), object: nil, userInfo: userInfo)
+                        if errorCode == 0 && (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
+                            let userInfo: [String : Any] = ["metadata": metadata, "metadataNew": metadataNew, "type": "move"]
+                            NotificationCenter.default.postOnMainThread(name: k_notificationCenter_synchronizationMedia, userInfo: userInfo)
+                        }
+                    }
                 }
             }
         }
@@ -307,12 +309,14 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     @objc func renameFile(_ notification: NSNotification) {
         if let userInfo = notification.userInfo as NSDictionary? {
             if let metadata = userInfo["metadata"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int {
-                
-                self.reloadDataSource()
+                if metadata.account == appDelegate.activeAccount {
+                    self.reloadDataSourceWithCompletion() {
 
-                if errorCode == 0 && (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
-                    let userInfo: [String : Any] = ["metadata": metadata, "type": "rename"]
-                    NotificationCenter.default.post(name: Notification.Name.init(rawValue: k_notificationCenter_synchronizationMedia), object: nil, userInfo: userInfo)
+                        if errorCode == 0 && (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
+                            let userInfo: [String : Any] = ["metadata": metadata, "type": "rename"]
+                            NotificationCenter.default.postOnMainThread(name: k_notificationCenter_synchronizationMedia, userInfo: userInfo)
+                        }
+                    }
                 }
             }
         }
@@ -519,6 +523,10 @@ extension NCMedia: UICollectionViewDelegateFlowLayout {
 extension NCMedia {
 
     @objc func reloadDataSource() {
+        self.reloadDataSourceWithCompletion { }
+    }
+    
+    private func reloadDataSourceWithCompletion(_ completion: @escaping () -> Void) {
         
         if (appDelegate.activeAccount == nil || appDelegate.activeAccount.count == 0 || appDelegate.maintenanceMode == true) {
             return
@@ -527,11 +535,11 @@ extension NCMedia {
         var predicate: NSPredicate?
         
         if filterTypeFileImage {
-            predicate = NSPredicate(format: "account == %@ AND typeFile == %@", appDelegate.activeAccount, k_metadataTypeFile_video)
+            predicate = NSPredicate(format: "account == %@ AND typeFile == %@ AND NOT (session CONTAINS[c] 'upload')", appDelegate.activeAccount, k_metadataTypeFile_video)
         } else if filterTypeFileVideo {
-            predicate = NSPredicate(format: "account == %@ AND typeFile == %@", appDelegate.activeAccount, k_metadataTypeFile_image)
+            predicate = NSPredicate(format: "account == %@ AND typeFile == %@ AND NOT (session CONTAINS[c] 'upload')", appDelegate.activeAccount, k_metadataTypeFile_image)
         } else {
-            predicate = NSPredicate(format: "account == %@ AND (typeFile == %@ OR typeFile == %@)", appDelegate.activeAccount, k_metadataTypeFile_image, k_metadataTypeFile_video)
+            predicate = NSPredicate(format: "account == %@ AND (typeFile == %@ OR typeFile == %@) AND NOT (session CONTAINS[c] 'upload')", appDelegate.activeAccount, k_metadataTypeFile_image, k_metadataTypeFile_video)
         }
                 
         NCManageDatabase.sharedInstance.getMetadatasMedia(predicate: predicate!) { (metadatas) in
@@ -544,6 +552,7 @@ extension NCMedia {
                     self.mediaCommandTitle()
                 }
             }
+            completion()
         }
     }
     
@@ -585,7 +594,7 @@ extension NCMedia {
             self.newInProgress = false
             self.collectionView.reloadData()
 
-            if errorCode == 0 && files?.count ?? 0 > 0 {
+            if errorCode == 0 && account == self.appDelegate.activeAccount && files?.count ?? 0 > 0 {
                 
                 NCManageDatabase.sharedInstance.addMetadatas(files: files, account: self.appDelegate.activeAccount)
                 if tableAccount?.dateLessMedia == nil {
@@ -630,7 +639,7 @@ extension NCMedia {
             NCUtility.sharedInstance.stopActivityIndicator()
             self.collectionView.reloadData()
 
-            if errorCode == 0 {
+            if errorCode == 0 && account == self.appDelegate.activeAccount {
                 if files?.count ?? 0 > 0 {
                     
                     NCManageDatabase.sharedInstance.addMetadatas(files: files, account: self.appDelegate.activeAccount)
@@ -741,11 +750,17 @@ class NCMediaCommandView: UIView {
     
     func toggleEmptyView(isEmpty: Bool) {
         if isEmpty {
-            self.gradient.isHidden = true
-            self.controlButtonView.isHidden = true
+            UIView.animate(withDuration: 0.3) {
+                self.moreView.effect = UIBlurEffect(style: .dark)
+                self.gradient.isHidden = true
+                self.controlButtonView.isHidden = true
+            }
         } else {
-            self.gradient.isHidden = false
-            self.controlButtonView.isHidden = false
+            UIView.animate(withDuration: 0.3) {
+                self.moreView.effect = UIBlurEffect(style: .regular)
+                self.gradient.isHidden = false
+                self.controlButtonView.isHidden = false
+            }
         }
     }
     

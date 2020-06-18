@@ -205,9 +205,14 @@
                         }
                         father = serverUrlSon;
                     }
+                    tableMetadata *metadataFavorite = [[NCManageDatabase sharedInstance] getMetadataWithPredicate:[NSPredicate predicateWithFormat:@"ocId == %@", metadata.ocId]];
+                    if (metadataFavorite == nil) {
+                        [[NCManageDatabase sharedInstance] addMetadata:metadata];
+                    } else if (!metadataFavorite.favorite) {
+                        [[NCManageDatabase sharedInstance] setMetadataFavoriteWithOcId:metadata.ocId favorite:true];
+                    }
                 }
                  
-                //Infomaniak only - Temp fix for favorites
                 // Verify remove favorite
                 /*NSArray *allRecordFavorite = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND favorite == true", account] sorted:nil ascending:NO];
                  

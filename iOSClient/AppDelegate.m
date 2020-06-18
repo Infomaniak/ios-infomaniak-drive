@@ -863,7 +863,7 @@
     UIButton *buttonPlus = [UIButton buttonWithType:UIButtonTypeCustom];
     buttonPlus.tag = 99;
     [buttonPlus setImage:buttonImage forState:UIControlStateNormal];
-    buttonPlus.backgroundColor = NCBrandColor.sharedInstance.brand;
+    buttonPlus.backgroundColor = NCBrandColor.sharedInstance.brandElement;
     buttonPlus.layer.cornerRadius = buttonSize / 2;
     buttonPlus.layer.masksToBounds = NO;
     buttonPlus.layer.shadowOffset = CGSizeMake(0, 0);
@@ -970,32 +970,37 @@
 
         [CCGraphics settingThemingColor:themingColor themingColorElement:themingColorElement themingColorText:themingColorText];
         
-        UIColor *color = NCBrandColor.sharedInstance.brand;
-        BOOL isTooLight = NCBrandColor.sharedInstance.brand.isTooLight;
-        BOOL isTooDark = NCBrandColor.sharedInstance.brand.isTooDark;
+        BOOL isTooLight = NCBrandColor.sharedInstance.brandElement.isTooLight;
+        BOOL isTooDark = NCBrandColor.sharedInstance.brandElement.isTooDark;
         
         if (isTooLight) {
-            color = [NCBrandColor.sharedInstance.brand darkerBy:10];
+            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.brandElement darkerBy:10];
         } else if (isTooDark) {
-            color = [NCBrandColor.sharedInstance.brand lighterBy:10];
+            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.brandElement lighterBy:15];
         }
-        
-        NCBrandColor.sharedInstance.brand = color;
-            
+    
     } else {
     
+        BOOL isTooLight = NCBrandColor.sharedInstance.customer.isTooLight;
+        BOOL isTooDark = NCBrandColor.sharedInstance.customer.isTooDark;
+        
+        if (isTooLight) {
+            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.customer darkerBy:10];
+        } else if (isTooDark) {
+            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.customer lighterBy:15];
+        } else {
+            NCBrandColor.sharedInstance.brandElement = NCBrandColor.sharedInstance.customer;
+        }
+        
         NCBrandColor.sharedInstance.brand = NCBrandColor.sharedInstance.customer;
-        NCBrandColor.sharedInstance.brandElement = NCBrandColor.sharedInstance.customer;
         NCBrandColor.sharedInstance.brandText = NCBrandColor.sharedInstance.customerText;
     }
         
     [NCBrandColor.sharedInstance setDarkMode];
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         [[NCMainCommon sharedInstance] createImagesThemingColor];
+        [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_changeTheming object:nil];
     });
-    
-    
-    [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_changeTheming object:nil];
 }
 
 - (void)changeTheming:(UIViewController *)viewController tableView:(UITableView *)tableView collectionView:(UICollectionView *)collectionView form:(BOOL)form
