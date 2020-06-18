@@ -207,12 +207,13 @@
                     }
                 }
                  
+                //Infomaniak only - Temp fix for favorites
                 // Verify remove favorite
-                NSArray *allRecordFavorite = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND favorite == true", account] sorted:nil ascending:NO];
+                /*NSArray *allRecordFavorite = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND favorite == true", account] sorted:nil ascending:NO];
                  
                 for (tableMetadata *metadata in allRecordFavorite)
                     if (![filesOcId containsObject:metadata.ocId])
-                        [[NCManageDatabase sharedInstance] setMetadataFavoriteWithOcId:metadata.ocId favorite:NO];
+                        [[NCManageDatabase sharedInstance] setMetadataFavoriteWithOcId:metadata.ocId favorite:NO];*/
                 
                 [self reloadDatasource];
             }];
