@@ -205,12 +205,12 @@
                         }
                         father = serverUrlSon;
                     }
-                    tableMetadata *metadataFavorite = [[NCManageDatabase sharedInstance] getMetadataWithPredicate:[NSPredicate predicateWithFormat:@"ocId == %@", metadata.ocId]];
+                    /*tableMetadata *metadataFavorite = [[NCManageDatabase sharedInstance] getMetadataWithPredicate:[NSPredicate predicateWithFormat:@"ocId == %@", metadata.ocId]];
                     if (metadataFavorite == nil) {
                         [[NCManageDatabase sharedInstance] addMetadata:metadata];
                     } else if (!metadataFavorite.favorite) {
                         [[NCManageDatabase sharedInstance] setMetadataFavoriteWithOcId:metadata.ocId favorite:true];
-                    }
+                    }*/
                 }
                  
                 // Verify remove favorite
