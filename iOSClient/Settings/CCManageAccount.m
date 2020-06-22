@@ -367,17 +367,20 @@
 {
     [super formRowDescriptorValueHasChanged:rowDescriptor oldValue:oldValue newValue:newValue];
     
-    if ([rowDescriptor.tag isEqualToString:@"pickerAccount"] && oldValue && newValue) {
-        
-        if (![[newValue formValue] isEqualToString:[oldValue formValue]] && ![[newValue formValue] isEqualToString:@""] && ![[newValue formValue] isEqualToString:appDelegate.activeAccount]) {
-            [self ChangeDefaultAccount:[newValue formValue]];
-        }
-        
-        if ([[newValue formValue] isEqualToString:@""]) {
-            NSArray *listAccount = [[NCManageDatabase sharedInstance] getAccounts];
-            if ([listAccount count] > 0) {
-                [self ChangeDefaultAccount:listAccount[0]];
+    if ([rowDescriptor.tag isEqualToString:@"pickerAccount"] && ![oldValue isEqual:[NSNull null]]) {
+        if(![newValue isEqual:[NSNull null]]){
+            if (![[newValue formValue] isEqualToString:[oldValue formValue]] && ![[newValue formValue] isEqualToString:@""] && ![[newValue formValue] isEqualToString:appDelegate.activeAccount]) {
+                [self ChangeDefaultAccount:[newValue formValue]];
             }
+            
+            if ([[newValue formValue] isEqualToString:@""]) {
+                NSArray *listAccount = [[NCManageDatabase sharedInstance] getAccounts];
+                if ([listAccount count] > 0) {
+                    [self ChangeDefaultAccount:listAccount[0]];
+                }
+            }
+        } else {
+            [self ChangeDefaultAccount:[oldValue formValue]];
         }
     }
 }
