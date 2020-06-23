@@ -134,7 +134,8 @@
     [form addFormSection:section];
     
     // ID
-    if ([tableAccount.url length] > 0) {
+    //Infomaniak only
+    /*if ([tableAccount.url length] > 0) {
         NSString *driveID = [InfomaniakUtils getServerIdWithUrl:tableAccount.url];
 
         row = [XLFormRowDescriptor formRowDescriptorWithTag:@"userfullname" rowType:XLFormRowDescriptorTypeInfo title:@"ID"];
@@ -145,7 +146,7 @@
         [row.cellConfig setObject:[CCGraphics changeThemingColorImage:[UIImage imageNamed:@"user"] width:50 height:50 color:NCBrandColor.sharedInstance.icon] forKey:@"imageView.image"];
         row.value = driveID;
         [section addFormRow:row];
-    }
+    }*/
     
     // Full Name
     if ([tableAccount.displayName length] > 0) {

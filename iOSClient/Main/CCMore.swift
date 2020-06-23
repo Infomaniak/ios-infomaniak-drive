@@ -285,10 +285,9 @@ class CCMore: UIViewController, UITableViewDelegate, UITableViewDataSource {
             }
             cell.imageIcon?.layer.masksToBounds = true
             cell.imageIcon?.layer.cornerRadius = cell.imageIcon.frame.size.width / 2
-            if let account = tabAccount {
-                cell.labelText?.text = account.displayName
-                cell.labelText.textColor = NCBrandColor.sharedInstance.textView
-            }
+            //Infomaniak only
+            cell.labelText?.text = NSLocalizedString("_manage_account_", comment: "")
+            cell.labelText.textColor = NCBrandColor.sharedInstance.textView
 
             return cell
         } else {
