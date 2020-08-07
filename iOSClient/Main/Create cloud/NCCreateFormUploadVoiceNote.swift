@@ -229,7 +229,7 @@ class NCCreateFormUploadVoiceNote: XLFormViewController, NCSelectDelegate, AVAud
             fileNameSave = (name as! NSString).deletingPathExtension + ".m4a"
         }
         
-        let metadataForUpload = NCManageDatabase.sharedInstance.createMetadata(account: self.appDelegate.activeAccount, fileName: fileNameSave, ocId: UUID().uuidString, serverUrl: self.serverUrl, url: "", contentType: "")
+        let metadataForUpload = NCManageDatabase.sharedInstance.createMetadata(account: self.appDelegate.activeAccount, fileName: fileNameSave, ocId: UUID().uuidString, serverUrl: self.serverUrl, urlBase: self.appDelegate.activeUrl ,url: "", contentType: "")
         
         metadataForUpload.session = NCCommunicationCommon.shared.sessionIdentifierBackground
         metadataForUpload.sessionSelector = selectorUploadFile
@@ -266,8 +266,8 @@ class NCCreateFormUploadVoiceNote: XLFormViewController, NCSelectDelegate, AVAud
         CCUtility.copyFile(atPath: self.fileNamePath, toPath: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId, fileNameView: metadata.fileNameView))
                    
         NCManageDatabase.sharedInstance.addMetadata(metadata)
-        
-        self.appDelegate.startLoadAutoUpload()
+                
+        appDelegate.networkingAutoUpload.startProcess()
         
         self.dismiss(animated: true, completion: nil)
     }

@@ -86,10 +86,10 @@ extension NCCreateFormUploadConflictDelegate {
             labelNewFiles.text = NSLocalizedString("_file_conflict_new_", comment: "")
             labelAlreadyExistingFiles.text = NSLocalizedString("_file_conflict_exists_", comment: "")
         } else {
-            labelTitle.text = String(metadatasUploadInConflict.count) + " " + NSLocalizedString("_files_conflict_num_", comment: "")
-            labelSubTitle.text = NSLocalizedString("_files_conflict_desc_", comment: "")
-            labelNewFiles.text = NSLocalizedString("_files_conflict_new_", comment: "")
-            labelAlreadyExistingFiles.text = NSLocalizedString("_files_conflict_exists_", comment: "")
+            labelTitle.text = String(metadatasUploadInConflict.count) + " " + NSLocalizedString("_file_conflicts_num_", comment: "")
+            labelSubTitle.text = NSLocalizedString("_file_conflict_desc_", comment: "")
+            labelNewFiles.text = NSLocalizedString("_file_conflict_new_", comment: "")
+            labelAlreadyExistingFiles.text = NSLocalizedString("_file_conflict_exists_", comment: "")
         }
         
         switchNewFiles.isOn = false
@@ -148,7 +148,7 @@ extension NCCreateFormUploadConflictDelegate {
             }
             
             switchAlreadyExistingFiles.isOn = true
-            NCContentPresenter.shared.messageNotification("_info_", description: "_file_not_rewite_doc_", delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.info, errorCode: 0)
+            NCContentPresenter.shared.messageNotification("_info_", description: "_file_not_rewite_doc_", delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.info, errorCode: Int(k_CCErrorInternalError), forced: true)
         }
         
         tableView.reloadData()
@@ -228,7 +228,8 @@ extension NCCreateFormUploadConflictDelegate {
         } else {
             
             NCManageDatabase.sharedInstance.addMetadatas(metadatasNOConflict)
-            appDelegate.startLoadAutoUpload()            
+            
+            appDelegate.networkingAutoUpload.startProcess()
         }
                 
         dismiss(animated: true)
@@ -275,8 +276,8 @@ extension NCCreateFormUploadConflict: UITableViewDataSource {
             // -----> Already Existing File
             
             guard let metadataAlreadyExists = NCUtility.sharedInstance.getMetadataConflict(account: metadataNewFile.account, serverUrl: metadataNewFile.serverUrl, fileName: metadataNewFile.fileNameView) else { return UITableViewCell() }
-            if FileManager().fileExists(atPath: CCUtility.getDirectoryProviderStorageIconOcId(metadataAlreadyExists.ocId, fileNameView: metadataAlreadyExists.fileNameView)) {
-                cell.imageAlreadyExistingFile.image =  UIImage(contentsOfFile: CCUtility.getDirectoryProviderStorageIconOcId(metadataAlreadyExists.ocId, fileNameView: metadataAlreadyExists.fileNameView))
+            if FileManager().fileExists(atPath: CCUtility.getDirectoryProviderStorageIconOcId(metadataAlreadyExists.ocId, etag: metadataAlreadyExists.etag)) {
+                cell.imageAlreadyExistingFile.image =  UIImage(contentsOfFile: CCUtility.getDirectoryProviderStorageIconOcId(metadataAlreadyExists.ocId, etag: metadataAlreadyExists.etag))
             } else if FileManager().fileExists(atPath: CCUtility.getDirectoryProviderStorageOcId(metadataAlreadyExists.ocId, fileNameView: metadataAlreadyExists.fileNameView)) && metadataAlreadyExists.contentType == "application/pdf" {
             
                 let url = URL(fileURLWithPath: CCUtility.getDirectoryProviderStorageOcId(metadataAlreadyExists.ocId, fileNameView: metadataAlreadyExists.fileNameView))
@@ -339,27 +340,32 @@ extension NCCreateFormUploadConflict: UITableViewDataSource {
                 } else {
                     
                     CCUtility.extractImageVideoFromAssetLocalIdentifier(forUpload: metadataNewFile, notification: false) { (metadataNew, fileNamePath) in
-                        
-                        if metadataNew != nil {
-                            self.fileNamesPath[metadataNewFile.fileNameView] = fileNamePath!
-                            do {
-                                if mediaType == PHAssetMediaType.image {
-                                    let data = try Data(contentsOf: URL(fileURLWithPath: fileNamePath!))
-                                    if let image = UIImage(data: data) {
-                                        cell.imageNewFile.image = image
+                        DispatchQueue.main.async {
+                            if metadataNew != nil {
+                                self.fileNamesPath[metadataNewFile.fileNameView] = fileNamePath!
+                                do {
+                                    if mediaType == PHAssetMediaType.image {
+                                        let data = try Data(contentsOf: URL(fileURLWithPath: fileNamePath!))
+                                        if let image = UIImage(data: data) {
+                                            DispatchQueue.main.async {
+                                                cell.imageNewFile.image = image
+                                            }
+                                        }
+                                    } else if mediaType == PHAssetMediaType.video {
+                                        if let image = CCGraphics.thumbnailImage(forVideo: URL(fileURLWithPath: fileNamePath!), atTime: 1) {
+                                            DispatchQueue.main.async {
+                                                cell.imageNewFile.image = image
+                                            }
+                                        }
                                     }
-                                } else if mediaType == PHAssetMediaType.video {
-                                    if let image = CCGraphics.thumbnailImage(forVideo: URL(fileURLWithPath: fileNamePath!), atTime: 1) {
-                                        cell.imageNewFile.image = image
-                                    }
-                                }
-                                
-                                let fileDictionary = try FileManager.default.attributesOfItem(atPath: fileNamePath!)
-                                let fileSize = fileDictionary[FileAttributeKey.size] as! Double
-                                
-                                cell.labelDetailNewFile.text = CCUtility.dateDiff(date) + "\n" + CCUtility.transformedSize(fileSize)
-                                
-                            } catch { print("Error: \(error)") }
+                                    
+                                    let fileDictionary = try FileManager.default.attributesOfItem(atPath: fileNamePath!)
+                                    let fileSize = fileDictionary[FileAttributeKey.size] as! Double
+                                    
+                                    cell.labelDetailNewFile.text = CCUtility.dateDiff(date) + "\n" + CCUtility.transformedSize(fileSize)
+                                    
+                                } catch { print("Error: \(error)") }
+                            }
                         }
                     }
                 }

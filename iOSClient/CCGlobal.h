@@ -85,7 +85,7 @@
 
 // Database Realm
 #define k_databaseDefault                               @"nextcloud.realm"
-#define k_databaseSchemaVersion                         120
+#define k_databaseSchemaVersion                         134
 
 // Intro selector
 #define k_intro_login                                   0
@@ -143,8 +143,8 @@
 #define k_metadataStatusUploadForcedStart               10
 
 // Timer
-#define k_timerProcessAutoUpload                        5
-#define k_timerUpdateApplicationIconBadgeNumber         3
+#define k_timerAutoUpload                               5
+#define k_timerUpdateApplicationIconBadgeNumber         5
 #define k_timerErrorNetworking                          3
 
 // ConcurrentOperation
@@ -158,18 +158,21 @@
 #define k_maxHTTPCache                                  10737418240 // 10GB
 
 // Error
-#define k_CCErrorTaskNil                                -9999
-#define k_CCErrorTaskDownloadNotFound                   -9998
-#define k_CCErrorUserNotAvailble                        -9997
-#define k_CCErrorInternalError                          -9996
-#define k_CCErrorFileAlreadyInDownload                  -9995
-#define k_CCErrorWebdavResponseError                    -9994
-#define k_CCErrorNotPermission                          -9993
+#define k_CCErrorInternalError                          -99999
+#define k_CCErrorFileNotSaved                           -99998
+#define k_CCErrorDecodeMetadata                         -99997
+#define k_CCErrorE2EENotEnabled                         -99996
+#define k_CCErrorE2EENotMove                            -99995
+#define k_CCErrorOffline                                -99994
+#define k_CCErrorCharactersForbidden                    -99993
+#define k_CCErrorCreationFile                           -99992
+
 
 // Search
 #define k_minCharsSearch                                2
 
 // Selector
+#define selectorSynchronize                             @"synchronize"
 #define selectorDownloadSynchronize                     @"downloadSynchronize"
 #define selectorLoadFileView                            @"loadFileView"
 #define selectorLoadFileViewFavorite                    @"loadFileViewFavorite"
@@ -178,10 +181,6 @@
 #define selectorLoadOffline                             @"loadOffline"
 #define selectorOpenIn                                  @"openIn"
 #define selectorOpenInDetail                            @"openInDetail"
-#define selectorReadFile                                @"readFile"
-#define selectorReadFileWithDownload                    @"readFileWithDownload"
-#define selectorReadFolder                              @"readFolder"
-#define selectorReadFolderWithDownload                  @"readFolderWithDownload"
 #define selectorSave                                    @"save"
 #define selectorUploadAutoUpload                        @"uploadAutoUpload"
 #define selectorUploadAutoUploadAll                     @"uploadAutoUploadAll"
@@ -239,6 +238,7 @@
 
 // E2EE
 #define k_max_filesize_E2EE                             524288000   // 500 MB
+#define k_E2EE_API                                      @"1.1"
 
 // Flow Version
 #define k_flow_version_available                        12
@@ -251,8 +251,20 @@
 #define k_detail_Toolbar_Height                         49
 
 
-// Template Nextcloud Text
+//Share permission
+//permissions - (int) 1 = read; 2 = update; 4 = create; 8 = delete; 16 = share; 31 = all (default: 31, for public shares: 1)
+#define k_read_share_permission                         1
+#define k_update_share_permission                       2
+#define k_create_share_permission                       4
+#define k_delete_share_permission                       8
+#define k_share_share_permission                        16
 
+#define k_min_file_share_permission                     1
+#define k_max_file_share_permission                     19
+#define k_min_folder_share_permission                   1
+#define k_max_folder_share_permission                   31
+#define k_default_file_remote_share_permission_no_support_share_option      3
+#define k_default_folder_remote_share_permission_no_support_share_option    15
 
 // Layout
 #define k_layout_list                                   @"typeLayoutList"
@@ -307,6 +319,7 @@
 #define k_notificationCenter_richdocumentGrabFocus      @"richdocumentGrabFocus"
 #define k_notificationCenter_reloadDataNCShare          @"reloadDataNCShare"
 #define k_notificationCenter_reloadDataSource           @"reloadDataSource"                 // userInfo: ocId?, serverUrl?
+#define k_notificationCenter_reloadMediaDataSource      @"reloadMediaDataSource"
 
 #define k_notificationCenter_uploadFileStart            @"uploadFileStart"                  // userInfo: ocId, task, serverUrl, account
 #define k_notificationCenter_uploadedFile               @"uploadedFile"                     // userInfo: metadata, errorCode, errorDescription

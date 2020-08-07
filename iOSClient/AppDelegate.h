@@ -40,11 +40,11 @@
 @class NCAppConfigView;
 @class IMImagemeterViewer;
 @class NCDetailViewController;
+@class NCNetworkingAutoUpload;
 
 @interface AppDelegate : UIResponder <UIApplicationDelegate, UNUserNotificationCenterDelegate>
 
 // Timer Process
-@property (nonatomic, strong) NSTimer *timerProcessAutoUpload;
 @property (nonatomic, strong) NSTimer *timerUpdateApplicationIconBadgeNumber;
 @property (nonatomic, strong) NSTimer *timerErrorNetworking;
 
@@ -112,6 +112,9 @@
 // UserDefaults
 @property (nonatomic, strong) NSUserDefaults *ncUserDefaults;
 
+// Network Auto Upload
+@property (nonatomic, strong) NCNetworkingAutoUpload *networkingAutoUpload;
+
 // Login
 - (void)startTimerErrorNetworking;
 - (void)openLoginView:(UIViewController *)viewController selector:(NSInteger)selector openLoginWeb:(BOOL)openLoginWeb;
@@ -136,10 +139,6 @@
 // Theming Color
 - (void)settingThemingColorBrand;
 - (void)changeTheming:(UIViewController *)viewController tableView:(UITableView *)tableView collectionView:(UICollectionView *)collectionView form:(BOOL)form;
-
-// Task Networking
-- (void)loadAutoUpload;
-- (void)startLoadAutoUpload;
 
 // Maintenance Mode
 - (void)maintenanceMode:(BOOL)mode;

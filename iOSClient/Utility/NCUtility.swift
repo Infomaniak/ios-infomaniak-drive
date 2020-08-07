@@ -92,16 +92,35 @@ class NCUtility: NSObject {
         return false
     }
     
-    @objc func resizeImage(image: UIImage, newWidth: CGFloat) -> UIImage {
+    @objc func resizeImage(image: UIImage, toHeight: CGFloat) -> UIImage {
+        return autoreleasepool { () -> UIImage in
+            let toWidth = image.size.width * (toHeight/image.size.height)
+            let targetSize = CGSize(width: toWidth, height: toHeight)
+            let size = image.size
         
-        let scale = newWidth / image.size.width
-        let newHeight = image.size.height * scale
-        UIGraphicsBeginImageContext(CGSize(width: newWidth, height: newHeight))
-        image.draw(in: (CGRect(x: 0, y: 0, width: newWidth, height: newHeight)))
-        let newImage = UIGraphicsGetImageFromCurrentImageContext()!
-        UIGraphicsEndImageContext()
+            let widthRatio  = targetSize.width  / size.width
+            let heightRatio = targetSize.height / size.height
         
-        return newImage
+            // Orientation detection
+            var newSize: CGSize
+            if(widthRatio > heightRatio) {
+            newSize = CGSize(width: size.width * heightRatio, height: size.height * heightRatio)
+            } else {
+            newSize = CGSize(width: size.width * widthRatio,  height: size.height * widthRatio)
+            }
+        
+            // Calculated rect
+            let rect = CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height)
+        
+            // Resize
+            UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
+            image.draw(in: rect)
+        
+            let newImage = UIGraphicsGetImageFromCurrentImageContext()
+            UIGraphicsEndImageContext()
+        
+            return newImage!
+        }
     }
     
     func cellBlurEffect(with frame: CGRect) -> UIView {
@@ -286,31 +305,7 @@ class NCUtility: NSObject {
             }
         }
     }
-    
-    @objc func bestFittingFont(for text: String, in bounds: CGRect, fontDescriptor: UIFontDescriptor) -> UIFont {
         
-        let constrainingDimension = min(bounds.width, bounds.height)
-        let properBounds = CGRect(origin: .zero, size: bounds.size)
-        var attributes: [NSAttributedString.Key: Any] = [:]
-        
-        let infiniteBounds = CGSize(width: CGFloat.infinity, height: CGFloat.infinity)
-        var bestFontSize: CGFloat = constrainingDimension
-        
-        for fontSize in stride(from: bestFontSize, through: 0, by: -1) {
-            let newFont = UIFont(descriptor: fontDescriptor, size: fontSize)
-            attributes[.font] = newFont
-            
-            let currentFrame = text.boundingRect(with: infiniteBounds, options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: attributes, context: nil)
-            
-            if properBounds.contains(currentFrame) {
-                bestFontSize = fontSize
-                break
-            }
-        }
-        
-        return UIFont(descriptor: fontDescriptor, size: bestFontSize)
-    }
-    
     @objc func isRichDocument(_ metadata: tableMetadata) -> Bool {
         
         guard let mimeType = CCUtility.getMimeType(metadata.fileNameView) else {
@@ -336,26 +331,38 @@ class NCUtility: NSObject {
         return false
     }
     
-    @objc func isDirectEditing(_ metadata: tableMetadata) -> String? {
+    @objc func isDirectEditing(account: String, contentType: String) -> String? {
         
-        guard let results = NCManageDatabase.sharedInstance.getDirectEditingEditors(account: metadata.account) else {
-            return nil
+        var editor: String?
+        
+        guard let results = NCManageDatabase.sharedInstance.getDirectEditingEditors(account: account) else {
+            return editor
         }
         
         for result: tableDirectEditingEditors in results {
             for mimetype in result.mimetypes {
-                if mimetype == metadata.contentType {
-                    return result.editor
+                if mimetype == contentType {
+                    editor = result.editor
+                }
+                // HARDCODE
+                // https://github.com/nextcloud/text/issues/913
+                if mimetype == "text/markdown" && contentType == "text/x-markdown" {
+                    editor = result.editor
                 }
             }
             for mimetype in result.optionalMimetypes {
-                if mimetype == metadata.contentType {
-                    return result.editor
+                if mimetype == contentType {
+                    editor = result.editor
                 }
             }
         }
         
-        return nil
+        // HARDCODE
+        if editor == "" {
+            editor = k_editor_text
+        }
+        
+        return editor
     }
     
     @objc func removeAllSettings() {
@@ -501,13 +508,22 @@ class NCUtility: NSObject {
     }
     
     // Delete Asset on Photos album
-    @objc func deleteAssetLocalIdentifiers(account: String, sessionSelector: String) {
+    @objc func deleteAssetLocalIdentifiers(account: String, sessionSelector: String, completition: @escaping () -> ()) {
         
-        if UIApplication.shared.applicationState != .active { return }
-        let metadatasSessionUpload = NCManageDatabase.sharedInstance.getMetadatas(predicate: NSPredicate(format: "account == %@ AND session CONTAINS[cd] %@", account, "upload"), sorted: nil, ascending: true)
-        if metadatasSessionUpload?.count ?? 0 > 0 { return }
+        if UIApplication.shared.applicationState != .active {
+            completition()
+            return
+        }
+        let metadatasSessionUpload = NCManageDatabase.sharedInstance.getMetadatas(predicate: NSPredicate(format: "account == %@ AND session CONTAINS[cd] %@", account, "upload"))
+        if metadatasSessionUpload.count > 0 {
+            completition()
+            return
+        }
         let localIdentifiers = NCManageDatabase.sharedInstance.getAssetLocalIdentifiersUploaded(account: account, sessionSelector: sessionSelector)
-        if localIdentifiers.count == 0 { return }
+        if localIdentifiers.count == 0 {
+            completition()
+            return
+        }
         let assets = PHAsset.fetchAssets(withLocalIdentifiers: localIdentifiers, options: nil)
         
         PHPhotoLibrary.shared().performChanges({
@@ -515,6 +531,7 @@ class NCUtility: NSObject {
         }, completionHandler: { success, error in
             DispatchQueue.main.async {
                 NCManageDatabase.sharedInstance.clearAssetLocalIdentifiers(localIdentifiers, account: account)
+                completition()
             }
         })
     }

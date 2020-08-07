@@ -99,8 +99,8 @@ class NCTrash: UIViewController, UIGestureRecognizerDelegate, NCTrashListCellDel
         // Datasource & serverUrl
         
         if path == "" {
-            let userID = (appDelegate.activeUserID as NSString).addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlFragmentAllowed)
-            path = k_dav + "/trashbin/" + userID! + "/trash/"
+            guard let userID = (appDelegate.activeUserID as NSString).addingPercentEncoding(withAllowedCharacters: NSCharacterSet.urlFragmentAllowed) else { return }
+            path = appDelegate.activeUrl + "/remote.php/dav/trashbin/" + userID + "/trash/"
         }
         
         if (datasource.count == 0) {
@@ -341,7 +341,7 @@ class NCTrash: UIViewController, UIGestureRecognizerDelegate, NCTrashListCellDel
             }
 
             var iconHeader: UIImage!
-            if let icon = UIImage(contentsOfFile: CCUtility.getDirectoryProviderStorageIconOcId(tableTrash.fileId, fileNameView: tableTrash.fileName)) {
+            if let icon = UIImage(contentsOfFile: CCUtility.getDirectoryProviderStorageIconOcId(tableTrash.fileId, etag: tableTrash.fileName)) {
                 iconHeader = icon
             } else {
                 if(tableTrash.directory) {
@@ -396,7 +396,7 @@ class NCTrash: UIViewController, UIGestureRecognizerDelegate, NCTrashListCellDel
             }
 
             var iconHeader: UIImage!
-            if let icon = UIImage(contentsOfFile: CCUtility.getDirectoryProviderStorageIconOcId(tableTrash.fileId, fileNameView: tableTrash.fileName)) {
+            if let icon = UIImage(contentsOfFile: CCUtility.getDirectoryProviderStorageIconOcId(tableTrash.fileId, etag: tableTrash.fileName)) {
                 iconHeader = icon
             } else {
                 if(tableTrash.directory) {
@@ -535,10 +535,10 @@ extension NCTrash: UICollectionViewDataSource {
             image = UIImage.init(named: "file")
         }
         
-        if FileManager().fileExists(atPath: CCUtility.getDirectoryProviderStorageIconOcId(tableTrash.fileId, fileNameView: tableTrash.fileName)) {
-            image = UIImage.init(contentsOfFile: CCUtility.getDirectoryProviderStorageIconOcId(tableTrash.fileId, fileNameView: tableTrash.fileName))
+        if FileManager().fileExists(atPath: CCUtility.getDirectoryProviderStorageIconOcId(tableTrash.fileId, etag: tableTrash.fileName)) {
+            image = UIImage.init(contentsOfFile: CCUtility.getDirectoryProviderStorageIconOcId(tableTrash.fileId, etag: tableTrash.fileName))
         } else {
-            if tableTrash.hasPreview && !CCUtility.fileProviderStoragePreviewIconExists(tableTrash.fileId, fileNameView: tableTrash.fileName) {
+            if tableTrash.hasPreview && !CCUtility.fileProviderStoragePreviewIconExists(tableTrash.fileId, etag: tableTrash.fileName) {
                 downloadThumbnail(with: tableTrash, indexPath: indexPath)
             }
         }
@@ -664,9 +664,9 @@ extension NCTrash {
         NCCommunication.shared.listingTrash(showHiddenFiles: false) { (account, items, errorCode, errorDescription) in
             self.refreshControl.endRefreshing()
          
-            if errorCode == 0 && account == self.appDelegate.activeAccount && items != nil {
+            if errorCode == 0 && account == self.appDelegate.activeAccount {
                 NCManageDatabase.sharedInstance.deleteTrash(filePath: self.path, account: self.appDelegate.activeAccount)
-                NCManageDatabase.sharedInstance.addTrash(account: account, items: items!)
+                NCManageDatabase.sharedInstance.addTrash(account: account, items: items)
             } else if errorCode != 0 {
                 NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
             } else {
@@ -690,8 +690,8 @@ extension NCTrash {
             return
         }
         
-        let fileNameFrom = appDelegate.activeUrl + tableTrash.filePath + tableTrash.fileName
-        let fileNameTo = appDelegate.activeUrl + k_dav + "/trashbin/" + appDelegate.activeUserID + "/restore/" + tableTrash.fileName
+        let fileNameFrom = tableTrash.filePath + tableTrash.fileName
+        let fileNameTo = appDelegate.activeUrl + "/remote.php/dav/trashbin/" + appDelegate.activeUserID + "/restore/" + tableTrash.fileName
         
         NCCommunication.shared.moveFileOrFolder(serverUrlFileNameSource: fileNameFrom, serverUrlFileNameDestination: fileNameTo, overwrite: true) { (account, errorCode, errorDescription) in
             if errorCode == 0 && account == self.appDelegate.activeAccount {
@@ -727,7 +727,7 @@ extension NCTrash {
             return
         }
         
-        let serverUrlFileName = appDelegate.activeUrl + tableTrash.filePath + tableTrash.fileName
+        let serverUrlFileName = tableTrash.filePath + tableTrash.fileName
         
         NCCommunication.shared.deleteFileOrFolder(serverUrlFileName) { (account, errorCode, errorDescription) in
             if errorCode == 0 && account == self.appDelegate.activeAccount {
@@ -743,8 +743,8 @@ extension NCTrash {
     
     func downloadThumbnail(with tableTrash: tableTrash, indexPath: IndexPath) {
         
-        let fileNamePreviewLocalPath = CCUtility.getDirectoryProviderStoragePreviewOcId(tableTrash.fileId, fileNameView: tableTrash.fileName)!
-        let fileNameIconLocalPath = CCUtility.getDirectoryProviderStorageIconOcId(tableTrash.fileId, fileNameView: tableTrash.fileName)!
+        let fileNamePreviewLocalPath = CCUtility.getDirectoryProviderStoragePreviewOcId(tableTrash.fileId, etag: tableTrash.fileName)!
+        let fileNameIconLocalPath = CCUtility.getDirectoryProviderStorageIconOcId(tableTrash.fileId, etag: tableTrash.fileName)!
         
         NCCommunication.shared.downloadPreview(fileNamePathOrFileId: tableTrash.fileId, fileNamePreviewLocalPath: fileNamePreviewLocalPath, widthPreview: Int(k_sizePreview), heightPreview: Int(k_sizePreview), fileNameIconLocalPath: fileNameIconLocalPath, sizeIcon: Int(k_sizeIcon), endpointTrashbin: true) { (account, imagePreview, imageIcon, errorCode, errorDescription) in
             

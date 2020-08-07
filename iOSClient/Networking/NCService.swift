@@ -68,29 +68,29 @@ class NCService: NSObject {
                 let url = tableAccount.url
                 
                 self.appDelegate.settingActiveAccount(tableAccount.account, activeUrl: tableAccount.url, activeUser: tableAccount.user, activeUserID: tableAccount.userID, activePassword: CCUtility.getPassword(tableAccount.account))
-                
-                //self.appDelegate.activeFavorites.listingFavorites()
-                //self.appDelegate.activeMedia.reloadDataSource(loadNetworkDatasource: true) { }
+                       
+                // Synchronize favorite ---
+                NCNetworking.shared.listingFavoritescompletion { (_, _, _, _) in }
                 
                 // Synchronize Offline ---
                 let directories = NCManageDatabase.sharedInstance.getTablesDirectory(predicate: NSPredicate(format: "account == %@ AND offline == true", tableAccount.account), sorted: "serverUrl", ascending: true)
                 if (directories != nil) {
                     for directory: tableDirectory in directories! {
-                        CCSynchronize.shared()?.readFolder(directory.serverUrl, selector: selectorReadFolderWithDownload, account: tableAccount.account)
+                        guard let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", directory.ocId)) else {
+                            continue
+                        }
+                        NCOperationQueue.shared.synchronizationMetadata(metadata, selector: selectorDownloadSynchronize)
                     }
                 }
                 
                 let files = NCManageDatabase.sharedInstance.getTableLocalFiles(predicate: NSPredicate(format: "account == %@ AND offline == true", tableAccount.account), sorted: "fileName", ascending: true)
-                if (files != nil) {
-                    for file: tableLocalFile in files! {
-                        guard let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", file.ocId)) else {
-                            continue
-                        }
-                        CCSynchronize.shared()?.readFile(metadata.ocId, fileName: metadata.fileName, serverUrl: metadata.serverUrl, selector: selectorReadFileWithDownload, account: tableAccount.account)
+                for file: tableLocalFile in files {
+                    guard let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", file.ocId)) else {
+                        continue
                     }
+                    NCOperationQueue.shared.synchronizationMetadata(metadata, selector: selectorDownloadSynchronize)
                 }
-                // ---
-                        
+                                        
                 let avatarUrl = "\(self.appDelegate.activeUrl!)/index.php/avatar/\(self.appDelegate.activeUser!)/\(k_avatar_size)".addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed)!
                 let fileNamePath = CCUtility.getDirectoryUserData() + "/" + CCUtility.getStringUser(user, activeUrl: url) + "-" + self.appDelegate.activeUser + ".png"
                         
@@ -108,9 +108,7 @@ class NCService: NSObject {
                 }
                       
                 NotificationCenter.default.postOnMainThread(name: k_notificationCenter_changeUserProfile)
-                    
-                
-                // Get Capabilities
+                                    
                 self.requestServerCapabilities()
                 
             } else {
@@ -118,8 +116,6 @@ class NCService: NSObject {
                 if errorCode == 401 || errorCode == 403 {
                     NCNetworkingCheckRemoteUser.shared.checkRemoteUser(account: account)
                 }
-                
-                print("[LOG] It has been changed user during networking process, error.")
             }
         }
     }
@@ -160,19 +156,17 @@ class NCService: NSObject {
                 // File Sharing
                 let isFilesSharingEnabled = NCManageDatabase.sharedInstance.getCapabilitiesServerBool(account: account, elements: NCElementsJSON.shared.capabilitiesFileSharingApiEnabled, exists: false)
                 if (isFilesSharingEnabled && self.appDelegate.activeMain != nil) {
-                    
-                    OCNetworking.sharedManager()?.readShare(withAccount: account, completion: { (account, items, message, errorCode) in
-                        if errorCode == 0 && account == self.appDelegate.activeAccount {
-                            
-                            let itemsOCSharedDto = items as! [OCSharedDto]
-                            NCManageDatabase.sharedInstance.deleteTableShare(account: account!)
-                            self.appDelegate.shares = NCManageDatabase.sharedInstance.addShare(account: account!, activeUrl: self.appDelegate.activeUrl, items: itemsOCSharedDto)
-                            
+                    NCCommunication.shared.readShares { (account, shares, errorCode, ErrorDescription) in
+                        if errorCode == 0 {
+                            NCManageDatabase.sharedInstance.deleteTableShare(account: account)
+                            if shares != nil {
+                                NCManageDatabase.sharedInstance.addShare(account: account, activeUrl: self.appDelegate.activeUrl, shares: shares!)
+                            }
+                            self.appDelegate.shares = NCManageDatabase.sharedInstance.getTableShares(account: account)
                         } else {
-                            
-                            NCContentPresenter.shared.messageNotification("_share_", description: message, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
+                            NCContentPresenter.shared.messageNotification("_share_", description: ErrorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
                         }
-                    })
+                    }
                 }
             
                 // NCTextObtainEditorDetails
@@ -185,7 +179,7 @@ class NCService: NSObject {
                     }
                 }
                 
-                let isExternalSitesServerEnabled = NCManageDatabase.sharedInstance.getCapabilitiesServerBool(account: account, elements: NCElementsJSON.shared.capabilitiesExternalSitesExists, exists: true)
+                let isExternalSitesServerEnabled = NCManageDatabase.sharedInstance.getCapabilitiesServerBool(account: account, elements: NCElementsJSON.shared.capabilitiesExternalSitesExists, exists: false)
                 if (isExternalSitesServerEnabled) {
                     NCCommunication.shared.getExternalSite() { (account, externalSites, errorCode, errorDescription) in
                         if errorCode == 0 && account == self.appDelegate.activeAccount {
@@ -214,8 +208,6 @@ class NCService: NSObject {
                 }
                 
             } else {
-                print("[LOG] It has been changed user during networking process, error.")
-                // Change Theming color
                 self.appDelegate.settingThemingColorBrand()
             }
         }
@@ -224,32 +216,6 @@ class NCService: NSObject {
     //MARK: - Thirt Part
     
     private func requestHC() {
-        
-        let professions = CCUtility.getHCBusinessType()
-        if professions != nil && professions!.count > 0 {
-            OCNetworking.sharedManager()?.putHCUserProfile(withAccount: appDelegate.activeAccount, serverUrl: appDelegate.activeUrl, address: nil, businesssize: nil, businesstype: professions, city: nil, company: nil, country: nil, displayname: nil, email: nil, phone: nil, role_: nil, twitter: nil, website: nil, zip: nil, completion: { (account, message, errorCode) in
-                if errorCode == 0 && account == self.appDelegate.activeAccount {
-                    CCUtility.setHCBusinessType(nil)
-                    OCNetworking.sharedManager()?.getHCUserProfile(withAccount: self.appDelegate.activeAccount, serverUrl: self.appDelegate.activeUrl, completion: { (account, userProfile, message, errorCode) in
-                        if errorCode == 0 && account == self.appDelegate.activeAccount {
-                            _ = NCManageDatabase.sharedInstance.setAccountUserProfileHC(businessSize: userProfile!.businessSize, businessType: userProfile!.businessType, city: userProfile!.city, company: userProfile!.company, country: userProfile!.country, role: userProfile!.role, zip: userProfile!.zip)
-                        }
-                    })
-                }
-            })
-        } else {
-            OCNetworking.sharedManager()?.getHCUserProfile(withAccount: appDelegate.activeAccount, serverUrl: appDelegate.activeUrl, completion: { (account, userProfile, message, errorCode) in
-                if errorCode == 0 && account == self.appDelegate.activeAccount {
-                    _ = NCManageDatabase.sharedInstance.setAccountUserProfileHC(businessSize: userProfile!.businessSize, businessType: userProfile!.businessType, city: userProfile!.city, company: userProfile!.company, country: userProfile!.country, role: userProfile!.role, zip: userProfile!.zip)
-                }
-            })
-        }
-        
-        OCNetworking.sharedManager()?.getHCFeatures(withAccount: appDelegate.activeAccount, serverUrl: appDelegate.activeUrl, completion: { (account, features, message, errorCode) in
-            if errorCode == 0 && account == self.appDelegate.activeAccount {
-                _ = NCManageDatabase.sharedInstance.setAccountHCFeatures(features!)
-            }
-        })
-        
+
     }
 }

@@ -23,7 +23,6 @@
 
 #import "AppDelegate.h"
 #import "CCGraphics.h"
-#import "CCSynchronize.h"
 #import "CCMain.h"
 #import "NCBridgeSwift.h"
 #import "NCAutoUpload.h"
@@ -113,7 +112,6 @@
     }
         
     // Start Timer
-    self.timerProcessAutoUpload = [NSTimer scheduledTimerWithTimeInterval:k_timerProcessAutoUpload target:self selector:@selector(loadAutoUpload) userInfo:nil repeats:YES];
     self.timerUpdateApplicationIconBadgeNumber = [NSTimer scheduledTimerWithTimeInterval:k_timerUpdateApplicationIconBadgeNumber target:self selector:@selector(updateApplicationIconBadgeNumber) userInfo:nil repeats:YES];
     [self startTimerErrorNetworking];
 
@@ -159,6 +157,9 @@
         [self passcodeWithAutomaticallyPromptForBiometricValidation:true];
     });
     
+    // Auto upload
+    self.networkingAutoUpload = [NCNetworkingAutoUpload new];
+    
     return YES;
 }
 
@@ -182,7 +183,6 @@
     if (self.activeAccount.length == 0 || self.maintenanceMode) { return; }
     
     [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_applicationWillEnterForeground object:nil];
-
     
     NSLog(@"[LOG] Request Passcode");
     [self passcodeWithAutomaticallyPromptForBiometricValidation:true];
@@ -221,6 +221,8 @@
         [self.window.rootViewController presentViewController:vc animated:YES completion:nil];
     }
     #endif
+    
+    [[NCNetworking shared] verifyUploadZombie];
 }
 
 //
@@ -437,7 +439,6 @@
 {
     NSInteger serverVersionMajor = [[NCManageDatabase sharedInstance] getCapabilitiesServerIntWithAccount:account elements:NCElementsJSON.shared.capabilitiesVersionMajor];
     if (serverVersionMajor > 0) {
-        [[OCNetworking sharedManager].sharedOCCommunication setupNextcloudVersion: serverVersionMajor];
         [[NCCommunicationCommon shared] setupWithNextcloudVersion:serverVersionMajor];
      }
     
@@ -709,38 +710,30 @@
 
 - (void)updateApplicationIconBadgeNumber
 {
-    if (self.activeAccount.length == 0 || self.maintenanceMode)
-        return;
+    if (self.activeAccount.length == 0 || self.maintenanceMode) return;
+            
+    NSInteger counterDownload = [[NCOperationQueue shared] downloadCount];
+    NSInteger counterUpload = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"status == %d OR status == %d OR status == %d", k_metadataStatusWaitUpload, k_metadataStatusInUpload, k_metadataStatusUploading] page:0 limit:0 sorted:@"fileName" ascending:NO].count;
+    NSInteger total = counterDownload + counterUpload;
     
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        
-        NSInteger counterDownload = [[NCOperationQueue shared] downloadCount];
-        NSInteger counterUpload = [[[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"status == %d OR status == %d OR status == %d", k_metadataStatusWaitUpload, k_metadataStatusInUpload, k_metadataStatusUploading] sorted:@"fileName" ascending:true] count];
-
-        NSInteger total = counterDownload + counterUpload;
-        
-        dispatch_async(dispatch_get_main_queue(), ^{
-            
-            [UIApplication sharedApplication].applicationIconBadgeNumber = total;
-            
-            UISplitViewController *splitViewController = (UISplitViewController *)self.window.rootViewController;
-            if ([splitViewController isKindOfClass:[UISplitViewController class]]) {
-                UINavigationController *navigationController = (UINavigationController *)[splitViewController.viewControllers firstObject];
-                if ([navigationController isKindOfClass:[UINavigationController class]]) {
-                    UITabBarController *tabBarController = (UITabBarController *)navigationController.topViewController;
-                    if ([tabBarController isKindOfClass:[UITabBarController class]]) {
-                        UITabBarItem *tabBarItem = [tabBarController.tabBar.items objectAtIndex:0];
-                            
-                        if (total > 0) {
-                            [tabBarItem setBadgeValue:[NSString stringWithFormat:@"%li", (unsigned long)total]];
-                        } else {
-                            [tabBarItem setBadgeValue:nil];
-                        }
-                    }
+    [UIApplication sharedApplication].applicationIconBadgeNumber = total;
+    
+    UISplitViewController *splitViewController = (UISplitViewController *)self.window.rootViewController;
+    if ([splitViewController isKindOfClass:[UISplitViewController class]]) {
+        UINavigationController *navigationController = (UINavigationController *)[splitViewController.viewControllers firstObject];
+        if ([navigationController isKindOfClass:[UINavigationController class]]) {
+            UITabBarController *tabBarController = (UITabBarController *)navigationController.topViewController;
+            if ([tabBarController isKindOfClass:[UITabBarController class]]) {
+                UITabBarItem *tabBarItem = [tabBarController.tabBar.items objectAtIndex:0];
+                    
+                if (total > 0) {
+                    [tabBarItem setBadgeValue:[NSString stringWithFormat:@"%li", (unsigned long)total]];
+                } else {
+                    [tabBarItem setBadgeValue:nil];
                 }
             }
-        });
-    });
+        }
+    }
 }
 
 #pragma --------------------------------------------------------------------------------------------
@@ -847,7 +840,7 @@
         UIViewController *vc = _activeMain.splitViewController.viewControllers[0];
         [self showMenuInViewController: vc];
     } else {
-        [[NCContentPresenter shared] messageNotification:@"_warning_" description:@"_no_permission_add_file_" delay:k_dismissAfterSecond type:messageTypeInfo errorCode:0];
+        [[NCContentPresenter shared] messageNotification:@"_warning_" description:@"_no_permission_add_file_" delay:k_dismissAfterSecond type:messageTypeInfo errorCode:k_CCErrorInternalError forced:false];
     }
 }
 
@@ -902,7 +895,7 @@
         if (isTooLight) {
             NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.brandElement darkerBy:10];
         } else if (isTooDark) {
-            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.brandElement lighterBy:15];
+            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.brandElement lighterBy:25];
         }
     
     } else {
@@ -913,7 +906,7 @@
         if (isTooLight) {
             NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.customer darkerBy:10];
         } else if (isTooDark) {
-            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.customer lighterBy:15];
+            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.customer lighterBy:25];
         } else {
             NCBrandColor.sharedInstance.brandElement = NCBrandColor.sharedInstance.customer;
         }
@@ -992,9 +985,9 @@
     // after 20 sec
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 20 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         
-        NSArray *records = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"session != ''"] sorted:nil ascending:NO];
+        NSInteger results = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"session != ''"] page:0 limit:0 sorted:@"fileName" ascending:NO].count;
         
-        if ([records count] > 0) {
+        if (results > 0) {
             completionHandler(UIBackgroundFetchResultNewData);
         } else {
             completionHandler(UIBackgroundFetchResultNoData);
@@ -1021,221 +1014,6 @@
         self.backgroundSessionCompletionHandler = nil;
         completionHandler();
     });
-}
-
-#pragma --------------------------------------------------------------------------------------------
-#pragma mark ===== Process Load Upload < k_timerProcess seconds > =====
-#pragma --------------------------------------------------------------------------------------------
-
-- (void)loadAutoUpload
-{
-    if (self.activeAccount.length == 0 || self.maintenanceMode)
-        return;
-    
-    tableMetadata *metadataForUpload;
-    long counterUpload = 0;
-    NSUInteger sizeUpload = 0;
-    NSPredicate *predicate;
-    
-    long maxConcurrentOperationUpload = k_maxConcurrentOperation;
-    
-    NSArray *metadatasUpload = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"status == %d OR status == %d", k_metadataStatusInUpload, k_metadataStatusUploading] sorted:nil ascending:true];
-    
-    for(tableMetadata *metadata in metadatasUpload) {
-        if ([CCUtility isFolderEncrypted:metadata.serverUrl e2eEncrypted:metadata.e2eEncrypted account:metadata.account]) return;
-    }
-    
-    // Counter
-    counterUpload = [metadatasUpload count];
-    
-    // Size
-    for (tableMetadata *metadata in metadatasUpload) {
-        sizeUpload = sizeUpload + metadata.size;
-    }
-    
-    NSLog(@"%@", [NSString stringWithFormat:@"[LOG] PROCESS-AUTO-UPLOAD %ld - %@", counterUpload, [CCUtility transformedSize:sizeUpload]]);
-    
-    // Stop Timer
-    [_timerProcessAutoUpload invalidate];
-        
-    // ------------------------- <selector Upload> -------------------------
-    
-    while (counterUpload < maxConcurrentOperationUpload) {
-        
-        if (sizeUpload > k_maxSizeOperationUpload) {
-            break;
-        }
-        
-        if ([[UIApplication sharedApplication] applicationState] == UIApplicationStateBackground) {
-            predicate = [NSPredicate predicateWithFormat:@"sessionSelector == %@ AND status == %d AND typeFile != %@", selectorUploadFile, k_metadataStatusWaitUpload, k_metadataTypeFile_video];
-        } else {
-            predicate = [NSPredicate predicateWithFormat:@"sessionSelector == %@ AND status == %d", selectorUploadFile, k_metadataStatusWaitUpload];
-        }
-                
-        metadataForUpload = [[NCManageDatabase sharedInstance] getMetadataWithPredicate:predicate sorted:@"date" ascending:YES];
-        
-        if (metadataForUpload) {
-                            
-            if ([CCUtility isFolderEncrypted:metadataForUpload.serverUrl e2eEncrypted:metadataForUpload.e2eEncrypted account:metadataForUpload.account]) {
-                
-                if ([[UIApplication sharedApplication] applicationState] == UIApplicationStateBackground) { break; }
-                maxConcurrentOperationUpload = 1;
-                    
-                metadataForUpload.status = k_metadataStatusInUpload;
-                tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
-                    
-                [[NCNetworking shared] uploadWithMetadata:metadata];
-                    
-                break;
-                                        
-            } else {
-                    
-                metadataForUpload.status = k_metadataStatusInUpload;
-                tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
-                    
-                [[NCNetworking shared] uploadWithMetadata:metadata];
-                    
-                counterUpload++;
-                sizeUpload = sizeUpload + metadata.size;
-            }
-                
-        } else {
-            break;
-        }
-    }
-    
-    // ------------------------- <selector Auto Upload> -------------------------
-    
-    while (counterUpload < maxConcurrentOperationUpload) {
-        
-        if (sizeUpload > k_maxSizeOperationUpload) {
-            break;
-        }
-        
-        if ([[UIApplication sharedApplication] applicationState] == UIApplicationStateBackground) {
-            predicate = [NSPredicate predicateWithFormat:@"sessionSelector == %@ AND status == %d AND typeFile != %@", selectorUploadAutoUpload, k_metadataStatusWaitUpload, k_metadataTypeFile_video];
-        } else {
-            predicate = [NSPredicate predicateWithFormat:@"sessionSelector == %@ AND status == %d", selectorUploadAutoUpload, k_metadataStatusWaitUpload];
-        }
-        
-        metadataForUpload = [[NCManageDatabase sharedInstance] getMetadataWithPredicate:predicate sorted:@"date" ascending:YES];
-        if (metadataForUpload) {
-            
-            if ([CCUtility isFolderEncrypted:metadataForUpload.serverUrl e2eEncrypted:metadataForUpload.e2eEncrypted account:metadataForUpload.account]) {
-                
-                if ([[UIApplication sharedApplication] applicationState] == UIApplicationStateBackground) { break; }
-                maxConcurrentOperationUpload = 1;
-                
-                metadataForUpload.status = k_metadataStatusInUpload;
-                tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
-                                          
-                [[NCNetworking shared] uploadWithMetadata:metadata];
-                                
-                break;
-                
-            } else {
-                
-                metadataForUpload.status = k_metadataStatusInUpload;
-                tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
-                           
-                [[NCNetworking shared] uploadWithMetadata:metadata];
-                           
-                counterUpload++;
-                sizeUpload = sizeUpload + metadata.size;
-            }
-           
-        } else {
-            break;
-        }
-    }
-    
-    // ------------------------- <selector Auto Upload All> ----------------------
-    
-    // Verify num error k_maxErrorAutoUploadAll after STOP (100)
-    NSArray *metadatas = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"sessionSelector == %@ AND status == %i", selectorUploadAutoUploadAll, k_metadataStatusUploadError] sorted:@"date" ascending:YES];
-    NSInteger errorCount = [metadatas count];
-    
-    if (errorCount >= k_maxErrorAutoUploadAll) {
-        
-        [[NCContentPresenter shared] messageNotification:@"_error_" description:@"_too_errors_automatic_all_" delay:k_dismissAfterSecond type:messageTypeError errorCode:k_CCErrorInternalError];
-        
-    } else {
-        
-        while (counterUpload < maxConcurrentOperationUpload) {
-            
-            if (sizeUpload > k_maxSizeOperationUpload) {
-                break;
-            }
-            
-            if ([[UIApplication sharedApplication] applicationState] == UIApplicationStateBackground) {
-                predicate = [NSPredicate predicateWithFormat:@"sessionSelector == %@ AND status == %d AND typeFile != %@", selectorUploadAutoUploadAll, k_metadataStatusWaitUpload, k_metadataTypeFile_video];
-            } else {
-                predicate = [NSPredicate predicateWithFormat:@"sessionSelector == %@ AND status == %d", selectorUploadAutoUploadAll, k_metadataStatusWaitUpload];
-            }
-            
-            metadataForUpload = [[NCManageDatabase sharedInstance] getMetadataWithPredicate:predicate sorted:@"session" ascending:YES];
-            if (metadataForUpload) {
-                
-                if ([CCUtility isFolderEncrypted:metadataForUpload.serverUrl e2eEncrypted:metadataForUpload.e2eEncrypted account:metadataForUpload.account]) {
-                
-                    if ([[UIApplication sharedApplication] applicationState] == UIApplicationStateBackground) { break; }
-                    maxConcurrentOperationUpload = 1;
-                    
-                    metadataForUpload.status = k_metadataStatusInUpload;
-                    tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
-                    
-                    [[NCNetworking shared] uploadWithMetadata:metadata];
-                    
-                    break;
-                    
-                } else {
-                    
-                    metadataForUpload.status = k_metadataStatusInUpload;
-                    tableMetadata *metadata = [[NCManageDatabase sharedInstance] addMetadata:metadataForUpload];
-                    
-                    [[NCNetworking shared] uploadWithMetadata:metadata];
-                    
-                    counterUpload++;
-                    sizeUpload = sizeUpload + metadata.size;
-                    
-                }
-                
-            } else {
-                break;
-            }
-        }
-    }
-    
-    // No upload available ? --> Retry Upload in Error
-    if (counterUpload == 0) {
-        
-        NSArray *metadatas = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"status == %d", k_metadataStatusUploadError] sorted:nil ascending:NO];
-        for (tableMetadata *metadata in metadatas) {
-            
-            metadata.session = NCCommunicationCommon.shared.sessionIdentifierBackground;
-            metadata.sessionError = @"";
-            metadata.sessionTaskIdentifier = 0;
-            metadata.status = k_metadataStatusInUpload;
-            
-            [[NCManageDatabase sharedInstance] addMetadata:metadata];
-        }
-    }
-    
-    // verify delete Asset Local Identifiers in auto upload (Photos album)
-    if (counterUpload == 0 && self.passcodeViewController == nil) {
-        
-        [[NCUtility sharedInstance] deleteAssetLocalIdentifiersWithAccount:self.activeAccount sessionSelector:selectorUploadAutoUpload];
-    }
-    
-    // Start Timer
-    _timerProcessAutoUpload = [NSTimer scheduledTimerWithTimeInterval:k_timerProcessAutoUpload target:self selector:@selector(loadAutoUpload) userInfo:nil repeats:YES];
-}
-
-- (void)startLoadAutoUpload
-{
-    if (self.timerProcessAutoUpload.isValid) {
-        [self performSelectorOnMainThread:@selector(loadAutoUpload) withObject:nil waitUntilDone:YES];
-    }
 }
 
 #pragma --------------------------------------------------------------------------------------------
@@ -1338,7 +1116,7 @@
                                                     // Push
                                                     NSString *fileName = [[path stringByDeletingLastPathComponent] lastPathComponent];
                                                     NSString *serverUrl = [CCUtility deletingLastPathComponentFromServerUrl:[NSString stringWithFormat:@"%@%@/%@", matchedAccount.url, k_webDAV, [path stringByDeletingLastPathComponent]]];
-                                                    tableMetadata *metadata = [[NCManageDatabase sharedInstance] createMetadataWithAccount:matchedAccount.account fileName:fileName ocId:[[NSUUID UUID] UUIDString] serverUrl:serverUrl url:@"" contentType:@""];
+                                                    tableMetadata *metadata = [[NCManageDatabase sharedInstance] createMetadataWithAccount:matchedAccount.account fileName:fileName ocId:[[NSUUID UUID] UUIDString] serverUrl:serverUrl urlBase: @"" url:@"" contentType:@""];
                                                     [self.activeMain performSegueDirectoryWithMetadata:metadata blinkFileNamePath:fileNamePath];
                                                     
                                                 } else {
@@ -1351,9 +1129,6 @@
                                                 }
                                             });
                                         });
-                                        
-                                        
-                                        
                                     }
                                 }
                             }
@@ -1432,7 +1207,7 @@
         self.passcodeViewController.delegate = self;
         self.passcodeViewController.keypadButtonShowLettering = false;
         
-        if ([laContext canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error]) {
+        if (CCUtility.getEnableTouchFaceID && [laContext canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error]) {
             if (error == NULL) {
                 if (laContext.biometryType == LABiometryTypeFaceID) {
                     self.passcodeViewController.biometryType = TOPasscodeBiometryTypeFaceID;
@@ -1453,7 +1228,7 @@
     }
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
-        if (automaticallyPromptForBiometricValidation && self.passcodeViewController.view.window) {
+        if (CCUtility.getEnableTouchFaceID && automaticallyPromptForBiometricValidation && self.passcodeViewController.view.window) {
             [[LAContext new] evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics localizedReason:[[NCBrandOptions sharedInstance] brand] reply:^(BOOL success, NSError * _Nullable error) {
                 if (success) {
                     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {

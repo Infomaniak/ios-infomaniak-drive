@@ -23,17 +23,16 @@
 
 #import <MBProgressHUD/MBProgressHUD.h>
 
-#import "OCNetworking.h"
 #import "CCGlobal.h"
 #import "CCGraphics.h"
 #import "CCCellShareExt.h"
 #import "NCSelectDestination.h"
-#import "CCError.h"
 #import "CCHud.h"
 
 @interface ShareViewController : UIViewController <UITableViewDelegate, MBProgressHUDDelegate, NCSelectDestinationDelegate, UITextFieldDelegate>
 
 @property (nonatomic, strong) NSString *activeAccount;
+@property (nonatomic, strong) NSString *activeUrl;
 @property (nonatomic, strong) NSString *serverUrl;
 @property (nonatomic, retain) NSMutableArray *filesName;
 

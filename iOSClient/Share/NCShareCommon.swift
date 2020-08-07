@@ -30,6 +30,17 @@ class NCShareCommon: NSObject {
         return instance
     }()
     
+    let SHARE_TYPE_USER = 0
+    let SHARE_TYPE_GROUP = 1
+    let SHARE_TYPE_LINK = 3
+    let SHARE_TYPE_EMAIL = 4
+    let SHARE_TYPE_CONTACT = 5
+    let SHARE_TYPE_REMOTE = 6
+    let SHARE_TYPE_CIRCLE = 7
+    let SHARE_TYPE_GUEST = 8
+    let SHARE_TYPE_REMOTE_GROUP = 9
+    let SHARE_TYPE_ROOM = 10
+    
     func createLinkAvatar() -> UIImage? {
         
         let size: CGFloat = 200
@@ -76,7 +87,7 @@ class NCShareCommon: NSObject {
         shareLinkMenuView.metadata = metadata
         shareLinkMenuView.viewWindow = viewWindow
         shareLinkMenuView.shareViewController = shareViewController
-        shareLinkMenuView.reloadData(idRemoteShared: tableShare?.idRemoteShared ?? 0)
+        shareLinkMenuView.reloadData(idShare: tableShare?.idShare ?? 0)
         shareLinkMenuView.translatesAutoresizingMaskIntoConstraints = false
         viewWindow.addSubview(shareLinkMenuView)
         
@@ -120,7 +131,7 @@ class NCShareCommon: NSObject {
         shareUserMenuView.metadata = metadata
         shareUserMenuView.viewWindow = viewWindow
         shareUserMenuView.shareViewController = shareViewController
-        shareUserMenuView.reloadData(idRemoteShared: tableShare?.idRemoteShared ?? 0)
+        shareUserMenuView.reloadData(idShare: tableShare?.idShare ?? 0)
         shareUserMenuView.translatesAutoresizingMaskIntoConstraints = false
         viewWindow.addSubview(shareUserMenuView)
 
@@ -176,21 +187,9 @@ class NCShareCommon: NSObject {
     }
     
     func copyLink(tableShare: tableShare?, viewController: UIViewController, sender: Any) {
-        
-        let appDelegate = UIApplication.shared.delegate as! AppDelegate
-        var url: String = ""
-        
         guard let tableShare = tableShare else { return }
         
-        if tableShare.token.hasPrefix("http://") || tableShare.token.hasPrefix("https://") {
-            url = tableShare.token
-        } else if tableShare.url != "" {
-            url = tableShare.url
-        } else {
-            url = appDelegate.activeUrl + "/" + k_share_link_middle_part_url_after_version_8 + tableShare.token
-        }
-        
-        if let name = URL(string: url), !name.absoluteString.isEmpty {
+        if let name = URL(string: tableShare.url), !name.absoluteString.isEmpty {
             let objectsToShare = [name]
             
             let activityViewController = UIActivityViewController(activityItems: objectsToShare, applicationActivities: nil)
@@ -203,6 +202,34 @@ class NCShareCommon: NSObject {
             }
             
             viewController.present(activityViewController, animated: true, completion: nil)
+        }
+    }
+    
+    func getImageShareType(shareType: Int) -> UIImage? {
+        
+        switch shareType {
+        case SHARE_TYPE_USER:
+            return UIImage(named: "shareTypeUser")
+        case self.SHARE_TYPE_GROUP:
+            return UIImage(named: "shareTypeGroup")
+        case self.SHARE_TYPE_LINK:
+            return UIImage(named: "shareTypeLink")
+        case self.SHARE_TYPE_EMAIL:
+            return UIImage(named: "shareTypeEmail")
+        case self.SHARE_TYPE_CONTACT:
+            return UIImage(named: "shareTypeUser")
+        case self.SHARE_TYPE_REMOTE:
+            return UIImage(named: "shareTypeUser")
+        case self.SHARE_TYPE_CIRCLE:
+            return UIImage(named: "shareTypeCircles")
+        case self.SHARE_TYPE_GUEST:
+            return UIImage(named: "shareTypeUser")
+        case self.SHARE_TYPE_REMOTE_GROUP:
+            return UIImage(named: "shareTypeGroup")
+        case self.SHARE_TYPE_ROOM:
+            return UIImage(named: "shareTypeRoom")
+        default:
+            return UIImage(named: "shareTypeUser")
         }
     }
 }

@@ -487,7 +487,7 @@
     if (serverUrl != nil) {
         
         if ([serverUrl isEqualToString:[CCUtility getHomeServerUrlActiveUrl:appDelegate.activeUrl]]) {
-            [[NCContentPresenter shared] messageNotification:@"_error_" description:@"_autoupload_error_select_folder_" delay:k_dismissAfterSecond type:messageTypeError errorCode:0];
+            [[NCContentPresenter shared] messageNotification:@"_error_" description:@"_autoupload_error_select_folder_" delay:k_dismissAfterSecond type:messageTypeError errorCode:k_CCErrorInternalError forced:true];
             return;
         }
         
@@ -510,6 +510,7 @@
      viewController.type = @"";
      viewController.titleButtonDone = NSLocalizedString(@"_select_", nil);
      viewController.layoutViewSelect = k_layout_view_move;
+     viewController.heightToolBarTop = 50;
      
      [navigationController setModalPresentationStyle:UIModalPresentationFullScreen];
      [self presentViewController:navigationController animated:YES completion:^{

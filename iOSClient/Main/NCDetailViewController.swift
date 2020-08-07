@@ -441,7 +441,7 @@ class NCDetailViewController: UIViewController {
     
     @objc func viewFile(metadata: tableMetadata, selector: String?) {
                 
-        self.metadata = metadata
+        self.metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
         self.selector = selector
         self.backgroundView.image = nil
         
@@ -481,9 +481,9 @@ class NCDetailViewController: UIViewController {
             }
             
             // DirectEditinf: Nextcloud Text - OnlyOffice
-            if NCUtility.sharedInstance.isDirectEditing(metadata) != nil &&  NCCommunication.shared.isNetworkReachable() {
+            if NCUtility.sharedInstance.isDirectEditing(account: metadata.account, contentType: metadata.contentType) != nil &&  NCCommunication.shared.isNetworkReachable() {
                 
-                let editor = NCUtility.sharedInstance.isDirectEditing(metadata)!
+                guard let editor = NCUtility.sharedInstance.isDirectEditing(account: metadata.account, contentType: metadata.contentType) else { return }
                 if editor == k_editor_text || editor == k_editor_onlyoffice {
                     
                     NCUtility.sharedInstance.startActivityIndicator(view: backgroundView)
@@ -527,6 +527,9 @@ class NCDetailViewController: UIViewController {
                         let nextcloudText = NCViewerNextcloudText.init(frame: frame, configuration: WKWebViewConfiguration())
                         nextcloudText.viewerAt(metadata.url, metadata: metadata, editor: editor, view: backgroundView, viewController: self)
                     }
+                } else {
+                    NCContentPresenter.shared.messageNotification("_error_", description: "_editor_unknown_", delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: Int(k_CCErrorInternalError))
+                    unload(checkWindow: false)
                 }
                 
                 return
@@ -635,7 +638,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
         
         if index >= metadatas.count { return }
         let metadata = metadatas[index]
-        let isPreview = CCUtility.fileProviderStoragePreviewIconExists(metadata.ocId, fileNameView: metadata.fileNameView)
+        let isPreview = CCUtility.fileProviderStoragePreviewIconExists(metadata.ocId, etag: metadata.etag)
         let isImage = CCUtility.fileProviderStorageSize(metadata.ocId, fileNameView: metadata.fileNameView) > 0
         let ext = CCUtility.getExtension(metadata.fileNameView)
         let isFolderEncrypted = CCUtility.isFolderEncrypted(metadata.serverUrl, e2eEncrypted: metadata.e2eEncrypted, account: metadata.account)
@@ -654,7 +657,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
         // Preview for Video
         if metadata.typeFile == k_metadataTypeFile_video && !isPreview && isImage {
             
-            CCGraphics.createNewImage(from: metadata.fileNameView, ocId: metadata.ocId, typeFile: metadata.typeFile)
+            CCGraphics.createNewImage(from: metadata.fileNameView, ocId: metadata.ocId, etag: metadata.etag, typeFile: metadata.typeFile)
         }
         
         // Original only for actual
@@ -667,7 +670,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
             }
                 
         // Automatic download for: Encripted
-        } else if metadata.status == Int(k_metadataStatusNormal) && CCUtility.fileProviderStorageSize(metadata.ocId, fileNameView: metadata.fileNameView) == 0 && isFolderEncrypted{
+        } else if CCUtility.fileProviderStorageSize(metadata.ocId, fileNameView: metadata.fileNameView) == 0 && isFolderEncrypted{
             
             if NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@ AND session != ''", metadata.ocId)) == nil {
                 
@@ -677,17 +680,13 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
             completion(index, NCViewerImageCommon.shared.getImageOffOutline(frame: self.view.frame, type: metadata.typeFile), metadata, ZoomScale.default, nil)
             
         // Automatic download for: HEIC - GIF - SVG
-        } else if metadata.status == Int(k_metadataStatusNormal) && CCUtility.fileProviderStorageSize(metadata.ocId, fileNameView: metadata.fileNameView) == 0 && ((metadata.contentType == "image/heic" &&  metadata.hasPreview == false) || ext == "GIF" || ext == "SVG") {
+        } else if CCUtility.fileProviderStorageSize(metadata.ocId, fileNameView: metadata.fileNameView) == 0 && ((metadata.contentType == "image/heic" &&  metadata.hasPreview == false) || ext == "GIF" || ext == "SVG") {
             
             let serverUrlFileName = metadata.serverUrl + "/" + metadata.fileName
             let fileNameLocalPath = CCUtility.getDirectoryProviderStorageOcId(metadata.ocId, fileNameView: metadata.fileName)!
-            
-            metadata.status = Int(k_metadataStatusInDownload)
-            
+                        
             NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, requestHandler: { (_) in
-                
-                metadata.status = Int(k_metadataStatusDownloading)
-                
+                                
             },  progressHandler: { (progress) in
                                 
                 self.progress(Float(progress.fractionCompleted))
@@ -707,7 +706,6 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
                     completion(index, NCViewerImageCommon.shared.getImageOffOutline(frame: self.view.frame, type: metadata.typeFile), metadata, ZoomScale.default, nil)
                 }
                 
-                metadata.status = Int(k_metadataStatusNormal)
                 self.progress(0)
             }
         
@@ -723,8 +721,8 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
         } else if metadata.hasPreview {
                 
             let fileNamePath = CCUtility.returnFileNamePath(fromFileName: metadata.fileName, serverUrl: metadata.serverUrl, activeUrl: appDelegate.activeUrl)!
-            let fileNamePreviewLocalPath = CCUtility.getDirectoryProviderStoragePreviewOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
-            let fileNameIconLocalPath = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, fileNameView: metadata.fileNameView)!
+            let fileNamePreviewLocalPath = CCUtility.getDirectoryProviderStoragePreviewOcId(metadata.ocId, etag: metadata.etag)!
+            let fileNameIconLocalPath = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, etag: metadata.etag)!
                     
             NCCommunication.shared.downloadPreview(fileNamePathOrFileId: fileNamePath, fileNamePreviewLocalPath: fileNamePreviewLocalPath, widthPreview: Int(k_sizePreview), heightPreview: Int(k_sizePreview), fileNameIconLocalPath: fileNameIconLocalPath, sizeIcon: Int(k_sizeIcon)) { (account, imagePreview, imageIcon,  errorCode, errorMessage) in
                 if errorCode == 0 && imagePreview != nil {
@@ -789,6 +787,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
     
     func viewerImageViewControllerLongPressBegan(_ viewerImageViewController: NCViewerImageViewController, metadata: tableMetadata) {
         
+        viewerImageViewController.statusView.isHidden = true
         viewerImageViewControllerLongPressInProgress = true
         
         let fileName = (metadata.fileNameView as NSString).deletingPathExtension + ".mov"
@@ -796,6 +795,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
             
             if CCUtility.fileProviderStorageSize(metadata.ocId, fileNameView: metadata.fileNameView) > 0 {
                 
+                AudioServicesPlaySystemSound(1519) // peek feedback
                 viewMOV(viewerImageViewController: viewerImageViewController, metadata: metadata)
                 
             } else {
@@ -816,6 +816,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
                     if errorCode == 0 && account == metadata.account {
                         
                         NCManageDatabase.sharedInstance.addLocalFile(metadata: metadata)
+                        AudioServicesPlaySystemSound(1519) // peek feedback
                         self.viewMOV(viewerImageViewController: viewerImageViewController, metadata: metadata)
                     }
                 }
@@ -827,6 +828,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
         
         viewerImageViewControllerLongPressInProgress = false
         
+        viewerImageViewController.statusView.isHidden = false
         appDelegate.player?.pause()
         videoLayer?.removeFromSuperlayer()
     }

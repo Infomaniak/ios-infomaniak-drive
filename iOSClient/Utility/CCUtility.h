@@ -30,7 +30,6 @@
 #import <UICKeyChainStore/UICKeyChainStore.h>
 #import <Photos/Photos.h>
 
-#import "OCFileDto.h"
 #import "CCGlobal.h"
 #import "CCGraphics.h"
 
@@ -50,6 +49,9 @@
 
 + (BOOL)getNotPasscodeAtStart;
 + (void)setNotPasscodeAtStart:(BOOL)set;
+
++ (BOOL)getEnableTouchFaceID;
++ (void)setEnableTouchFaceID:(BOOL)set;
 
 + (NSString *)getOrderSettings;
 + (void)setOrderSettings:(NSString *)order;
@@ -169,6 +171,14 @@
 + (BOOL)getLivePhoto;
 + (void)setLivePhoto:(BOOL)set;
 
++ (NSString *)getMediaSortDate;
++ (void)setMediaSortDate:(NSString *)value;
+
++ (NSInteger)getTextRecognitionStatus;
++ (void)setTextRecognitionStatus:(NSInteger)value;
++ (NSString *)getDirectoryScanDocuments;
++ (void)setDirectoryScanDocuments:(NSString *)value;
+
 // ===== Varius =====
 
 + (BOOL)addSkipBackupAttributeToItemAtURL:(NSURL *)URL;
@@ -202,11 +212,11 @@
 + (NSString *)getDirectoryProviderStorage;
 + (NSString *)getDirectoryProviderStorageOcId:(NSString *)ocId;
 + (NSString *)getDirectoryProviderStorageOcId:(NSString *)ocId fileNameView:(NSString *)fileNameView;
-+ (NSString *)getDirectoryProviderStorageIconOcId:(NSString *)ocId fileNameView:(NSString *)fileNameView;
-+ (NSString *)getDirectoryProviderStoragePreviewOcId:(NSString *)ocId fileNameView:(NSString *)fileNameView;
++ (NSString *)getDirectoryProviderStorageIconOcId:(NSString *)ocId etag:(NSString *)etag;
++ (NSString *)getDirectoryProviderStoragePreviewOcId:(NSString *)ocId etag:(NSString *)etag;
 + (BOOL)fileProviderStorageExists:(NSString *)ocId fileNameView:(NSString *)fileNameView;
 + (double)fileProviderStorageSize:(NSString *)ocId fileNameView:(NSString *)fileNameView;
-+ (BOOL)fileProviderStoragePreviewIconExists:(NSString *)ocId fileNameView:(NSString *)fileNameView;
++ (BOOL)fileProviderStoragePreviewIconExists:(NSString *)ocId etag:(NSString *)etag;
 
 + (void)removeGroupApplicationSupport;
 + (void)removeGroupLibraryDirectory;
@@ -251,11 +261,23 @@
 + (NSString *)getTimeIntervalSince197;
 
 + (void)extractImageVideoFromAssetLocalIdentifierForUpload:(tableMetadata *)metadata notification:(BOOL)notification completion:(void(^)(tableMetadata *newMetadata, NSString* fileNamePath))completion;
++ (void)extractLivePhotoAsset:(PHAsset*)asset filePath:(NSString *)filePath withCompletion:(void (^)(NSURL* url))completion;
 
 // ===== E2E Encrypted =====
 
 + (NSString *)generateRandomIdentifier;
 + (BOOL)isFolderEncrypted:(NSString *)serverUrl e2eEncrypted:(BOOL)e2eEncrypted account:(NSString *)account;
+
+// ===== Share Permissions =====
+
++ (NSInteger)getPermissionsValueByCanEdit:(BOOL)canEdit andCanCreate:(BOOL)canCreate andCanChange:(BOOL)canChange andCanDelete:(BOOL)canDelete andCanShare:(BOOL)canShare andIsFolder:(BOOL) isFolder;
++ (BOOL)isPermissionToCanCreate:(NSInteger) permissionValue;
++ (BOOL)isPermissionToCanChange:(NSInteger) permissionValue;
++ (BOOL)isPermissionToCanDelete:(NSInteger) permissionValue;
++ (BOOL)isPermissionToCanShare:(NSInteger) permissionValue;
++ (BOOL)isAnyPermissionToEdit:(NSInteger) permissionValue;
++ (BOOL)isPermissionToRead:(NSInteger) permissionValue;
++ (BOOL)isPermissionToReadCreateUpdate:(NSInteger) permissionValue;
 
 // ===== Third parts =====
 
@@ -266,7 +288,6 @@
 + (NSDate *)datetimeWithOutTime:(NSDate *)datDate;
 + (NSDate *)datetimeWithOutDate:(NSDate *)datDate;
 + (BOOL)isValidEmail:(NSString *)checkString;
-+ (NSString *)URLEncodeStringFromString:(NSString *)string;
 + (NSString *)hexRepresentation:(NSData *)data spaces:(BOOL)spaces;
 + (NSString *)valueForKey:(NSString *)key fromQueryItems:(NSArray *)queryItems;
 

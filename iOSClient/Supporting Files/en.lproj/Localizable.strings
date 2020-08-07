@@ -69,7 +69,7 @@
 "_video_"                   = "Video";
 "_overwrite_"               = "Overwrite";
 "_transfers_in_queue_"      = "Tranfers in progress, please wait…";
-"_too_errors_automatic_all_"= "Too many errors, go to \"Control Center\" to verify the problem";
+"_too_errors_upload_"       = "Too many errors, please verify the problem";
 "_create_folder_"           = "Create folder";
 "_create_folder_on_"        = "Create folder on";
 "_close_"                   = "Close";
@@ -101,6 +101,7 @@
 "_denied_album_"            = "This app does not have access to \"Photos\", you can enable access in Privacy Settings";
 "_denied_camera_"           = "This app does not have access to \"Camera\", you can enable access in Privacy Settings";
 "_start_"                   = "Start";
+"_force_start_"             = "Force the start";
 "_purchase_"                = "Purchase";
 "_account_not_available_"   = "The account %@ of %@ does not exist, please add it to be able to read the file %@";
 "_error_parameter_schema_"  = "Wrong parameters, impossible to continue";
@@ -169,6 +170,7 @@
 "_lock_not_active_"             = "Lock: Off";
 "_lock_protection_no_screen_"        = "Do not ask at startup";
 "_lock_protection_no_screen_footer_" = "Use \"Do not ask at startup\" for the encryption option";
+"_enable_touch_face_id_"        = "Enable Touch/Face ID";
 "_url_"                         = "URL";
 "_username_"                    = "Username";
 "_change_credentials_"          = "Change your credentials";
@@ -210,7 +212,8 @@
 "_help_"                        = "Help";
 "_change_simply_passcode_"      = "Change password type";
 "_quota_"                       = "Quota";
-"_available_"                   = "available";
+"_available_"                   = "Available";
+"_not_available_"               = "Not available";
 "_accounts_"                    = "Accounts";
 "_information_"                 = "Information";
 "_personal_information_"        = "Personal info";
@@ -236,7 +239,7 @@
 "_favorite_offline_footer_"     = "Making all favorites available offline may take a while and use a lot of memory while doing it.";
 "_advanced_"                    = "Advanced";
 "_disable_files_app_"           = "Disable Files App integration";
-"_disable_files_app_footer_"    = "Do not permit the access of files across the Apple Files application";
+"_disable_files_app_footer_"    = "Do not permit the access of files via the iOS Files application";
 "_trial_"                       = "Trial";
 "_trial_expired_day_"           = "Days remaining";
 "_disableLocalCacheAfterUpload_footer_" = "After uploading the file, do not keep it in the local cache";
@@ -250,7 +253,7 @@
 "_autoupload_background_"           = "Auto upload in the background";
 "_autoupload_photos_"               = "Auto upload photos";
 "_autoupload_videos_"               = "Auto upload videos";
-"_autoupload_description_"          = "The new photos/videos will be uploaded in your Cloud";
+"_autoupload_description_"          = "New photos/videos will be automatically uploaded to your Nextcloud";
 "_autoupload_description_background_"  = "This option requires the use of GPS to trigger the detection of new photos/videos in the camera roll once the location changes significantly";
 "_autoupload_background_title_"     = "Limitations";
 "_autoupload_background_msg_"       = "Due to iOS restrictions, it is not yet possible to perform background processes, unless GPS services are activated. Once the cell in the cellular network is changed, the system wakes up for a short time and checks for new photos to upload to the cloud.";
@@ -288,6 +291,10 @@
 "_crashservice_alert_"          = "This option requires a restart of the app to take effect";
 "_upload_mov_livephoto_"        = "Live Photo";
 "_upload_mov_livephoto_footer_" = "\"Live Photo\" will save, when possible, the photo selected in \"Live Photo\" format";
+"_view_capabilities_"           = "View the capabilities";
+"_capabilities_"                = "Capabilities";
+"_no_capabilities_found_"       = "Capabilities not found";
+"_diagnostics_"                 = "Diagnostics";
 
 // Login
 
@@ -336,7 +343,7 @@
 "_error_createsubfolders_upload_"           = "Error creating subfolders";
 "_activate_autoupload_"                     = "Enable auto upload";
 "_remove_photo_CameraRoll_"                 = "Remove from camera roll";
-"_remove_photo_CameraRoll_desc_"            = "In case of a successful automatic upload, a message confirmation is required to delete the photos or videos from the camera roll. Remember that the deleted photos or videos are available in the Trash for 30 days.";
+"_remove_photo_CameraRoll_desc_"            = "After successful automatic uploads, a confirmation message will be displayed to delete the uploaded photos or videos from the camera roll. The deleted photos or videos will still be available in the iOS Photos Trash for 30 days.";
 
 // Utility
 
@@ -365,14 +372,14 @@
 "_sorted_by_name_a_z_"          = "Sorted by name (from A to Z)";
 "_order_by_name_z_a_"           = "Sort by name (from Z to A)";
 "_sorted_by_name_z_a_"          = "Sorted by name (from Z to A)";
-"_order_by_date_more_recent_"   = "Sort from the most recent";
-"_sorted_by_date_more_recent_"  = "Sorted from the most recent";
-"_order_by_date_less_recent_"   = "Sort from the less recent";
-"_sorted_by_date_less_recent_"  = "Sorted from the less recent";
-"_order_by_size_smallest_"      = "Sort from the smallest";
-"_sorted_by_size_smallest_"     = "Sorted from the smallest";
-"_order_by_size_largest_"       = "Sort from the largest";
-"_sorted_by_size_largest_"      = "Sorted from the largest";
+"_order_by_date_more_recent_"   = "Sort by newest";
+"_sorted_by_date_more_recent_"  = "Sorted by newest";
+"_order_by_date_less_recent_"   = "Sort by oldest";
+"_sorted_by_date_less_recent_"  = "Sorted by oldest";
+"_order_by_size_smallest_"      = "Sort by smallest";
+"_sorted_by_size_smallest_"     = "Sorted by smallest";
+"_order_by_size_largest_"       = "Sort by largest";
+"_sorted_by_size_largest_"      = "Sorted by largest";
 "_delete_selected_files_"       = "Delete files";
 "_move_selected_files_"         = "Move files";
 "_move_or_copy_selected_files_" = "Move or copy files";
@@ -475,6 +482,10 @@
 "_media_viewimage_hide_"        = "Hide images";
 "_media_viewvideo_show_"        = "Show video";
 "_media_viewvideo_hide_"        = "Hide video";
+"_media_by_created_date_"       = "Sort by created date";
+"_media_by_upload_date_"        = "Sort by upload date";
+"_media_by_modified_date_"      = "Sort by modified date";
+
 
 // Files Preview
 
@@ -527,6 +538,7 @@
 "_share_can_change_"            = "Can change";
 "_share_can_delete_"            = "Can delete";
 "_share_unshare_"               = "Unshare";
+"_share_internal_link_"         = "Share internal link";
 
 // Share Permission
 
@@ -616,7 +628,7 @@
 // Notification
 
 "_notification_"                    = "Notification";
-"_no_notification_"                 = "No notification yet";
+"_no_notification_"                 = "No notifications yet";
 
 // Photo Browser
 
@@ -669,6 +681,7 @@
 "_e2e_error_delete_mark_folder_"    = "Decrypt marked folder";
 "_e2e_error_mark_folder_"           = "Encrypt folder";
 "_e2e_error_directory_not_empty_"   = "The directory is not empty";
+"_e2e_error_not_move_"              = "It is not possible move files to encrypted directory";
 
 // Scan Document
 
@@ -783,6 +796,10 @@
 "_invalid_data_format_"                 = "Invalid data format";
 "_error_decode_xml_"                    = "Invalid response, error decode XML";
 "_internal_generic_error_"              = "internal error";
+"_editor_unknown_"                      = "Failed to open file: Editor is unknown";
+"_err_asset_not_found_locally_"         = "Error: Photo/video not found locally, removed from upload";
+"_err_asset_not_found_"                 = "Error: Photo/video not found, removed from upload";
+"_err_e2ee_app_version_"                = "Error: The version of app End-to-End encryption is not compatible, please update your server";
 
 // QRCode
 

@@ -24,8 +24,6 @@
 #import "CCSettings.h"
 #import "AppDelegate.h"
 #import "CCMain.h"
-#import "OCCapabilities.h"
-#import "CCSynchronize.h"
 #import "CCAdvanced.h"
 #import "CCManageAccount.h"
 #import "NCManageEndToEndEncryption.h"
@@ -51,7 +49,7 @@
     XLFormDescriptor *form = [XLFormDescriptor formDescriptor];
     XLFormSectionDescriptor *section;
     XLFormRowDescriptor *row;
-    NSInteger serverVersionMajor = [[NCManageDatabase sharedInstance] getCapabilitiesServerIntWithAccount:appDelegate.activeAccount elements:NCElementsJSON.shared.capabilitiesVersionMajor];
+    //NSInteger serverVersionMajor = [[NCManageDatabase sharedInstance] getCapabilitiesServerIntWithAccount:appDelegate.activeAccount elements:NCElementsJSON.shared.capabilitiesVersionMajor];
     
     form.rowNavigationOptions = XLFormRowNavigationOptionNone;
     
@@ -95,7 +93,12 @@
     //[row.cellConfig setObject:@(UITableViewCellAccessoryDisclosureIndicator) forKey:@"accessoryType"];
     row.action.formSelector = @selector(passcode:);
     [section addFormRow:row];
-    
+    // Enable Touch ID
+    row = [XLFormRowDescriptor formRowDescriptorWithTag:@"enableTouchDaceID" rowType:XLFormRowDescriptorTypeBooleanSwitch title:NSLocalizedString(@"_enable_touch_face_id_", nil)];
+    row.cellConfigAtConfigure[@"backgroundColor"] = NCBrandColor.sharedInstance.backgroundCell;
+    [row.cellConfig setObject:[UIFont systemFontOfSize:15.0] forKey:@"textLabel.font"];
+    [row.cellConfig setObject:NCBrandColor.sharedInstance.textView forKey:@"textLabel.textColor"];
+    [section addFormRow:row];
     // Lock no screen
     row = [XLFormRowDescriptor formRowDescriptorWithTag:@"notPasscodeAtStart" rowType:XLFormRowDescriptorTypeBooleanSwitch title:NSLocalizedString(@"_lock_protection_no_screen_", nil)];
     row.cellConfigAtConfigure[@"backgroundColor"] = NCBrandColor.sharedInstance.backgroundCell;
@@ -132,24 +135,21 @@
         [section addFormRow:row];
     }*/
     
-    // Section : E2EEncryption From Nextcloud 19 --------------------------------------------------------------
-
-    if (serverVersionMajor >= k_nextcloud_version_19_0) {
+    // Section : E2EEncryption --------------------------------------------------------------
         
-        section = [XLFormSectionDescriptor formSectionWithTitle:NSLocalizedString(@"_e2e_settings_title_", nil)];
-        [form addFormSection:section];
-        
-        // EndToEnd Encryption
-        NSString *title = [NSString stringWithFormat:@"%@ (%@)",NSLocalizedString(@"_e2e_settings_", nil), NSLocalizedString(@"_experimental_", nil)];
-        row = [XLFormRowDescriptor formRowDescriptorWithTag:@"e2eEncryption" rowType:XLFormRowDescriptorTypeButton title:title];
-        row.cellConfigAtConfigure[@"backgroundColor"] = NCBrandColor.sharedInstance.backgroundCell;
-        [row.cellConfig setObject:[UIFont systemFontOfSize:15.0] forKey:@"textLabel.font"];
-        [row.cellConfig setObject:NCBrandColor.sharedInstance.textView forKey:@"textLabel.textColor"];
-        [row.cellConfig setObject:[CCGraphics changeThemingColorImage:[UIImage imageNamed:@"lock"] width:50 height:50 color:NCBrandColor.sharedInstance.icon] forKey:@"imageView.image"];
-        row.action.viewControllerClass = [NCManageEndToEndEncryption class];
-        
-        [section addFormRow:row];
-    }
+    section = [XLFormSectionDescriptor formSectionWithTitle:NSLocalizedString(@"_e2e_settings_title_", nil)];
+    [form addFormSection:section];
+    
+    // EndToEnd Encryption
+    NSString *title = [NSString stringWithFormat:@"%@ (%@)",NSLocalizedString(@"_e2e_settings_", nil), NSLocalizedString(@"_experimental_", nil)];
+    row = [XLFormRowDescriptor formRowDescriptorWithTag:@"e2eEncryption" rowType:XLFormRowDescriptorTypeButton title:title];
+    row.cellConfigAtConfigure[@"backgroundColor"] = NCBrandColor.sharedInstance.backgroundCell;
+    [row.cellConfig setObject:[UIFont systemFontOfSize:15.0] forKey:@"textLabel.font"];
+    [row.cellConfig setObject:NCBrandColor.sharedInstance.textView forKey:@"textLabel.textColor"];
+    [row.cellConfig setObject:[CCGraphics changeThemingColorImage:[UIImage imageNamed:@"lock"] width:50 height:50 color:NCBrandColor.sharedInstance.icon] forKey:@"imageView.image"];
+    row.action.viewControllerClass = [NCManageEndToEndEncryption class];
+    
+    [section addFormRow:row];
     
     // Section Advanced -------------------------------------------------
     
@@ -230,6 +230,7 @@
 
     XLFormRowDescriptor *rowBloccoPasscode = [self.form formRowWithTag:@"bloccopasscode"];
     XLFormRowDescriptor *rowNotPasscodeAtStart = [self.form formRowWithTag:@"notPasscodeAtStart"];
+    XLFormRowDescriptor *rowEnableTouchDaceID = [self.form formRowWithTag:@"enableTouchDaceID"];
     XLFormRowDescriptor *rowFavoriteOffline = [self.form formRowWithTag:@"favoriteoffline"];
     XLFormRowDescriptor *rowDarkModeDetect = [self.form formRowWithTag:@"darkModeDetect"];
     XLFormRowDescriptor *rowDarkMode = [self.form formRowWithTag:@"darkMode"];
@@ -244,6 +245,7 @@
         [rowBloccoPasscode.cellConfig setObject:[CCGraphics changeThemingColorImage:[UIImage imageNamed:@"settingsPasscodeNO"] multiplier:2 color:NCBrandColor.sharedInstance.icon] forKey:@"imageView.image"];
     }
     
+    if ([CCUtility getEnableTouchFaceID]) [rowEnableTouchDaceID setValue:@1]; else [rowEnableTouchDaceID setValue:@0];
     if ([CCUtility getNotPasscodeAtStart]) [rowNotPasscodeAtStart setValue:@1]; else [rowNotPasscodeAtStart setValue:@0];
     if ([CCUtility getFavoriteOffline]) [rowFavoriteOffline setValue:@1]; else [rowFavoriteOffline setValue:@0];
     if ([CCUtility getDarkModeDetect]) [rowDarkModeDetect setValue:@1]; else [rowDarkModeDetect setValue:@0];
@@ -269,6 +271,15 @@
         }
     }
     
+    if ([rowDescriptor.tag isEqualToString:@"enableTouchDaceID"]) {
+        
+        if ([[rowDescriptor.value valueData] boolValue] == YES) {
+            [CCUtility setEnableTouchFaceID:true];
+        } else {
+            [CCUtility setEnableTouchFaceID:false];
+        }
+    }
+    
     if ([rowDescriptor.tag isEqualToString:@"favoriteoffline"]) {
         
         if ([[rowDescriptor.value valueData] boolValue] == YES) {
@@ -277,7 +288,7 @@
             
             [alertController addAction: [UIAlertAction actionWithTitle:NSLocalizedString(@"_ok_", nil) style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
                 [CCUtility setFavoriteOffline:true];
-                [appDelegate.activeFavorites listingFavorites];
+                [[NCNetworking shared] listingFavoritescompletionWithCompletion:^(NSString *account, NSArray *metadatas, NSInteger errorCode, NSString *errorDescription) { }];
             }]];
             
             [alertController addAction: [UIAlertAction actionWithTitle:NSLocalizedString(@"_cancel_", nil) style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) {
@@ -406,7 +417,7 @@
         passcodeViewController.delegate = self;
         passcodeViewController.keypadButtonShowLettering = false;
         
-        if ([laContext canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error]) {
+        if (CCUtility.getEnableTouchFaceID && [laContext canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&error]) {
             if (error == NULL) {
                 if (laContext.biometryType == LABiometryTypeFaceID) {
                     passcodeViewController.biometryType = TOPasscodeBiometryTypeFaceID;

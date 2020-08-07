@@ -86,7 +86,7 @@ import Foundation
                         if metadata.typeFile == k_metadataTypeFile_imagemeter {
                             
                             if !IMUtility.shared.IMUnzip(metadata: metadata) {
-                                NCContentPresenter.shared.messageNotification("_error_", description: "Bundle imagemeter error. 🤷‍♂️", delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: 0)
+                                NCContentPresenter.shared.messageNotification("_error_", description: "Bundle imagemeter error. 🤷‍♂️", delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: Int(k_CCErrorInternalError))
                                 return
                             }
                             
@@ -102,14 +102,17 @@ import Foundation
                         }
                         #else
                         if metadata.typeFile == k_metadataTypeFile_imagemeter {
-                            NCMainCommon.sharedInstance.openIn(metadata: metadata, selector: selector)
+                            
+                            let fileURL = URL(fileURLWithPath: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId, fileNameView: metadata.fileNameView))
+                            NCMainCommon.sharedInstance.openIn(fileURL: fileURL, selector: selector)
                             return
                         }
                         #endif
                         
                         if metadata.typeFile == k_metadataTypeFile_compress || metadata.typeFile == k_metadataTypeFile_unknown {
 
-                            NCMainCommon.sharedInstance.openIn(metadata: metadata, selector: selector)
+                            let fileURL = URL(fileURLWithPath: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId, fileNameView: metadata.fileNameView))
+                            NCMainCommon.sharedInstance.openIn(fileURL: fileURL, selector: selector)
                             
                         } else {
                             
@@ -124,7 +127,8 @@ import Foundation
                     // Open in...
                     if (selector == selectorOpenIn || selector == selectorOpenInDetail) && UIApplication.shared.applicationState == UIApplication.State.active {
 
-                        NCMainCommon.sharedInstance.openIn(metadata: metadata, selector: selector)
+                        let fileURL = URL(fileURLWithPath: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId, fileNameView: metadata.fileNameView))
+                        NCMainCommon.sharedInstance.openIn(fileURL: fileURL, selector: selector)
                     }
                     
                     // Save to Photo Album
@@ -179,7 +183,7 @@ import Foundation
                                                 
                 if metadata.account == appDelegate.activeAccount {
                     if errorCode == 0 {
-                        appDelegate.startLoadAutoUpload()
+                        //appDelegate.startLoadAutoUpload()
                     } else {
                         if errorCode != -999 && errorCode != 401 && errorDescription != "" {
                             NCContentPresenter.shared.messageNotification("_upload_file_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)

@@ -332,8 +332,8 @@ extension CCMain {
                         action: { menuAction in
                             let serverUrl = CCUtility.stringAppendServerUrl(metadata.serverUrl, addFileName: metadata.fileName)!
                             NCManageDatabase.sharedInstance.setDirectory(serverUrl: serverUrl, offline: !isOffline, account: appDelegate.activeAccount)
-                            if(isOffline) {
-                                CCSynchronize.shared()?.readFolder(serverUrl, selector: selectorReadFolderWithDownload, account: appDelegate.activeAccount)
+                            if (!isOffline) {
+                                NCOperationQueue.shared.synchronizationMetadata(metadata, selector: selectorDownloadSynchronize)
                             }
                             NotificationCenter.default.postOnMainThread(name: k_notificationCenter_reloadDataSource, userInfo: ["ocId":metadata.ocId, "serverUrl":metadata.serverUrl])
                         }
@@ -390,7 +390,7 @@ extension CCMain {
         } else {
             
             var iconHeader: UIImage!
-            if let icon = UIImage(contentsOfFile: CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, fileNameView: metadata.fileNameView)) {
+            if let icon = UIImage(contentsOfFile: CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, etag: metadata.etag)) {
                 iconHeader = icon
             } else {
                 iconHeader = UIImage(named: metadata.iconName)

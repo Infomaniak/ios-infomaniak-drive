@@ -40,7 +40,6 @@ class CCMore: UIViewController, UITableViewDelegate, UITableViewDataSource {
 
     let appDelegate = UIApplication.shared.delegate as! AppDelegate
 
-    var listExternalSite: [tableExternalSites]?
     var tabAccount: tableAccount?
 
     required init?(coder aDecoder: NSCoder) {
@@ -138,27 +137,20 @@ class CCMore: UIViewController, UITableViewDelegate, UITableViewDataSource {
 
         // ITEM : External
         if NCBrandOptions.sharedInstance.disable_more_external_site == false {
-
-            listExternalSite = NCManageDatabase.sharedInstance.getAllExternalSites(account: appDelegate.activeAccount)
-
-            if listExternalSite != nil {
-
-                for table in listExternalSite! {
-
-                    item = NCCommunicationExternalSite()
-                    item.name = table.name
-                    item.url = table.url
-                    item.icon = table.icon
-
-                    if (table.type == "link") {
+            if let externalSites = NCManageDatabase.sharedInstance.getAllExternalSites(account: appDelegate.activeAccount) {
+                for externalSite in externalSites {
+                    if (externalSite.type == "link" && externalSite.name != "" && externalSite.url != "") {
+                        item = NCCommunicationExternalSite()
+                        item.name = externalSite.name
+                        item.url = externalSite.url
                         item.icon = "world"
                         externalSiteMenu.append(item)
                     }
-                    if (table.type == "settings") {
+                    if (externalSite.type == "settings") {
                         item.icon = "settings"
                         settingsMenu.append(item)
                     }
-                    if (table.type == "quota") {
+                    if (externalSite.type == "quota") {
                         quotaMenu.append(item)
                     }
                 }
@@ -173,7 +165,6 @@ class CCMore: UIViewController, UITableViewDelegate, UITableViewDataSource {
         settingsMenu.append(item)
 
         if (quotaMenu.count > 0) {
-
             let item = quotaMenu[0]
             labelQuotaExternalSite.text = item.name
         }
