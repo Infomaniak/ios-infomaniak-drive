@@ -39,18 +39,18 @@ class NCIntroViewController: UIViewController, UICollectionViewDataSource, UICol
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        self.navigationController?.navigationBar.tintColor = NCBrandColor.sharedInstance.customer
-        self.navigationController?.navigationBar.barTintColor = NCBrandColor.sharedInstance.introBackground
                 
         if #available(iOS 13.0, *) {
-            self.pageControl.currentPageIndicatorTintColor = .systemGray
-        } else {
-            self.pageControl.currentPageIndicatorTintColor = .darkGray
-        }
-        
-        if #available(iOS 13.0, *) {
             self.pageControl.pageIndicatorTintColor = .systemGray2
+            self.pageControl.currentPageIndicatorTintColor = .systemGray
+            let navBarAppearance = UINavigationBarAppearance()
+            navBarAppearance.configureWithTransparentBackground()
+            self.navigationController?.navigationBar.standardAppearance = navBarAppearance
         } else {
+            self.navigationController?.navigationBar.tintColor = NCBrandColor.sharedInstance.customer
+            self.navigationController?.navigationBar.barTintColor = NCBrandColor.sharedInstance.introBackground
+            self.navigationController?.navigationBar.shadowImage = UIImage()
+            self.pageControl.currentPageIndicatorTintColor = .darkGray
             self.pageControl.pageIndicatorTintColor = .gray
         }
 

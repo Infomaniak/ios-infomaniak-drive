@@ -9,3 +9,7 @@
 "_intro_2_title_"                   = "Accédez à vos fichiers sur tous vos appareils";
 "_intro_3_title_"                   = "Partagez et travaillez ensemble au même endroit";
 "_intro_4_title_"                   = "Sauvegardez vos photos automatiquement";
+
+"_sorted_filename_"                 = "Trié par nom";
+"_sorted_date_"                     = "Trié par date";
+"_sorted_size_"                     = "Trié par taille";
