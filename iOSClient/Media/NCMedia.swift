@@ -44,7 +44,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     private var filterTypeFileImage = false;
     private var filterTypeFileVideo = false;
             
-    private let kMaxImageGrid: CGFloat = 5
+    private let kMaxImageGrid: CGFloat = 6
     private var cellHeigth: CGFloat = 0
 
     private var oldInProgress = false
