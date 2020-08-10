@@ -52,63 +52,44 @@
     [form addFormSection:section];
     
     //infomaniak only
-    NSArray *listAccounts = [[NCManageDatabase sharedInstance] getAllAccount];
-    if (listAccount.count == 1) {
+    if (accounts.count == 1) {
         row = [XLFormRowDescriptor formRowDescriptorWithTag:@"pickerAccount" rowType:XLFormRowDescriptorTypeInfo title:NSLocalizedString(@"_accounts_", nil)];
-        row.value = tableAccount;
+        row.value = accountActive;
     } else {
         row = [XLFormRowDescriptor formRowDescriptorWithTag:@"pickerAccount" rowType:XLFormRowDescriptorTypeSelectorPush];
         [row setTitle:NSLocalizedString(@"_accounts_", nil)];
-        if (listAccount.count > 0) {
-            row.selectorOptions = listAccounts;
-            row.value = tableAccount;
+        if (accounts.count > 0) {
+            row.selectorOptions = accounts;
+            row.value = accountActive;
         } else {
             row.selectorOptions = [[NSArray alloc] initWithObjects:@"", nil];
         }
     }
-    row.height = 70;
-    [row.cellConfig setObject:NCBrandColor.sharedInstance.textView forKey:@"textLabel.textColor"];
-    row.cellConfigAtConfigure[@"backgroundColor"] = NCBrandColor.sharedInstance.backgroundView;
     
-    // Avatar
-    NSString *fileNamePath = [NSString stringWithFormat:@"%@/%@-%@.png", [CCUtility getDirectoryUserData], [CCUtility getStringUser:appDelegate.activeUser activeUrl:appDelegate.activeUrl], appDelegate.activeUser];
-    
+    NSString *fileNamePath = [NSString stringWithFormat:@"%@/%@-%@.png", [CCUtility getDirectoryUserData], [CCUtility getStringUser:accountActive.user activeUrl:accountActive.url], accountActive.user];
     UIImage *avatar = [UIImage imageWithContentsOfFile:fileNamePath];
     if (avatar) {
         
-        avatar = [CCGraphics scaleImage:avatar toSize:CGSizeMake(40, 40) isAspectRation:YES];
+        avatar = [CCGraphics scaleImage:avatar toSize:CGSizeMake(35, 35) isAspectRation:YES];
         
         CCAvatar *avatarImageView = [[CCAvatar alloc] initWithImage:avatar borderColor:[UIColor lightGrayColor] borderWidth:0.5];
         
-        row = [XLFormRowDescriptor formRowDescriptorWithTag:account.account rowType:XLFormRowDescriptorTypeBooleanCheck title:account.account];
-        // Avatar
-        NSString *fileNamePath = [NSString stringWithFormat:@"%@/%@-%@.png", [CCUtility getDirectoryUserData], [CCUtility getStringUser:account.user activeUrl:account.url], account.user];
-        UIImage *avatar = [UIImage imageWithContentsOfFile:fileNamePath];
-        if (avatar) {
-            
-            avatar = [CCGraphics scaleImage:avatar toSize:CGSizeMake(35, 35) isAspectRation:YES];
-            
-            CCAvatar *avatarImageView = [[CCAvatar alloc] initWithImage:avatar borderColor:[UIColor lightGrayColor] borderWidth:0.5];
-            
-            CGSize imageSize = avatarImageView.bounds.size;
-            UIGraphicsBeginImageContextWithOptions(imageSize, NO, UIScreen.mainScreen.scale);
-            CGContextRef context = UIGraphicsGetCurrentContext();
-            [avatarImageView.layer renderInContext:context];
-            avatar = UIGraphicsGetImageFromCurrentImageContext();
-            UIGraphicsEndImageContext();
-            
-        } else {
-            avatar = [CCGraphics scaleImage:[UIImage imageNamed:@"avatarBN"] toSize:CGSizeMake(35, 35) isAspectRation:YES];
-        }
+        CGSize imageSize = avatarImageView.bounds.size;
+        UIGraphicsBeginImageContextWithOptions(imageSize, NO, UIScreen.mainScreen.scale);
+        CGContextRef context = UIGraphicsGetCurrentContext();
+        [avatarImageView.layer renderInContext:context];
+        avatar = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
         
-        row.cellConfigAtConfigure[@"backgroundColor"] = NCBrandColor.sharedInstance.backgroundCell;
-        [row.cellConfig setObject:[UIFont systemFontOfSize:13.0] forKey:@"textLabel.font"];
-        [row.cellConfig setObject:avatar forKey:@"imageView.image"];
-        if (account.active) {
-            row.value = @"YES";
-        }
-        [section addFormRow:row];
+    } else {
+        avatar = [CCGraphics scaleImage:[UIImage imageNamed:@"avatarBN"] toSize:CGSizeMake(35, 35) isAspectRation:YES];
     }
+    
+    row.height = 70;
+    [row.cellConfig setObject:avatar forKey:@"imageView.image"];
+    [row.cellConfig setObject:[UIFont systemFontOfSize:13.0] forKey:@"textLabel.font"];
+    row.cellConfigAtConfigure[@"backgroundColor"] = NCBrandColor.sharedInstance.backgroundCell;
+    [section addFormRow:row];
 
     // Section : MANAGE ACCOUNT -------------------------------------------
     
@@ -171,7 +152,7 @@
         [row.cellConfig setObject:NCBrandColor.sharedInstance.textView forKey:@"textLabel.textColor"];
         [row.cellConfig setObject:[UIFont systemFontOfSize:15.0] forKey:@"detailTextLabel.font"];
         [row.cellConfig setObject:[CCGraphics changeThemingColorImage:[UIImage imageNamed:@"user"] width:50 height:50 color:NCBrandColor.sharedInstance.icon] forKey:@"imageView.image"];
-        row.value = tableAccount.displayName;
+        row.value = accountActive.displayName;
         //[section addFormRow:row];
     }
     
