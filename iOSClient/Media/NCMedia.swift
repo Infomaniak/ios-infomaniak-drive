@@ -35,14 +35,16 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     
     public var metadatas: [tableMetadata] = []
     private var metadataPush: tableMetadata?
+    private var account: String = ""
+
     private var predicateDefault: NSPredicate?
     private var predicate: NSPredicate?
 
     private var isEditMode = false
     private var selectocId: [String] = []
     
-    private var filterTypeFileImage = false;
-    private var filterTypeFileVideo = false;
+    private var filterTypeFileImage = false
+    private var filterTypeFileVideo = false
             
     private let kMaxImageGrid: CGFloat = 6
     private var cellHeigth: CGFloat = 0
@@ -52,8 +54,13 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     
     private var lastContentOffsetY: CGFloat = 0
     private var mediaPath = ""
+    private var limit: Int = 100
+    private var livePhoto: Bool = false
+    
+    private var listOcIdReadFileForMedia: [String] = []
     
     struct cacheImages {
+        static var cellLivePhotoImage = UIImage()
         static var cellPlayImage = UIImage()
         static var cellFavouriteImage = UIImage()
     }
@@ -65,8 +72,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
 
         appDelegate.activeMedia = self
         
-        NotificationCenter.default.addObserver(self, selector: #selector(reloadDataSource), name: NSNotification.Name(rawValue: k_notificationCenter_initializeMain), object: nil)
-         NotificationCenter.default.addObserver(self, selector: #selector(reloadDataSource), name: NSNotification.Name(rawValue: k_notificationCenter_reloadMediaDataSource), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(reloadDataSource), name: NSNotification.Name(rawValue: k_notificationCenter_reloadMediaDataSource), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(applicationWillEnterForeground), name: NSNotification.Name(rawValue: k_notificationCenter_applicationWillEnterForeground), object: nil)
     }
     
@@ -112,19 +118,21 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         mediaCommandView?.heightAnchor.constraint(equalToConstant: 150).isActive = true
         self.updateMediaControlVisibility()
         
+        collectionView.prefetchDataSource = self
+        
         changeTheming()
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-    }
-    
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
         
         reloadDataSourceWithCompletion {
             self.searchNewPhotoVideo()
         }
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
     }
     
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
@@ -353,6 +361,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     @objc func changeTheming() {
         appDelegate.changeTheming(self, tableView: nil, collectionView: collectionView, form: false)
         
+        cacheImages.cellLivePhotoImage = CCGraphics.changeThemingColorImage(UIImage.init(named: "livePhoto"), width: 100, height: 100, color: .white)
         cacheImages.cellPlayImage = CCGraphics.changeThemingColorImage(UIImage.init(named: "play"), width: 100, height: 100, color: .white)
         cacheImages.cellFavouriteImage = CCGraphics.changeThemingColorImage(UIImage.init(named: "favorite"), width: 100, height: 100, color: NCBrandColor.sharedInstance.yellowFavorite)
         
@@ -524,6 +533,12 @@ extension NCMedia: UICollectionViewDelegate {
     }
 }
 
+extension NCMedia: UICollectionViewDataSourcePrefetching {
+    func collectionView(_ collectionView: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
+        print("[LOG] n. " + String(indexPaths.count))
+    }
+}
+
 extension NCMedia: UICollectionViewDataSource {
     
     func reloadDataThenPerform(_ closure: @escaping (() -> Void)) {
@@ -542,7 +557,10 @@ extension NCMedia: UICollectionViewDataSource {
         if indexPath.row < self.metadatas.count {
             let metadata = self.metadatas[indexPath.row]
             NCOperationQueue.shared.downloadThumbnail(metadata: metadata, activeUrl: self.appDelegate.activeUrl, view: self.collectionView as Any, indexPath: indexPath)
-            NCOperationQueue.shared.readFileForMedia(metadata: metadata)
+            if !listOcIdReadFileForMedia.contains(metadata.ocId) {
+                NCOperationQueue.shared.readFileForMedia(metadata: metadata)
+                listOcIdReadFileForMedia.append(metadata.ocId)
+            }
         }
     }
     
@@ -577,6 +595,8 @@ extension NCMedia: UICollectionViewDataSource {
         // image status
         if metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio {
             cell.imageStatus.image = cacheImages.cellPlayImage
+        } else if metadata.livePhoto && livePhoto {
+            cell.imageStatus.image = cacheImages.cellLivePhotoImage
         }
         
         // image Local
@@ -632,7 +652,15 @@ extension NCMedia {
     private func reloadDataSourceWithCompletion(_ completion: @escaping () -> Void) {
         
         if (appDelegate.activeAccount == nil || appDelegate.activeAccount.count == 0 || appDelegate.maintenanceMode == true) { return }
-         
+        
+        if account != appDelegate.activeAccount {
+            self.metadatas = []
+            account = appDelegate.activeAccount
+            collectionView?.reloadData()
+        }
+        
+        livePhoto = CCUtility.getLivePhoto()
+        
         if let tableAccount = NCManageDatabase.sharedInstance.getAccountActive() {
             self.mediaPath = tableAccount.mediaPath
         }
@@ -647,10 +675,17 @@ extension NCMedia {
         } else {
             predicate = predicateDefault
         }
-                
-        NCManageDatabase.sharedInstance.getMetadatasMedia(predicate: predicate!, sort: CCUtility.getMediaSortDate()) { (metadatas) in
+        
+        guard var predicateForGetMetadatasMedia = predicate else { return }
+        
+        if livePhoto {
+            let predicateLivePhoto = NSPredicate(format: "!(ext == 'mov' AND livePhoto == true)")
+            predicateForGetMetadatasMedia = NSCompoundPredicate.init(andPredicateWithSubpredicates:[predicateForGetMetadatasMedia, predicateLivePhoto])
+        }
+              
+        DispatchQueue.global().async {
+            self.metadatas = NCManageDatabase.sharedInstance.getMetadatasMedia(predicate: predicateForGetMetadatasMedia, sort: CCUtility.getMediaSortDate())
             DispatchQueue.main.sync {
-                self.metadatas = metadatas
                 self.reloadDataThenPerform {
                     self.updateMediaControlVisibility()
                     self.mediaCommandTitle()
@@ -698,7 +733,7 @@ extension NCMedia {
         let height = self.tabBarController?.tabBar.frame.size.height ?? 0
         NCUtility.sharedInstance.startActivityIndicator(view: self.view, bottom: height + 50)
 
-        NCCommunication.shared.searchMedia(path: mediaPath, lessDate: lessDate, greaterDate: greaterDate, elementDate: "d:getlastmodified/" ,showHiddenFiles: CCUtility.getShowHiddenFiles(), user: appDelegate.activeUser) { (account, files, errorCode, errorDescription) in
+        NCCommunication.shared.searchMedia(path: mediaPath, lessDate: lessDate, greaterDate: greaterDate, elementDate: "d:getlastmodified/", limit: limit, showHiddenFiles: CCUtility.getShowHiddenFiles(), user: appDelegate.activeUser) { (account, files, errorCode, errorDescription) in
             
             self.oldInProgress = false
             NCUtility.sharedInstance.stopActivityIndicator()
@@ -706,16 +741,14 @@ extension NCMedia {
 
             if errorCode == 0 && account == self.appDelegate.activeAccount {
                 if files.count > 0 {
-                    
-                    let predicateDate = NSPredicate(format: "date > %@ AND date < %@", greaterDate as NSDate, lessDate as NSDate)
-                    let predicate = NSCompoundPredicate.init(andPredicateWithSubpredicates:[predicateDate, self.predicateDefault!])
-                    let metadatasResult = NCManageDatabase.sharedInstance.getMetadatas(predicate: predicate)
-                    
                     NCManageDatabase.sharedInstance.convertNCCommunicationFilesToMetadatas(files, useMetadataFolder: false, account: self.appDelegate.activeAccount) { (_, _, metadatas) in
                         
+                        let predicateDate = NSPredicate(format: "date > %@ AND date < %@", greaterDate as NSDate, lessDate as NSDate)
+                        let predicateResult = NSCompoundPredicate.init(andPredicateWithSubpredicates:[predicateDate, self.predicateDefault!])
+                        let metadatasResult = NCManageDatabase.sharedInstance.getMetadatas(predicate: predicateResult)
                         let metadatasChanged = NCManageDatabase.sharedInstance.updateMetadatas(metadatas, metadatasResult: metadatasResult)
                         
-                        if metadatasChanged.count < 100 {
+                        if metadatasChanged.count < self.limit {
                             
                             if value == -30 {
                                 self.searchOldPhotoVideo(value: -90)
@@ -769,28 +802,17 @@ extension NCMedia {
                 }
             }
 
-            NCCommunication.shared.searchMedia(path: self.mediaPath, lessDate: lessDate, greaterDate: greaterDate, elementDate: "d:getlastmodified/" ,showHiddenFiles: CCUtility.getShowHiddenFiles(), user: self.appDelegate.activeUser) { (account, files, errorCode, errorDescription) in
+            NCCommunication.shared.searchMedia(path: self.mediaPath, lessDate: lessDate, greaterDate: greaterDate, elementDate: "d:getlastmodified/", limit: 0, showHiddenFiles: CCUtility.getShowHiddenFiles(), user: self.appDelegate.activeUser) { (account, files, errorCode, errorDescription) in
                 
                 self.newInProgress = false
                 
                 if errorCode == 0 && account == self.appDelegate.activeAccount && files.count > 0 {
-                   DispatchQueue.global().async {
-                    
+                    NCManageDatabase.sharedInstance.convertNCCommunicationFilesToMetadatas(files, useMetadataFolder: false, account: account) { (_, _, metadatas) in
                         let predicate = NSPredicate(format: "date > %@ AND date < %@", greaterDate as NSDate, lessDate as NSDate)
-                        let newPredicate = NSCompoundPredicate.init(andPredicateWithSubpredicates:[predicate, self.predicate!])
-                        let metadatas = NCManageDatabase.sharedInstance.getMetadatas(predicate: newPredicate)
-                        if metadatas.count > 0 {
-                            let etagsMetadatas = Array(metadatas.map { $0.etag })
-                            let etagsFiles = Array(files.map { $0.etag })
-                            for etag in etagsFiles {
-                                if !etagsMetadatas.contains(etag) {
-                                    NCManageDatabase.sharedInstance.addMetadatas(files: files, account: self.appDelegate.activeAccount)
-                                    self.reloadDataSource()
-                                    break;
-                                }
-                            }
-                        } else {
-                            NCManageDatabase.sharedInstance.addMetadatas(files: files, account: self.appDelegate.activeAccount)
+                        let predicateResult = NSCompoundPredicate.init(andPredicateWithSubpredicates:[predicate, self.predicate!])
+                        let metadatasResult = NCManageDatabase.sharedInstance.getMetadatas(predicate: predicateResult)
+                        let updateMetadatas = NCManageDatabase.sharedInstance.updateMetadatas(metadatas, metadatasResult: metadatasResult)
+                        if updateMetadatas.count > 0 {
                             self.reloadDataSource()
                         }
                     }

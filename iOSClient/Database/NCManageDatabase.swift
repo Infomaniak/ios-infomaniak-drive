@@ -103,7 +103,6 @@ class NCManageDatabase: NSObject {
                         migration.deleteData(forType: tableE2eEncryptionLock.className())
                         migration.deleteData(forType: tableCapabilities.className())
                         migration.deleteData(forType: tableComments.className())
-                        migration.deleteData(forType: tableMetadata.className())
                         migration.deleteData(forType: tableDirectory.className())
                     }
                     
@@ -112,6 +111,10 @@ class NCManageDatabase: NSObject {
                         migration.deleteData(forType: tableDirectEditingCreators.className())
                         migration.deleteData(forType: tableDirectEditingEditors.className())
                         migration.deleteData(forType: tableExternalSites.className())
+                    }
+                    
+                    if oldSchemaVersion < 139 {
+                        migration.deleteData(forType: tableMetadata.className())
                     }
                     
                 }, shouldCompactOnLaunch: { totalBytes, usedBytes in
@@ -1588,11 +1591,12 @@ class NCManageDatabase: NSObject {
     @objc func addLocalFile(metadata: tableMetadata) {
         
         let realm = try! Realm()
-        let addObject = tableLocalFile()
-
+        
         do {
             try realm.write {
             
+                let addObject = tableLocalFile()
+                
                 addObject.account = metadata.account
                 addObject.date = metadata.date
                 addObject.etag = metadata.etag
@@ -1724,12 +1728,15 @@ class NCManageDatabase: NSObject {
         metadata.directory = file.directory
         metadata.e2eEncrypted = file.e2eEncrypted
         metadata.etag = file.etag
+        metadata.ext = file.ext
         metadata.favorite = file.favorite
         metadata.fileId = file.fileId
         metadata.fileName = file.fileName
         metadata.fileNameView = file.fileName
+        metadata.fileNameWithoutExt = file.fileNameWithoutExt
         metadata.hasPreview = file.hasPreview
         metadata.iconName = file.iconName
+        metadata.livePhoto = file.livePhoto
         metadata.mountType = file.mountType
         metadata.ocId = file.ocId
         metadata.ownerId = file.ownerId
@@ -1799,7 +1806,7 @@ class NCManageDatabase: NSObject {
         completion(metadataFolder, metadataFolders, metadatas)
     }
     
-    @objc func createMetadata(account: String, fileName: String, ocId: String, serverUrl: String, urlBase: String, url: String, contentType: String) -> tableMetadata {
+    @objc func createMetadata(account: String, fileName: String, ocId: String, serverUrl: String, urlBase: String, url: String, contentType: String, livePhoto: Bool) -> tableMetadata {
         
         let metadata = tableMetadata()
         let results = NCCommunicationCommon.shared.getInternalContenType(fileName: fileName, contentType: contentType, directory: false)
@@ -1810,9 +1817,12 @@ class NCManageDatabase: NSObject {
         metadata.date = Date() as NSDate
         metadata.hasPreview = true
         metadata.iconName = results.iconName
-        metadata.ocId = ocId
+        metadata.ext = (fileName as NSString).pathExtension.lowercased()
         metadata.fileName = fileName
         metadata.fileNameView = fileName
+        metadata.fileNameWithoutExt = (fileName as NSString).deletingPathExtension
+        metadata.livePhoto = livePhoto
+        metadata.ocId = ocId
         metadata.serverUrl = serverUrl
         metadata.typeFile = results.typeFile
         metadata.uploadDate = Date() as NSDate
@@ -1874,12 +1884,15 @@ class NCManageDatabase: NSObject {
                     metadata.directory = file.directory
                     metadata.e2eEncrypted = file.e2eEncrypted
                     metadata.etag = file.etag
+                    metadata.ext = file.ext
                     metadata.favorite = file.favorite
                     metadata.fileId = file.fileId
                     metadata.fileName = file.fileName
                     metadata.fileNameView = file.fileName
+                    metadata.fileNameWithoutExt = file.fileNameWithoutExt
                     metadata.hasPreview = file.hasPreview
                     metadata.iconName = file.iconName
+                    metadata.livePhoto = file.livePhoto
                     metadata.mountType = file.mountType
                     metadata.ocId = file.ocId
                     metadata.ownerId = file.ownerId
@@ -2326,65 +2339,26 @@ class NCManageDatabase: NSObject {
     @objc func isLivePhoto(metadata: tableMetadata) -> tableMetadata? {
            
         let realm = try! Realm()
-        realm.refresh()
         
-        if metadata.typeFile != k_metadataTypeFile_image && metadata.typeFile != k_metadataTypeFile_video  { return nil }
-        if !CCUtility.getLivePhoto() {return nil }
-        let ext = (metadata.fileNameView as NSString).pathExtension.lowercased()
-        var predicate = NSPredicate()
-        
-        if ext == "mov" {
-               
-            let fileNameJPG = (metadata.fileNameView as NSString).deletingPathExtension + ".jpg"
-            let fileNameHEIC = (metadata.fileNameView as NSString).deletingPathExtension + ".heic"
-            predicate = NSPredicate(format: "account == %@ AND serverUrl == %@ AND (fileNameView LIKE[c] %@ OR fileNameView LIKE[c] %@)", metadata.account, metadata.serverUrl, fileNameJPG, fileNameHEIC)
-            
-        } else {
-               
-            let fileName = (metadata.fileNameView as NSString).deletingPathExtension + ".mov"
-            predicate = NSPredicate(format: "account == %@ AND serverUrl == %@ AND fileNameView LIKE[c] %@", metadata.account, metadata.serverUrl, fileName)
+        if !metadata.livePhoto || !CCUtility.getLivePhoto() {
+            return nil
         }
         
-        guard let result = realm.objects(tableMetadata.self).filter(predicate).first else {
+        guard let result = realm.objects(tableMetadata.self).filter(NSPredicate(format: "account == %@ AND serverUrl == %@ AND fileNameWithoutExt == %@ AND ocId != %@", metadata.account, metadata.serverUrl, metadata.fileNameWithoutExt, metadata.ocId)).first else {
             return nil
         }
         
         return result.freeze()
     }
     
-    func getMetadatasMedia(predicate: NSPredicate, sort: String, ascending: Bool = false, completion: @escaping (_ metadatas: [tableMetadata])->()) {
-                
-        DispatchQueue.global().async {
-            autoreleasepool {
+    func getMetadatasMedia(predicate: NSPredicate, sort: String, ascending: Bool = false) -> [tableMetadata] {
         
-                let realm = try! Realm()
-                realm.refresh()
-                var metadatas = [tableMetadata]()
-                
-                let sortProperties = [SortDescriptor(keyPath: sort, ascending: ascending), SortDescriptor(keyPath: "fileNameView", ascending: false)]
-                let results = realm.objects(tableMetadata.self).filter(predicate).sorted(by: sortProperties)
-                if (results.count > 0) {
-                    
-                    // For Live Photo
-                    var fileNameImages = [String]()
-                    let filtered = results.filter{ $0.typeFile.contains(k_metadataTypeFile_image) }
-                    filtered.forEach {
-                        let fileName = ($0.fileNameView as NSString).deletingPathExtension
-                        fileNameImages.append(fileName)
-                    }
-                    
-                    for result in results {
-                        let ext = (result.fileNameView as NSString).pathExtension.uppercased()
-                        let fileName = (result.fileNameView as NSString).deletingPathExtension
-                        if !(ext == "MOV" && fileNameImages.contains(fileName)) {
-                            metadatas.append(result.freeze())
-                        }
-                    }
-                }
-                
-                completion(metadatas)
-            }
-        }
+        let realm = try! Realm()
+        realm.refresh()
+        
+        let sortProperties = [SortDescriptor(keyPath: sort, ascending: ascending), SortDescriptor(keyPath: "fileNameView", ascending: false)]
+        let results = realm.objects(tableMetadata.self).filter(predicate).sorted(by: sortProperties).freeze()
+        return Array(results)
     }
     
     //MARK: -

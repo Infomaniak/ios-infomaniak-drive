@@ -429,14 +429,13 @@ import Queuer
                         metadata.deleteAssetLocalIdentifier = true;
                 }
                 
-                NCManageDatabase.sharedInstance.addMetadata(metadata)
-                NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "ocId == %@", ocIdTemp))
-                
                 if CCUtility.getDisableLocalCacheAfterUpload() {
                     CCUtility.removeFile(atPath: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId))
                 } else {
                     NCManageDatabase.sharedInstance.addLocalFile(metadata: metadata)
                 }
+                NCManageDatabase.sharedInstance.addMetadata(metadata)
+                NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "ocId == %@", ocIdTemp))
                 
                 #if !EXTENSION
                 let metadatasUpload = NCManageDatabase.sharedInstance.getMetadatas(predicate: NSPredicate(format: "status == %d OR status == %d", k_metadataStatusInUpload, k_metadataStatusUploading))
@@ -522,16 +521,16 @@ import Queuer
                 session = NCCommunicationBackground.shared.sessionManagerTransferExtension
             }
             
-            var findTask = false
+            var taskUpload: URLSessionTask?
             
             session?.getAllTasks(completionHandler: { (tasks) in
                 for task in tasks {
                     if task.taskIdentifier == metadata.sessionTaskIdentifier {
-                        findTask = true
+                        taskUpload = task
                     }
                 }
                 
-                if !findTask {
+                if taskUpload == nil {
                     if let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@ AND status == %d", metadata.ocId, k_metadataStatusUploading)) {
                         NCManageDatabase.sharedInstance.setMetadataSession(ocId: metadata.ocId, session: NCCommunicationCommon.shared.sessionIdentifierBackground, sessionError: "", sessionSelector: nil, sessionTaskIdentifier: 0, status: Int(k_metadataStatusWaitUpload))
                     }
@@ -795,21 +794,15 @@ import Queuer
             
             if errorCode == 0 {
                 NCManageDatabase.sharedInstance.convertNCCommunicationFilesToMetadatas(files, useMetadataFolder: false, account: account) { (_, _, metadatas) in
-                    // remove
-                    let metadatasFavorite = NCManageDatabase.sharedInstance.getMetadatas(predicate: NSPredicate(format: "account == %@ AND favorite == true", account))
-                    for metadata in metadatasFavorite {
-                        if metadatas.firstIndex(where: { $0.ocId == metadata.ocId }) == nil {
-                            NCManageDatabase.sharedInstance.setMetadataFavorite(ocId: metadata.ocId, favorite: false)
-                        }
-                    }
+                    let metadatasResult = NCManageDatabase.sharedInstance.getMetadatas(predicate: NSPredicate(format: "account == %@ AND favorite == true", account))
+                    let metadatasChanged = NCManageDatabase.sharedInstance.updateMetadatas(metadatas, metadatasResult: metadatasResult, withVerifyLocal: CCUtility.getFavoriteOffline())
                     #if !EXTENSION
-                    for metadata in metadatas {
-                        NCManageDatabase.sharedInstance.setMetadataFavorite(ocId: metadata.ocId, favorite: true)
-                        if CCUtility.getFavoriteOffline() {
-                            NCOperationQueue.shared.synchronizationMetadata(metadata, selector: selectorDownloadSynchronize)
-                        } else {
-                            NCOperationQueue.shared.synchronizationMetadata(metadata, selector: selectorSynchronize)
-                        }
+                    for metadata in metadatasChanged {
+                       if CCUtility.getFavoriteOffline() {
+                           NCOperationQueue.shared.synchronizationMetadata(metadata, selector: selectorDownloadSynchronize)
+                       } else {
+                           NCOperationQueue.shared.synchronizationMetadata(metadata, selector: selectorSynchronize)
+                       }
                     }
                     #endif
                     completion(account, metadatas, errorCode, errorDescription)

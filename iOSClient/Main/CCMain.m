@@ -72,6 +72,8 @@
     NSMutableArray *arrayMoveServerUrlTo;
     NSMutableArray *arrayCopyMetadata;
     NSMutableArray *arrayCopyServerUrlTo;
+    
+    BOOL livePhoto;
 }
 @end
 
@@ -537,17 +539,13 @@
         if (self.searchController.isActive) {
             [self readFolder:self.serverUrl];
         } 
-        
-        if (metadata.directory && favorite) {
+        if (favorite) {
             if ([CCUtility getFavoriteOffline]) {
                 [[NCOperationQueue shared] synchronizationMetadata:metadata selector:selectorDownloadSynchronize];
             } else {
                 [[NCOperationQueue shared] synchronizationMetadata:metadata selector:selectorSynchronize];
             }
-        } else if (!metadata.directory && favorite && [CCUtility getFavoriteOffline]) {
-            [[NCNetworking shared] downloadWithMetadata:metadata selector:selectorDownloadSynchronize setFavorite:true completion:^(NSInteger errorCode) { }];
         }
-        
     } else {
         [[NCContentPresenter shared] messageNotification:@"_error_" description:errorDescription delay:k_dismissAfterSecond type:messageTypeError errorCode:errorCode forced:false];
     }
@@ -773,7 +771,7 @@
                 
                 if ([data writeToFile:[CCUtility getDirectoryProviderStorageOcId:ocId fileNameView:fileName] options:NSDataWritingAtomic error:&error]) {
                     
-                    tableMetadata *metadataForUpload = [[NCManageDatabase sharedInstance] createMetadataWithAccount:appDelegate.activeAccount fileName:fileName ocId:ocId serverUrl:serverUrl urlBase:appDelegate.activeUrl url:@"" contentType:@""];
+                    tableMetadata *metadataForUpload = [[NCManageDatabase sharedInstance] createMetadataWithAccount:appDelegate.activeAccount fileName:fileName ocId:ocId serverUrl:serverUrl urlBase:appDelegate.activeUrl url:@"" contentType:@"" livePhoto:false];
                     
                     metadataForUpload.session = NCCommunicationCommon.shared.sessionIdentifierBackground;
                     metadataForUpload.sessionSelector = selectorUploadFile;
@@ -980,17 +978,17 @@
 
 - (void)uploadFileAsset:(NSMutableArray *)assets serverUrl:(NSString *)serverUrl useSubFolder:(BOOL)useSubFolder session:(NSString *)session
 {
-    NSString *autoUploadPath = [[NCManageDatabase sharedInstance] getAccountAutoUploadPath:appDelegate.activeUrl];
-
     // if request create the folder for Auto Upload & the subfolders
-    if ([autoUploadPath isEqualToString:serverUrl]) {
-        if ([[NCNetworking shared] createFoloderWithAssets:(PHFetchResult *)assets selector:selectorUploadFile useSubFolder:useSubFolder account:appDelegate.activeAccount url:appDelegate.activeUrl]) {
-            [[NCContentPresenter shared] messageNotification:@"_error_" description:@"_error_createsubfolders_upload_" delay:k_dismissAfterSecond type:messageTypeError errorCode:k_CCErrorInternalError forced:true];
-            return;
-        }
-    }
-    
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        
+        NSString *autoUploadPath = [[NCManageDatabase sharedInstance] getAccountAutoUploadPath:appDelegate.activeUrl];
+        if ([autoUploadPath isEqualToString:serverUrl]) {
+            if ([[NCNetworking shared] createFoloderWithAssets:(PHFetchResult *)assets selector:selectorUploadFile useSubFolder:useSubFolder account:appDelegate.activeAccount url:appDelegate.activeUrl]) {
+                [[NCContentPresenter shared] messageNotification:@"_error_" description:@"_error_createsubfolders_upload_" delay:k_dismissAfterSecond type:messageTypeError errorCode:k_CCErrorInternalError forced:true];
+                return;
+            }
+        }
+    
         [self uploadFileAsset:assets serverUrl:serverUrl autoUploadPath:autoUploadPath useSubFolder:useSubFolder session:session];
     });
 }
@@ -1003,10 +1001,15 @@
 
     for (PHAsset *asset in assets) {
         
+        BOOL livePhoto = false;
         NSString *fileName = [CCUtility createFileName:[asset valueForKey:@"filename"] fileDate:asset.creationDate fileType:asset.mediaType keyFileName:k_keyFileNameMask keyFileNameType:k_keyFileNameType keyFileNameOriginal:k_keyFileNameOriginal];
-        
         NSDate *assetDate = asset.creationDate;
         NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+        
+        // Detect LivePhoto Upload
+        if ((asset.mediaSubtypes == PHAssetMediaSubtypePhotoLive || asset.mediaSubtypes == PHAssetMediaSubtypePhotoLive+PHAssetMediaSubtypePhotoHDR) && CCUtility.getLivePhoto) {
+            livePhoto = true;
+        }
         
         // Create serverUrl if use sub folder
         if (useSubFolder) {
@@ -1026,7 +1029,7 @@
             continue;
         
         // Prepare record metadata
-        tableMetadata *metadataForUpload = [[NCManageDatabase sharedInstance] createMetadataWithAccount:appDelegate.activeAccount fileName:fileName ocId:[[NSUUID UUID] UUIDString] serverUrl:serverUrl urlBase:appDelegate.activeUrl url:@"" contentType:@""];
+        tableMetadata *metadataForUpload = [[NCManageDatabase sharedInstance] createMetadataWithAccount:appDelegate.activeAccount fileName:fileName ocId:[[NSUUID UUID] UUIDString] serverUrl:serverUrl urlBase:appDelegate.activeUrl url:@"" contentType:@"" livePhoto:livePhoto];
         
         metadataForUpload.assetLocalIdentifier = asset.localIdentifier;
         metadataForUpload.session = session;
@@ -1041,7 +1044,7 @@
         }
         
         // Add Medtadata MOV LIVE PHOTO for upload
-        if ((asset.mediaSubtypes == PHAssetMediaSubtypePhotoLive || asset.mediaSubtypes == PHAssetMediaSubtypePhotoLive+PHAssetMediaSubtypePhotoHDR) && CCUtility.getLivePhoto) {
+        if (livePhoto) {
                 
             NSString *fileNameMove = [NSString stringWithFormat:@"%@.mov", fileName.stringByDeletingPathExtension];
             NSString *ocId = [[NSUUID UUID] UUIDString];
@@ -1053,7 +1056,7 @@
                 if (url != nil) {
                     unsigned long long fileSize = [[[NSFileManager defaultManager] attributesOfItemAtPath:url.path error:nil] fileSize];
                     
-                    tableMetadata *metadataMOVForUpload = [[NCManageDatabase sharedInstance] createMetadataWithAccount:appDelegate.activeAccount fileName:fileNameMove ocId:ocId serverUrl:serverUrl urlBase:appDelegate.activeUrl url:@"" contentType:@""];
+                    tableMetadata *metadataMOVForUpload = [[NCManageDatabase sharedInstance] createMetadataWithAccount:appDelegate.activeAccount fileName:fileNameMove ocId:ocId serverUrl:serverUrl urlBase:appDelegate.activeUrl url:@"" contentType:@"" livePhoto:livePhoto];
                     
                     metadataMOVForUpload.session = session;
                     metadataMOVForUpload.sessionSelector = selectorUploadFile;
@@ -1838,7 +1841,7 @@
                 [CCUtility copyFileAtPath:[CCUtility getDirectoryProviderStorageOcId:metadata.ocId fileNameView:metadata.fileNameView] toPath:[CCUtility getDirectoryProviderStorageOcId:ocId fileNameView:fileName]];
                     
                 // Prepare record metadata
-                tableMetadata *metadataForUpload = [[NCManageDatabase sharedInstance] createMetadataWithAccount:appDelegate.activeAccount fileName:fileName ocId:ocId serverUrl:self.serverUrl urlBase:appDelegate.activeUrl url:@"" contentType:@""];
+                tableMetadata *metadataForUpload = [[NCManageDatabase sharedInstance] createMetadataWithAccount:appDelegate.activeAccount fileName:fileName ocId:ocId serverUrl:self.serverUrl urlBase:appDelegate.activeUrl url:@"" contentType:@"" livePhoto:false];
             
                 metadataForUpload.session = NCCommunicationCommon.shared.sessionIdentifierBackground;
                 metadataForUpload.sessionSelector = selectorUploadFile;
@@ -1970,6 +1973,9 @@
     // Se non siamo nella dir appropriata esci
     if ([serverUrl isEqualToString:self.serverUrl] == NO || self.serverUrl == nil)
         return;
+    
+    // live photo
+    livePhoto = [CCUtility getLivePhoto];
     
     // load share
     appDelegate.shares = [[NCManageDatabase sharedInstance] getTableSharesWithAccount:appDelegate.activeAccount];
@@ -2291,7 +2297,7 @@
         }
     }
 
-    UITableViewCell *cell = [[NCMainCommon sharedInstance] cellForRowAtIndexPath:indexPath tableView:tableView metadata:metadata metadataFolder:_metadataFolder serverUrl:self.serverUrl autoUploadFileName:_autoUploadFileName autoUploadDirectory:_autoUploadDirectory tableShare:shareCell];
+    UITableViewCell *cell = [[NCMainCommon sharedInstance] cellForRowAtIndexPath:indexPath tableView:tableView metadata:metadata metadataFolder:_metadataFolder serverUrl:self.serverUrl autoUploadFileName:_autoUploadFileName autoUploadDirectory:_autoUploadDirectory tableShare:shareCell livePhoto:livePhoto];
     
     // NORMAL - > MAIN
     
