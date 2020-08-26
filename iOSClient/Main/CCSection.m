@@ -76,7 +76,7 @@
 //
 // orderByField : nil, date, typeFile
 //
-+ (CCSectionDataSourceMetadata *)creataDataSourseSectionMetadata:(NSArray *)arrayMetadatas listProgressMetadata:(NSMutableDictionary *)listProgressMetadata groupByField:(NSString *)groupByField filterTypeFileImage:(BOOL)filterTypeFileImage filterTypeFileVideo:(BOOL)filterTypeFileVideo filterLivePhoto:(BOOL)filterLivePhoto sorted:(NSString *)sorted ascending:(BOOL)ascending activeAccount:(NSString *)activeAccount
++ (CCSectionDataSourceMetadata *)creataDataSourseSectionMetadata:(NSArray *)arrayMetadatas listProgressMetadata:(NSMutableDictionary *)listProgressMetadata groupByField:(NSString *)groupByField filterTypeFileImage:(BOOL)filterTypeFileImage filterTypeFileVideo:(BOOL)filterTypeFileVideo filterLivePhoto:(BOOL)filterLivePhoto sorted:(NSString *)sorted ascending:(BOOL)ascending account:(NSString *)account
 {
     id dataSection;
     
@@ -115,8 +115,8 @@
         } else {
             NSComparisonResult comparisonResult = [InfomaniakUtils sortInfomaniakFolderWithAscending:ascending obj1:obj1 obj2:obj2];
             if (comparisonResult != NSOrderedSame) return comparisonResult;
-            if (ascending) return [obj1.fileName compare:obj2.fileName options:NSCaseInsensitiveSearch range:NSMakeRange(0,[obj1.fileName length]) locale:[NSLocale currentLocale]];
-            else return [obj2.fileName compare:obj1.fileName options:NSCaseInsensitiveSearch range:NSMakeRange(0,[obj2.fileName length]) locale:[NSLocale currentLocale]];
+            if (ascending) return [obj1.fileNameView compare:obj2.fileNameView options:NSCaseInsensitiveSearch range:NSMakeRange(0,[obj1.fileNameView length]) locale:[NSLocale currentLocale]];
+            else return [obj2.fileNameView compare:obj1.fileNameView options:NSCaseInsensitiveSearch range:NSMakeRange(0,[obj2.fileNameView length]) locale:[NSLocale currentLocale]];
         }
     }];
     
@@ -316,7 +316,7 @@
 
 @implementation CCSectionActivity
 
-+ (CCSectionDataSourceActivity *)creataDataSourseSectionActivity:(NSArray *)records activeAccount:(NSString *)activeAccount
++ (CCSectionDataSourceActivity *)creataDataSourseSectionActivity:(NSArray *)records account:(NSString *)account
 {
     CCSectionDataSourceActivity *sectionDataSource = [CCSectionDataSourceActivity new];
     NSDate *oldDate = [NSDate date];

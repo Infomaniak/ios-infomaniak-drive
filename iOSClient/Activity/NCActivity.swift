@@ -229,12 +229,12 @@ extension NCActivity: UITableViewDataSource {
             }
             
             // avatar
-            if activity.user.count > 0 && activity.user != appDelegate.activeUserID {
+            if activity.user.count > 0 && activity.user != appDelegate.userID {
                 
                 cell.subjectTrailingConstraint.constant = 50
                 cell.avatar.isHidden = false
                 
-                let fileNameLocalPath = CCUtility.getDirectoryUserData() + "/" + CCUtility.getStringUser(appDelegate.activeUser, activeUrl: appDelegate.activeUrl) + "-" + activity.user + ".png"
+                let fileNameLocalPath = CCUtility.getDirectoryUserData() + "/" + CCUtility.getStringUser(appDelegate.user, urlBase: appDelegate.urlBase) + "-" + activity.user + ".png"
                 if FileManager.default.fileExists(atPath: fileNameLocalPath) {
                     if let image = UIImage(contentsOfFile: fileNameLocalPath) {
                         cell.avatar.image = image
@@ -242,7 +242,7 @@ extension NCActivity: UITableViewDataSource {
                 } else {
                     DispatchQueue.global().async {
                         NCCommunication.shared.downloadAvatar(userID: activity.user, fileNameLocalPath: fileNameLocalPath, size: Int(k_avatar_size)) { (account, data, errorCode, errorMessage) in
-                            if errorCode == 0 && account == self.appDelegate.activeAccount && UIImage(data: data!) != nil {
+                            if errorCode == 0 && account == self.appDelegate.account && UIImage(data: data!) != nil {
                                 cell.avatar.image = UIImage(data: data!)
                             }
                         }
@@ -264,7 +264,7 @@ extension NCActivity: UITableViewDataSource {
                 }
                 
                 for key in keys {
-                    if let result = NCManageDatabase.sharedInstance.getActivitySubjectRich(account: appDelegate.activeAccount, idActivity: activity.idActivity, key: key) {
+                    if let result = NCManageDatabase.sharedInstance.getActivitySubjectRich(account: appDelegate.account, idActivity: activity.idActivity, key: key) {
                         orderKeysId.append(result.id)
                         subject = subject.replacingOccurrences(of: "{\(key)}", with: "<bold>" + result.name + "</bold>")
                     }
@@ -393,11 +393,11 @@ extension activityTableViewCell: UICollectionViewDelegate {
             var pathComponents = activityPreview.link.components(separatedBy: "?")
             pathComponents = pathComponents[1].components(separatedBy: "&")
             var serverUrlFileName = pathComponents[0].replacingOccurrences(of: "dir=", with: "").removingPercentEncoding!
-            serverUrlFileName = appDelegate.activeUrl + k_webDAV + serverUrlFileName + "/" + activitySubjectRich.name
+            serverUrlFileName = appDelegate.urlBase + "/" + NCUtility.shared.getWebDAV(account: activityPreview.account) + serverUrlFileName + "/" + activitySubjectRich.name
             
             let fileNameLocalPath = CCUtility.getDirectoryProviderStorageOcId(activitySubjectRich.id, fileNameView: activitySubjectRich.name)!
             
-            NCUtility.sharedInstance.startActivityIndicator(view: (appDelegate.window.rootViewController?.view)!)
+            NCUtility.shared.startActivityIndicator(view: (appDelegate.window.rootViewController?.view)!)
             
             NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, requestHandler: { (_) in
                 
@@ -405,7 +405,7 @@ extension activityTableViewCell: UICollectionViewDelegate {
                 
             }) { (account, etag, date, lenght, error, errorCode, errorDescription) in
                 
-                if account == self.appDelegate.activeAccount && errorCode == 0 {
+                if account == self.appDelegate.account && errorCode == 0 {
                     
                     let serverUrl = (serverUrlFileName as NSString).deletingLastPathComponent
                     let fileName = (serverUrlFileName as NSString).lastPathComponent
@@ -413,9 +413,9 @@ extension activityTableViewCell: UICollectionViewDelegate {
                     
                     NCNetworking.shared.readFile(serverUrlFileName: serverUrlFileName, account: activityPreview.account) { (account, metadata, errorCode, errorDescription) in
                         
-                        NCUtility.sharedInstance.stopActivityIndicator()
+                        NCUtility.shared.stopActivityIndicator()
                         
-                        if account == self.appDelegate.activeAccount && errorCode == 0  {
+                        if account == self.appDelegate.account && errorCode == 0  {
                             
                             // move from id to oc:id + instanceid (ocId)
                             let atPath = CCUtility.getDirectoryProviderStorage()! + "/" + activitySubjectRich.id
@@ -430,7 +430,7 @@ extension activityTableViewCell: UICollectionViewDelegate {
                     
                 } else {
                     
-                    NCUtility.sharedInstance.stopActivityIndicator()
+                    NCUtility.shared.stopActivityIndicator()
                 }
             }
         }
@@ -461,7 +461,7 @@ extension activityTableViewCell: UICollectionViewDataSource {
                 
                 let source = activityPreview.source
                 
-                NCUtility.sharedInstance.convertSVGtoPNGWriteToUserData(svgUrlString: source, fileName: nil, width: 100, rewrite: false, account: appDelegate.activeAccount) { (imageNamePath) in
+                NCUtility.shared.convertSVGtoPNGWriteToUserData(svgUrlString: source, fileName: nil, width: 100, rewrite: false, account: appDelegate.account) { (imageNamePath) in
                     if imageNamePath != nil {
                         if let image = UIImage(contentsOfFile: imageNamePath!) {
                             cell.imageView.image = image
@@ -477,7 +477,7 @@ extension activityTableViewCell: UICollectionViewDataSource {
                     
                     let source = activityPreview.source
                     
-                    NCUtility.sharedInstance.convertSVGtoPNGWriteToUserData(svgUrlString: source, fileName: nil, width: 100, rewrite: false, account: appDelegate.activeAccount) { (imageNamePath) in
+                    NCUtility.shared.convertSVGtoPNGWriteToUserData(svgUrlString: source, fileName: nil, width: 100, rewrite: false, account: appDelegate.account) { (imageNamePath) in
                         if imageNamePath != nil {
                             if let image = UIImage(contentsOfFile: imageNamePath!) {
                                 cell.imageView.image = image
@@ -551,7 +551,7 @@ extension NCActivity {
         
         sectionDate.removeAll()
         
-        let activities = NCManageDatabase.sharedInstance.getActivity(predicate: NSPredicate(format: "account == %@", appDelegate.activeAccount), filterFileId: filterFileId)
+        let activities = NCManageDatabase.sharedInstance.getActivity(predicate: NSPredicate(format: "account == %@", appDelegate.account), filterFileId: filterFileId)
         allActivities = activities.all
         filterActivities = activities.filter
         for tableActivity in filterActivities {
@@ -573,7 +573,7 @@ extension NCActivity {
             return Calendar.current.date(byAdding: components, to: startDate)!
         }()
         
-        let activities = NCManageDatabase.sharedInstance.getActivity(predicate: NSPredicate(format: "account == %@ && date BETWEEN %@", appDelegate.activeAccount, [startDate, endDate]), filterFileId: filterFileId)
+        let activities = NCManageDatabase.sharedInstance.getActivity(predicate: NSPredicate(format: "account == %@ && date BETWEEN %@", appDelegate.account, [startDate, endDate]), filterFileId: filterFileId)
         return activities.filter
     }
     
@@ -583,16 +583,16 @@ extension NCActivity {
         canFetchActivity = false
         
         if idActivity > 0 {
-            NCUtility.sharedInstance.startActivityIndicator(view: self.view, bottom: 50)
+            NCUtility.shared.startActivityIndicator(view: self.view, bottom: 50)
         }
         
         NCCommunication.shared.getActivity(since: idActivity, limit: 200, objectId: filterFileId, objectType: objectType, previews: true) { (account, activities, errorCode, errorDescription) in
             
-           if errorCode == 0 && account == self.appDelegate.activeAccount {
+           if errorCode == 0 && account == self.appDelegate.account {
                 NCManageDatabase.sharedInstance.addActivity(activities , account: account)
             }
             
-            NCUtility.sharedInstance.stopActivityIndicator()
+            NCUtility.shared.stopActivityIndicator()
             
             if errorCode == 304 {
                 self.canFetchActivity = false

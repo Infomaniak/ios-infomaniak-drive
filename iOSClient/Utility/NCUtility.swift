@@ -28,12 +28,24 @@ import NCCommunication
 import PDFKit
 
 class NCUtility: NSObject {
-    @objc static let sharedInstance: NCUtility = {
+    @objc static let shared: NCUtility = {
         let instance = NCUtility()
         return instance
     }()
     
     let activityIndicator = UIActivityIndicatorView(style: .whiteLarge)
+    
+    @objc func getWebDAV(account: String) -> String {
+        return NCManageDatabase.sharedInstance.getCapabilitiesServerString(account: account, elements: NCElementsJSON.shared.capabilitiesWebDavRoot) ?? "remote.php/webdav"
+    }
+    
+    @objc func getDAV() -> String {
+        return "remote.php/dav"
+    }
+    
+    @objc func getHomeServer(urlBase: String, account: String) -> String {
+        return urlBase + "/" + self.getWebDAV(account: account)
+    }
     
     @objc func createFileName(_ fileName: String, serverUrl: String, account: String) -> String {
         
@@ -534,6 +546,16 @@ class NCUtility: NSObject {
                 completition()
             }
         })
+    }
+    
+    @objc func ocIdToFileId(ocId: String?) -> String? {
+    
+        guard let ocId = ocId else { return nil }
+        
+        let items = ocId.components(separatedBy: "oc")
+        if items.count < 2 { return nil }
+        guard let intFileId = Int(items[0]) else { return nil }
+        return String(intFileId)
     }
 }
 

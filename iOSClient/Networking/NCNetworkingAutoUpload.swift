@@ -50,7 +50,7 @@ class NCNetworkingAutoUpload: NSObject {
         var sizeUpload = 0
         var maxConcurrentOperationUpload = Int(k_maxConcurrentOperation)
         
-        if appDelegate.activeAccount == nil || appDelegate.activeAccount.count == 0 || appDelegate.maintenanceMode {
+        if appDelegate.account == nil || appDelegate.account.count == 0 || appDelegate.maintenanceMode {
             return
         }
         
@@ -69,12 +69,6 @@ class NCNetworkingAutoUpload: NSObject {
     
         let sessionSelectors = [selectorUploadFile, selectorUploadAutoUpload, selectorUploadAutoUploadAll]
         for sessionSelector in sessionSelectors {
-            let metadatasInError = NCManageDatabase.sharedInstance.getMetadatas(predicate: NSPredicate(format: "sessionSelector == %@ AND status == %d", sessionSelector, k_metadataStatusUploadError))
-            if metadatasInError.count >= k_maxErrorAutoUploadAll {
-                NCContentPresenter.shared.messageNotification("_error_", description: "_too_errors_upload_", delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: Int(k_CCErrorInternalError))
-                startTimer()
-                return
-            }
             if counterUpload < maxConcurrentOperationUpload {
                 let limit = maxConcurrentOperationUpload - counterUpload
                 var predicate = NSPredicate()
@@ -85,16 +79,20 @@ class NCNetworkingAutoUpload: NSObject {
                 }
                 let metadatas = NCManageDatabase.sharedInstance.getMetadatas(predicate: predicate, page: 1, limit: limit, sorted: "date", ascending: true)
                 for metadata in metadatas {
-                    if CCUtility.isFolderEncrypted(metadata.serverUrl, e2eEncrypted: metadata.e2eEncrypted, account: metadata.account) {
+                    if CCUtility.isFolderEncrypted(metadata.serverUrl, e2eEncrypted: metadata.e2eEncrypted, account: metadata.account, urlBase: metadata.urlBase) {
                         if UIApplication.shared.applicationState == .background { break }
                         maxConcurrentOperationUpload = 1
                         counterUpload += 1
-                        NCNetworking.shared.upload(metadata: metadata, background: true) { (_, _) in }
+                        if let metadata = NCManageDatabase.sharedInstance.setMetadataStatus(ocId: metadata.ocId, status: Int(k_metadataStatusInUpload)) {
+                            NCNetworking.shared.upload(metadata: metadata, background: true) { (_, _) in }
+                        }
                         startTimer()
                         return
                     } else {
                         counterUpload += 1
-                        NCNetworking.shared.upload(metadata: metadata, background: true) { (_, _) in }
+                        if let metadata = NCManageDatabase.sharedInstance.setMetadataStatus(ocId: metadata.ocId, status: Int(k_metadataStatusInUpload)) {
+                            NCNetworking.shared.upload(metadata: metadata, background: true) { (_, _) in }
+                        }
                         sizeUpload = sizeUpload + Int(metadata.size)
                         if sizeUpload > k_maxSizeOperationUpload {
                             startTimer()
@@ -118,7 +116,7 @@ class NCNetworkingAutoUpload: NSObject {
          
         // verify delete Asset Local Identifiers in auto upload (DELETE Photos album)
         if (counterUpload == 0 && appDelegate.passcodeViewController == nil) {
-            NCUtility.sharedInstance.deleteAssetLocalIdentifiers(account: appDelegate.activeAccount, sessionSelector: selectorUploadAutoUpload) {
+            NCUtility.shared.deleteAssetLocalIdentifiers(account: appDelegate.account, sessionSelector: selectorUploadAutoUpload) {
                 self.startTimer()
             }
         } else {

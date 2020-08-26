@@ -330,7 +330,8 @@
             self.login.enabled = NO;
             [self.activity startAnimating];
             
-            NSString *serverUrl = [NSString stringWithFormat:@"%@%@", url, k_webDAV];
+            NSString *webDAV = [[NCUtility shared] getWebDAVWithAccount:appDelegate.account];
+            NSString *serverUrl = [NSString stringWithFormat:@"%@/%@", url, webDAV];
             
             [[NCCommunication shared] checkServerWithServerUrl:serverUrl completionHandler:^(NSInteger errorCode, NSString *errorDescription) {
                 
@@ -390,15 +391,15 @@
         NSString *account = [NSString stringWithFormat:@"%@ %@", user, url];
         
         // NO account found, clear
-        if ([NCManageDatabase.sharedInstance getAccounts] == nil) { [NCUtility.sharedInstance removeAllSettings]; }
+        if ([NCManageDatabase.sharedInstance getAccounts] == nil) { [NCUtility.shared removeAllSettings]; }
         
         [[NCManageDatabase sharedInstance] deleteAccount:account];
-        [[NCManageDatabase sharedInstance] addAccount:account url:url user:user password:token];
+        [[NCManageDatabase sharedInstance] addAccount:account urlBase:url user:user password:token];
         
         tableAccount *tableAccount = [[NCManageDatabase sharedInstance] setAccountActive:account];
         
         // Setting appDelegate active account
-        [appDelegate settingActiveAccount:tableAccount.account activeUrl:tableAccount.url activeUser:tableAccount.user activeUserID:tableAccount.userID activePassword:[CCUtility getPassword:tableAccount.account]];
+        [appDelegate settingAccount:tableAccount.account urlBase:tableAccount.urlBase user:tableAccount.user userID:tableAccount.userID password:[CCUtility getPassword:tableAccount.account]];
         
         if ([CCUtility getIntro]) {
             [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_initializeMain object:nil userInfo:nil];

@@ -67,8 +67,8 @@
 
 + (NSString *)getIncrementalNumber;
 
-+ (NSString *)getActiveAccountExt;
-+ (void)setActiveAccountExt:(NSString *)activeAccount;
++ (NSString *)getAccountExt;
++ (void)setAccountExt:(NSString *)account;
 
 + (NSString *)getServerUrlExt;
 + (void)setServerUrlExt:(NSString *)serverUrl;
@@ -179,6 +179,9 @@
 + (NSString *)getDirectoryScanDocuments;
 + (void)setDirectoryScanDocuments:(NSString *)value;
 
++ (NSInteger)getLogLevel;
++ (void)setLogLevel:(NSInteger)value;
+
 // ===== Varius =====
 
 + (BOOL)addSkipBackupAttributeToItemAtURL:(NSURL *)URL;
@@ -201,9 +204,7 @@
 + (void)createDirectoryStandard;
 
 + (NSURL *)getDirectoryGroup;
-+ (NSString *)getHomeServerUrlActiveUrl:(NSString *)activeUrl;
-+ (NSString *)getStringUser:(NSString *)activeUser activeUrl:(NSString *)activeUrl;
-+ (NSString *)getDirectoryActiveUser:(NSString *)activeUser activeUrl:(NSString *)activeUrl;
++ (NSString *)getStringUser:(NSString *)user urlBase:(NSString *)urlBase;
 + (NSString *)getDirectoryDocuments;
 + (NSString *)getDirectoryReaderMetadata;
 + (NSString *)getDirectoryAudio;
@@ -233,11 +234,9 @@
 + (void)createDirectoryAtPath:(NSString *)atPath;
 
 + (NSString *)deletingLastPathComponentFromServerUrl:(NSString *)serverUrl;
-+ (NSString *)firtsPathComponentFromServerUrl:(NSString *)serverUrl activeUrl:(NSString *)activeUrl;
-+ (NSString *)getLastPathFromServerUrl:(NSString *)serverUrl activeUrl:(NSString *)activeUrl;
-+ (NSString *)returnPathfromServerUrl:(NSString *)serverUrl activeUrl:(NSString *)activeUrl;
-+ (NSString *)returnFileNamePathFromFileName:(NSString *)metadataFileName serverUrl:(NSString *)serverUrl activeUrl:(NSString *)activeUrl;
-
++ (NSString *)getLastPathFromServerUrl:(NSString *)serverUrl urlBase:(NSString *)urlBase;
++ (NSString *)returnPathfromServerUrl:(NSString *)serverUrl urlBase:(NSString *)urlBase account:(NSString *)account;
++ (NSString *)returnFileNamePathFromFileName:(NSString *)metadataFileName serverUrl:(NSString *)serverUrl urlBase:(NSString *)urlBase account:(NSString *)account;
 + (NSArray *)createNameSubFolder:(PHFetchResult *)assets;
 
 + (BOOL)isDocumentModifiableExtension:(NSString *)fileExtension;
@@ -266,7 +265,7 @@
 // ===== E2E Encrypted =====
 
 + (NSString *)generateRandomIdentifier;
-+ (BOOL)isFolderEncrypted:(NSString *)serverUrl e2eEncrypted:(BOOL)e2eEncrypted account:(NSString *)account;
++ (BOOL)isFolderEncrypted:(NSString *)serverUrl e2eEncrypted:(BOOL)e2eEncrypted account:(NSString *)account urlBase:(NSString *)urlBase;
 
 // ===== Share Permissions =====
 

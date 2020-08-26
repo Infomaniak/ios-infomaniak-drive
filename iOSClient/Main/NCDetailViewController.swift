@@ -34,9 +34,7 @@ class NCDetailViewController: UIViewController {
     @objc var isNavigationBarHidden = false
     @objc var metadata: tableMetadata?
     @objc var selector: String?
-    @objc var favoriteFilterImage: Bool = false
     @objc var mediaFilterImage: Bool = false
-    @objc var offlineFilterImage: Bool = false
     
     @objc var viewerImageViewController: NCViewerImageViewController?
     @objc var metadatas: [tableMetadata] = []
@@ -68,7 +66,6 @@ class NCDetailViewController: UIViewController {
         NotificationCenter.default.addObserver(self, selector: #selector(moveFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_moveFile), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(triggerProgressTask(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_progressTask), object:nil)
                
-        NotificationCenter.default.addObserver(self, selector: #selector(synchronizationMedia(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_synchronizationMedia), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(downloadImage(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_menuDownloadImage), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(saveLivePhoto(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_menuSaveLivePhoto), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(viewUnload), name: NSNotification.Name(rawValue: k_notificationCenter_menuDetailClose), object: nil)
@@ -197,35 +194,6 @@ class NCDetailViewController: UIViewController {
         }
     }
     
-    @objc func synchronizationMedia(_ notification: NSNotification) {
-        if self.view?.window == nil { return }
-        
-        if let userInfo = notification.userInfo as NSDictionary? {
-            if let type = userInfo["type"] as? String {
-                
-                if (self.metadata?.typeFile == k_metadataTypeFile_image || self.metadata?.typeFile == k_metadataTypeFile_video || self.metadata?.typeFile == k_metadataTypeFile_audio) && self.mediaFilterImage {
-                                        
-                    self.metadatas = appDelegate.activeMedia.metadatas
-                    
-                    if type == "delete" {
-                        if metadatas.count > 0 {
-                            var index = viewerImageViewController!.index - 1
-                            if index < 0 { index = 0}
-                            self.metadata = metadatas[index]
-                            viewImage()
-                        } else {
-                            viewUnload()
-                        }
-                    }
-                    
-                    if type == "rename" || type == "move"   {
-                        viewerImageViewController?.reloadContentViews()
-                    }
-                }
-            }
-        }
-    }
-    
     @objc func moveFile(_ notification: NSNotification) {
         if self.view?.window == nil { return }
         
@@ -236,9 +204,9 @@ class NCDetailViewController: UIViewController {
                 if errorCode == 0 {
                     
                     // IMAGE
-                    if (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) && !mediaFilterImage {
+                    if (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
                         
-                        deleteFile(notification)
+                        viewImage()
                     }
                     
                     // OTHER
@@ -274,12 +242,15 @@ class NCDetailViewController: UIViewController {
                 if errorCode == 0 {
                     
                     // IMAGE
-                    if (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) && !mediaFilterImage {
+                    if (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
                     
-                        if let metadatas = NCViewerImageCommon.shared.getMetadatasDatasource(metadata: self.metadata, metadatas: self.metadatas, favoriteDatasorce: favoriteFilterImage, mediaDatasorce: mediaFilterImage, offLineDatasource: offlineFilterImage) {
-                            var index = viewerImageViewController!.index - 1
-                            if index < 0 { index = 0}
-                            self.metadata = metadatas[index]
+                        let metadatas = self.metadatas.filter { $0.ocId != metadata.ocId }                        
+                        if metadatas.count > 0 {
+                            if self.metadata?.ocId == metadata.ocId {
+                                var index = viewerImageViewController!.index - 1
+                                if index < 0 { index = 0}
+                                self.metadata = metadatas[index]
+                            }
                             viewImage()
                         } else {
                             viewUnload()
@@ -305,20 +276,24 @@ class NCDetailViewController: UIViewController {
                 if metadata.account != self.metadata?.account || metadata.serverUrl != self.metadata?.serverUrl { return }
                 
                 if errorCode == 0 {
-                    if let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId)) {
-                        self.metadata = metadata
+                    
+                    // IMAGE
+                    if (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
                         
-                        // IMAGE
-                        if (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) && !mediaFilterImage {
-                            
-                            viewImage()
-                        }
+                        viewImage()
+                    }
+                    
+                    // OTHER
+                    if (metadata.typeFile == k_metadataTypeFile_document || metadata.typeFile == k_metadataTypeFile_unknown) && metadata.ocId == self.metadata?.ocId {
                         
-                        // OTHER
-                        if (metadata.typeFile == k_metadataTypeFile_document || metadata.typeFile == k_metadataTypeFile_unknown) && metadata.ocId == self.metadata?.ocId {
+                        if let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId)) {
+                            self.metadata = metadata
                             self.navigationController?.navigationBar.topItem?.title = metadata.fileNameView
+                        } else {
+                            viewUnload()
                         }
                     }
+                    
                 } else {
                     NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
                 }
@@ -481,26 +456,26 @@ class NCDetailViewController: UIViewController {
             }
             
             // DirectEditinf: Nextcloud Text - OnlyOffice
-            if NCUtility.sharedInstance.isDirectEditing(account: metadata.account, contentType: metadata.contentType) != nil &&  NCCommunication.shared.isNetworkReachable() {
+            if NCUtility.shared.isDirectEditing(account: metadata.account, contentType: metadata.contentType) != nil &&  NCCommunication.shared.isNetworkReachable() {
                 
-                guard let editor = NCUtility.sharedInstance.isDirectEditing(account: metadata.account, contentType: metadata.contentType) else { return }
+                guard let editor = NCUtility.shared.isDirectEditing(account: metadata.account, contentType: metadata.contentType) else { return }
                 if editor == k_editor_text || editor == k_editor_onlyoffice {
                     
-                    NCUtility.sharedInstance.startActivityIndicator(view: backgroundView)
+                    NCUtility.shared.startActivityIndicator(view: backgroundView)
 
                     if metadata.url == "" {
                         
                         var customUserAgent: String?
-                        let fileNamePath = CCUtility.returnFileNamePath(fromFileName: metadata.fileName, serverUrl: metadata.serverUrl, activeUrl: appDelegate.activeUrl)!
+                        let fileNamePath = CCUtility.returnFileNamePath(fromFileName: metadata.fileName, serverUrl: metadata.serverUrl, urlBase: metadata.urlBase, account: metadata.account)!
                         
                         if editor == k_editor_onlyoffice {
-                            customUserAgent = NCUtility.sharedInstance.getCustomUserAgentOnlyOffice()
+                            customUserAgent = NCUtility.shared.getCustomUserAgentOnlyOffice()
                             self.navigationController?.navigationBar.topItem?.title = ""
                         }
                         
                         NCCommunication.shared.NCTextOpenFile(fileNamePath: fileNamePath, editor: editor, customUserAgent: customUserAgent) { (account, url, errorCode, errorMessage) in
                             
-                            if errorCode == 0 && account == self.appDelegate.activeAccount && url != nil {
+                            if errorCode == 0 && account == self.appDelegate.account && url != nil {
                                 
                                 let frame = CGRect(x: 0, y: 0, width: self.backgroundView.frame.width, height: self.backgroundView.frame.height)
                                 let nextcloudText = NCViewerNextcloudText.init(frame: frame, configuration: WKWebViewConfiguration())
@@ -536,15 +511,15 @@ class NCDetailViewController: UIViewController {
             }
             
             // RichDocument: Collabora
-            if NCUtility.sharedInstance.isRichDocument(metadata) &&  NCCommunication.shared.isNetworkReachable() {
+            if NCUtility.shared.isRichDocument(metadata) &&  NCCommunication.shared.isNetworkReachable() {
                 
-                NCUtility.sharedInstance.startActivityIndicator(view: backgroundView)
+                NCUtility.shared.startActivityIndicator(view: backgroundView)
                 
                 if metadata.url == "" {
                     
                     NCCommunication.shared.createUrlRichdocuments(fileID: metadata.fileId) { (account, url, errorCode, errorDescription) in
                         
-                        if errorCode == 0 && account == self.appDelegate.activeAccount && url != nil {
+                        if errorCode == 0 && account == self.appDelegate.account && url != nil {
                             
                             let frame = CGRect(x: 0, y: 0, width: self.backgroundView.frame.width, height: self.backgroundView.frame.height)
                             let richDocument = NCViewerRichdocument.init(frame: frame, configuration: WKWebViewConfiguration())
@@ -578,7 +553,7 @@ class NCDetailViewController: UIViewController {
         CCUtility.copyFile(atPath: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId, fileNameView: metadata.fileNameView), toPath: fileNamePath)
 
         viewerQuickLook = NCViewerQuickLook.init()
-        viewerQuickLook?.quickLook(metadata: metadata, url: URL(fileURLWithPath: fileNamePath), viewController: self)
+        viewerQuickLook?.quickLook(url: URL(fileURLWithPath: fileNamePath), viewController: self)
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             self.unload(checkWindow: false)
@@ -594,33 +569,33 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
         
         closeAllSubView()
         
-        if let metadatas = NCViewerImageCommon.shared.getMetadatasDatasource(metadata: self.metadata, metadatas: self.metadatas, favoriteDatasorce: favoriteFilterImage, mediaDatasorce: mediaFilterImage, offLineDatasource: offlineFilterImage) {
-                            
+        NCViewerImageCommon.shared.getMetadatasDatasource(metadata: self.metadata, mediaDatasorce: mediaFilterImage) { (metadatas) in
+            
+            guard let metadatas = metadatas else {
+                self.viewUnload()
+                return
+            }
             var index = 0
+            
             if let indexFound = metadatas.firstIndex(where: { $0.ocId == self.metadata?.ocId }) { index = indexFound }
             // Video -> is a Live Photo ?
-            if metadata?.typeFile == k_metadataTypeFile_video && metadata != nil {
-                let filename = (metadata!.fileNameView as NSString).deletingPathExtension.lowercased()
+            if self.metadata?.typeFile == k_metadataTypeFile_video {
+                let filename = (self.metadata!.fileNameView as NSString).deletingPathExtension.lowercased()
                 if let indexFound = metadatas.firstIndex(where: { (($0.fileNameView as NSString).deletingPathExtension.lowercased() as String) == filename && $0.typeFile == k_metadataTypeFile_image }) { index = indexFound }
             }
             self.metadatas = metadatas
-            
-            viewerImageViewController = NCViewerImageViewController(index: index, dataSource: self, delegate: self)
-            if viewerImageViewController != nil {
+
+            self.viewerImageViewController = NCViewerImageViewController(index: index, dataSource: self, delegate: self)
+            if self.viewerImageViewController != nil {
                            
                 self.backgroundView.image = nil
-
-                viewerImageViewController!.view.isHidden = true
-                
-                viewerImageViewController!.enableInteractiveDismissal = true
-                
-                addChild(viewerImageViewController!)
-                view.addSubview(viewerImageViewController!.view)
-                
-                viewerImageViewController!.view.frame = CGRect(x: 0, y: 0, width: view.frame.width, height: view.frame.height)
-                viewerImageViewController!.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-                
-                viewerImageViewController!.didMove(toParent: self)
+                self.viewerImageViewController!.view.isHidden = true
+                self.viewerImageViewController!.enableInteractiveDismissal = true
+                self.addChild(self.viewerImageViewController!)
+                self.view.addSubview(self.viewerImageViewController!.view)
+                self.viewerImageViewController!.view.frame = CGRect(x: 0, y: 0, width: self.view.frame.width, height: self.view.frame.height)
+                self.viewerImageViewController!.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+                self.viewerImageViewController!.didMove(toParent: self)
                 
                 DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100)) {
                     self.viewerImageViewController!.changeInViewSize(to: self.backgroundView.frame.size)
@@ -641,7 +616,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
         let isPreview = CCUtility.fileProviderStoragePreviewIconExists(metadata.ocId, etag: metadata.etag)
         let isImage = CCUtility.fileProviderStorageSize(metadata.ocId, fileNameView: metadata.fileNameView) > 0
         let ext = CCUtility.getExtension(metadata.fileNameView)
-        let isFolderEncrypted = CCUtility.isFolderEncrypted(metadata.serverUrl, e2eEncrypted: metadata.e2eEncrypted, account: metadata.account)
+        let isFolderEncrypted = CCUtility.isFolderEncrypted(metadata.serverUrl, e2eEncrypted: metadata.e2eEncrypted, account: metadata.account, urlBase: metadata.urlBase)
         
         // Refresh self metadata && title
         if viewerImageViewController.index < metadatas.count {
@@ -720,7 +695,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
     
         } else if metadata.hasPreview {
                 
-            let fileNamePath = CCUtility.returnFileNamePath(fromFileName: metadata.fileName, serverUrl: metadata.serverUrl, activeUrl: appDelegate.activeUrl)!
+            let fileNamePath = CCUtility.returnFileNamePath(fromFileName: metadata.fileName, serverUrl: metadata.serverUrl, urlBase: metadata.urlBase, account: metadata.account)!
             let fileNamePreviewLocalPath = CCUtility.getDirectoryProviderStoragePreviewOcId(metadata.ocId, etag: metadata.etag)!
             let fileNameIconLocalPath = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, etag: metadata.etag)!
                     

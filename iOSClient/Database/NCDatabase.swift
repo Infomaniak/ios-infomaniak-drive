@@ -67,7 +67,7 @@ class tableAccount: Object, XLFormOptionObject {
     @objc dynamic var storageLocation = ""
     @objc dynamic var subadmin = ""
     @objc dynamic var twitter = ""
-    @objc dynamic var url = ""
+    @objc dynamic var urlBase = ""
     @objc dynamic var user = ""
     @objc dynamic var userID = ""
     @objc dynamic var webpage = ""

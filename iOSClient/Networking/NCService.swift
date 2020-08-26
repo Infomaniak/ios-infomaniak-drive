@@ -37,7 +37,7 @@ class NCService: NSObject {
     
     @objc public func startRequestServicesServer() {
    
-        if (appDelegate.activeAccount == nil || appDelegate.activeAccount.count == 0 || appDelegate.maintenanceMode == true) {
+        if (appDelegate.account == nil || appDelegate.account.count == 0 || appDelegate.maintenanceMode == true) {
             return
         }
         
@@ -49,13 +49,13 @@ class NCService: NSObject {
     
     private func requestUserProfile() {
         
-        if (appDelegate.activeAccount == nil || appDelegate.activeAccount.count == 0 || appDelegate.maintenanceMode == true) {
+        if (appDelegate.account == nil || appDelegate.account.count == 0 || appDelegate.maintenanceMode == true) {
             return
         }
         
         NCCommunication.shared.getUserProfile() { (account, userProfile, errorCode, errorDescription) in
                
-            if errorCode == 0 && account == self.appDelegate.activeAccount {
+            if errorCode == 0 && account == self.appDelegate.account {
                                     
                 // Update User (+ userProfile.id) & active account & account network
                 guard let tableAccount = NCManageDatabase.sharedInstance.setAccountUserProfile(userProfile!) else {
@@ -65,34 +65,38 @@ class NCService: NSObject {
                 }
                 
                 let user = tableAccount.user
-                let url = tableAccount.url
+                let url = tableAccount.urlBase
                 
-                self.appDelegate.settingActiveAccount(tableAccount.account, activeUrl: tableAccount.url, activeUser: tableAccount.user, activeUserID: tableAccount.userID, activePassword: CCUtility.getPassword(tableAccount.account))
+                self.appDelegate.settingAccount(tableAccount.account, urlBase: tableAccount.urlBase, user: tableAccount.user, userID: tableAccount.userID, password: CCUtility.getPassword(tableAccount.account))
                        
                 // Synchronize favorite ---
-                NCNetworking.shared.listingFavoritescompletion { (_, _, _, _) in }
+                var selector = selectorReadFile
+                if CCUtility.getFavoriteOffline() {
+                    selector = selectorDownloadFile
+                }
+                NCNetworking.shared.listingFavoritescompletion(selector: selector) { (_, _, _, _) in }
                 
-                // Synchronize Offline ---
-                let directories = NCManageDatabase.sharedInstance.getTablesDirectory(predicate: NSPredicate(format: "account == %@ AND offline == true", tableAccount.account), sorted: "serverUrl", ascending: true)
-                if (directories != nil) {
-                    for directory: tableDirectory in directories! {
+                // Synchronize Offline Directory ---
+                if let directories = NCManageDatabase.sharedInstance.getTablesDirectory(predicate: NSPredicate(format: "account == %@ AND offline == true", tableAccount.account), sorted: "serverUrl", ascending: true) {
+                    for directory: tableDirectory in directories {
                         guard let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", directory.ocId)) else {
                             continue
                         }
-                        NCOperationQueue.shared.synchronizationMetadata(metadata, selector: selectorDownloadSynchronize)
+                        NCOperationQueue.shared.synchronizationMetadata(metadata, selector: selectorDownloadFile)
                     }
                 }
                 
+                // Synchronize Offline Files ---
                 let files = NCManageDatabase.sharedInstance.getTableLocalFiles(predicate: NSPredicate(format: "account == %@ AND offline == true", tableAccount.account), sorted: "fileName", ascending: true)
                 for file: tableLocalFile in files {
                     guard let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", file.ocId)) else {
                         continue
                     }
-                    NCOperationQueue.shared.synchronizationMetadata(metadata, selector: selectorDownloadSynchronize)
+                    NCOperationQueue.shared.synchronizationMetadata(metadata, selector: selectorDownloadFile)
                 }
                                         
-                let avatarUrl = "\(self.appDelegate.activeUrl!)/index.php/avatar/\(self.appDelegate.activeUser!)/\(k_avatar_size)".addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed)!
-                let fileNamePath = CCUtility.getDirectoryUserData() + "/" + CCUtility.getStringUser(user, activeUrl: url) + "-" + self.appDelegate.activeUser + ".png"
+                let avatarUrl = "\(self.appDelegate.urlBase!)/index.php/avatar/\(self.appDelegate.user!)/\(k_avatar_size)".addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed)!
+                let fileNamePath = CCUtility.getDirectoryUserData() + "/" + CCUtility.getStringUser(user, urlBase: url) + "-" + self.appDelegate.user + ".png"
                         
                 NCCommunication.shared.downloadContent(serverUrl: avatarUrl) { (account, data, errorCode, errorMessage) in
                     if errorCode == 0 {
@@ -122,7 +126,7 @@ class NCService: NSObject {
     
     private func requestServerStatus() {
         
-        NCCommunication.shared.getServerStatus(serverUrl: appDelegate.activeUrl) { (serverProductName, serverVersion, versionMajor, versionMinor, versionMicro, extendedSupport, errorCode, errorMessage) in
+        NCCommunication.shared.getServerStatus(serverUrl: appDelegate.urlBase) { (serverProductName, serverVersion, versionMajor, versionMinor, versionMicro, extendedSupport, errorCode, errorMessage) in
             if errorCode == 0 {
                 if extendedSupport == false {
                     if serverProductName == "owncloud" {
@@ -137,7 +141,7 @@ class NCService: NSObject {
     
     private func requestServerCapabilities() {
         
-        if (appDelegate.activeAccount == nil || appDelegate.activeAccount.count == 0 || appDelegate.maintenanceMode == true) {
+        if (appDelegate.account == nil || appDelegate.account.count == 0 || appDelegate.maintenanceMode == true) {
             return
         }
         
@@ -148,7 +152,7 @@ class NCService: NSObject {
                 NCManageDatabase.sharedInstance.addCapabilitiesJSon(data!, account: account)
             
                 // Setup communication
-                self.appDelegate.settingSetupCommunicationCapabilities(account)
+                self.appDelegate.settingSetupCommunication(account)
             
                 // Theming
                 self.appDelegate.settingThemingColorBrand()
@@ -160,7 +164,7 @@ class NCService: NSObject {
                         if errorCode == 0 {
                             NCManageDatabase.sharedInstance.deleteTableShare(account: account)
                             if shares != nil {
-                                NCManageDatabase.sharedInstance.addShare(account: account, activeUrl: self.appDelegate.activeUrl, shares: shares!)
+                                NCManageDatabase.sharedInstance.addShare(urlBase: self.appDelegate.urlBase, account: account, shares: shares!)
                             }
                             self.appDelegate.shares = NCManageDatabase.sharedInstance.getTableShares(account: account)
                         } else {
@@ -173,7 +177,7 @@ class NCService: NSObject {
                 let serverVersionMajor = NCManageDatabase.sharedInstance.getCapabilitiesServerInt(account: account, elements: NCElementsJSON.shared.capabilitiesVersionMajor)
                 if serverVersionMajor >= k_nextcloud_version_18_0 {
                     NCCommunication.shared.NCTextObtainEditorDetails() { (account, editors, creators, errorCode, errorMessage) in
-                        if errorCode == 0 && account == self.appDelegate.activeAccount {
+                        if errorCode == 0 && account == self.appDelegate.account {
                             NCManageDatabase.sharedInstance.addDirectEditing(account: account, editors: editors, creators: creators)
                         }
                     }
@@ -182,7 +186,7 @@ class NCService: NSObject {
                 let isExternalSitesServerEnabled = NCManageDatabase.sharedInstance.getCapabilitiesServerBool(account: account, elements: NCElementsJSON.shared.capabilitiesExternalSitesExists, exists: false)
                 if (isExternalSitesServerEnabled) {
                     NCCommunication.shared.getExternalSite() { (account, externalSites, errorCode, errorDescription) in
-                        if errorCode == 0 && account == self.appDelegate.activeAccount {
+                        if errorCode == 0 && account == self.appDelegate.account {
                             NCManageDatabase.sharedInstance.deleteExternalSites(account: account)
                             for externalSite in externalSites {
                                 NCManageDatabase.sharedInstance.addExternalSites(externalSite, account: account)

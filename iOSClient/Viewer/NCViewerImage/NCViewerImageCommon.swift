@@ -30,6 +30,8 @@ class NCViewerImageCommon: NSObject {
         return instance
     }()
     
+    private let appDelegate = UIApplication.shared.delegate as! AppDelegate
+
     static var offOutlineAudio: UIImage?
     static var offOutlineVideo: UIImage?
     static var offOutlineImage: UIImage?
@@ -40,28 +42,18 @@ class NCViewerImageCommon: NSObject {
         NCViewerImageCommon.offOutlineImage = CCGraphics.changeThemingColorImage(UIImage.init(named: "offOutlineImage"), width: UIScreen.main.bounds.size.width, height: UIScreen.main.bounds.size.width, color: NCBrandColor.sharedInstance.brandElement)
     }
     
-    func getMetadatasDatasource(metadata: tableMetadata?, metadatas: [tableMetadata], favoriteDatasorce: Bool, mediaDatasorce: Bool, offLineDatasource: Bool) -> [tableMetadata]? {
-        guard let metadata = metadata else { return nil }
-        if favoriteDatasorce {
-            if let metadatas = NCManageDatabase.sharedInstance.getMetadatasViewer(predicate: NSPredicate(format: "account == %@ AND favorite == 1 AND (typeFile == %@ || typeFile == %@ || typeFile == %@)", metadata.account, k_metadataTypeFile_image, k_metadataTypeFile_video, k_metadataTypeFile_audio), sorted: CCUtility.getOrderSettings(), ascending: CCUtility.getAscendingSettings()) {
-                return metadatas
-            } else {
-                return [metadata]
+    func getMetadatasDatasource(metadata: tableMetadata?, mediaDatasorce: Bool, completion: @escaping (_ metadatas: [tableMetadata]?) -> Void) {
+        guard let metadata = metadata else {
+            completion(nil)
+            return
+        }
+        if mediaDatasorce {
+            appDelegate.activeMedia.reloadDataSourceWithCompletion { (metadatas) in
+                completion(metadatas)
             }
-        } else if mediaDatasorce {
-            return metadatas
-        } else if offLineDatasource {
-            var datasourceSorted = ""
-            var datasourceAscending = true
-            (_, datasourceSorted, datasourceAscending, _, _) = NCUtility.sharedInstance.getLayoutForView(key: k_layout_view_offline)
-            let files = NCManageDatabase.sharedInstance.getTableLocalFiles(predicate: NSPredicate(format: "account == %@ AND offline == true", metadata.account), sorted: datasourceSorted, ascending: datasourceAscending)
-            var ocIds: [String] = []
-            for file: tableLocalFile in files {
-                ocIds.append(file.ocId)
-            }
-            return NCManageDatabase.sharedInstance.getMetadatasViewer(predicate: NSPredicate(format: "account == %@ AND ocId IN %@ AND (typeFile == %@ || typeFile == %@ || typeFile == %@)", metadata.account, ocIds, k_metadataTypeFile_image, k_metadataTypeFile_video, k_metadataTypeFile_audio), sorted: datasourceSorted, ascending: datasourceAscending)
         } else {
-            return NCManageDatabase.sharedInstance.getMetadatasViewer(predicate: NSPredicate(format: "account == %@ AND serverUrl == %@ AND (typeFile == %@ || typeFile == %@ || typeFile == %@)", metadata.account, metadata.serverUrl, k_metadataTypeFile_image, k_metadataTypeFile_video, k_metadataTypeFile_audio), sorted: CCUtility.getOrderSettings(), ascending: CCUtility.getAscendingSettings())
+            let metadatas = NCManageDatabase.sharedInstance.getMetadatasViewer(predicate: NSPredicate(format: "account == %@ AND serverUrl == %@ AND (typeFile == %@ || typeFile == %@ || typeFile == %@)", metadata.account, metadata.serverUrl, k_metadataTypeFile_image, k_metadataTypeFile_video, k_metadataTypeFile_audio), sorted: CCUtility.getOrderSettings(), ascending: CCUtility.getAscendingSettings())
+            completion(metadatas)
         }
     }
     

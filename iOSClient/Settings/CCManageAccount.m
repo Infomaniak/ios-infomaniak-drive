@@ -66,7 +66,7 @@
         }
     }
     
-    NSString *fileNamePath = [NSString stringWithFormat:@"%@/%@-%@.png", [CCUtility getDirectoryUserData], [CCUtility getStringUser:accountActive.user activeUrl:accountActive.url], accountActive.user];
+    NSString *fileNamePath = [NSString stringWithFormat:@"%@/%@-%@.png", [CCUtility getDirectoryUserData], [CCUtility getStringUser:accountActive.user urlBase:accountActive.urlBase], accountActive.user];
     UIImage *avatar = [UIImage imageWithContentsOfFile:fileNamePath];
     if (avatar) {
         
@@ -366,7 +366,7 @@
     
     if ([rowDescriptor.tag isEqualToString:@"pickerAccount"] && ![oldValue isEqual:[NSNull null]]) {
         if(![newValue isEqual:[NSNull null]]){
-            if (![[newValue formValue] isEqualToString:[oldValue formValue]] && ![[newValue formValue] isEqualToString:@""] && ![[newValue formValue] isEqualToString:appDelegate.activeAccount]) {
+            if (![[newValue formValue] isEqualToString:[oldValue formValue]] && ![[newValue formValue] isEqualToString:@""] && ![[newValue formValue] isEqualToString:appDelegate.account]) {
                 [self ChangeDefaultAccount:[newValue formValue]];
             }
             
@@ -440,7 +440,7 @@
     tableAccount *tableAccount = [[NCManageDatabase sharedInstance] setAccountActive:account];
     if (tableAccount) {
         
-        [appDelegate settingActiveAccount:tableAccount.account activeUrl:tableAccount.url activeUser:tableAccount.user activeUserID:tableAccount.userID activePassword:[CCUtility getPassword:tableAccount.account]];
+        [appDelegate settingAccount:tableAccount.account urlBase:tableAccount.urlBase user:tableAccount.user userID:tableAccount.userID password:[CCUtility getPassword:tableAccount.account]];
  
         // Init home
         [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_initializeMain object:nil userInfo:nil];

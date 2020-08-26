@@ -60,10 +60,6 @@
 // Server Status
 #define k_serverStatus                                  @"/status.php"
 
-// webDAV & DAV
-#define k_webDAV                                        @"/remote.php/webdav"
-#define k_dav                                           @"/remote.php/dav"
-
 // Login Flow
 #define k_flowEndpoint                                  @"/index.php/login/flow"
 
@@ -78,14 +74,12 @@
 
 #define k_daysOfActivity                                7
 
-#define k_maxErrorAutoUploadAll                         100
-
 #define k_sizePreview                                   1024
 #define k_sizeIcon                                      512
 
 // Database Realm
 #define k_databaseDefault                               @"nextcloud.realm"
-#define k_databaseSchemaVersion                         139
+#define k_databaseSchemaVersion                         141
 
 // Intro selector
 #define k_intro_login                                   0
@@ -172,8 +166,10 @@
 #define k_minCharsSearch                                2
 
 // Selector
-#define selectorSynchronize                             @"synchronize"
-#define selectorDownloadSynchronize                     @"downloadSynchronize"
+#define selectorDownloadFile                            @"downloadFile"
+#define selectorDownloadAllFile                         @"downloadAllFile"
+#define selectorReadFile                                @"readFile"
+#define selectorListingFavorite                         @"listingFavorite"
 #define selectorLoadFileView                            @"loadFileView"
 #define selectorLoadFileViewFavorite                    @"loadFileViewFavorite"
 #define selectorLoadFileQuickLook                       @"loadFileQuickLook"
@@ -181,7 +177,7 @@
 #define selectorLoadOffline                             @"loadOffline"
 #define selectorOpenIn                                  @"openIn"
 #define selectorOpenInDetail                            @"openInDetail"
-#define selectorSave                                    @"save"
+#define selectorSaveAlbum                               @"saveAlbum"
 #define selectorUploadAutoUpload                        @"uploadAutoUpload"
 #define selectorUploadAutoUploadAll                     @"uploadAutoUploadAll"
 #define selectorUploadFile                              @"uploadFile"
@@ -314,7 +310,6 @@
 #define k_notificationCenter_setTitleMain               @"setTitleMain"
 #define k_notificationCenter_changeTheming              @"changeTheming"
 #define k_notificationCenter_splitViewChangeDisplayMode @"splitViewChangeDisplayMode"
-#define k_notificationCenter_synchronizationMedia       @"synchronizationMedia"             // userInfo: metadata, type
 #define k_notificationCenter_changeUserProfile          @"changeUserProfile"
 #define k_notificationCenter_richdocumentGrabFocus      @"richdocumentGrabFocus"
 #define k_notificationCenter_reloadDataNCShare          @"reloadDataNCShare"

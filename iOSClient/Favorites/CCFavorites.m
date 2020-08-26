@@ -112,9 +112,36 @@
     // Active Main
     appDelegate.activeFavorites = self;
 
-    if (self.serverUrl == nil && appDelegate.activeAccount.length > 0) {
-        [[NCNetworking shared] listingFavoritescompletionWithCompletion:^(NSString *account, NSArray* metadatas, NSInteger errorCode, NSString *errorDescription) {
-             [self reloadDatasource];
+    // test
+    if (appDelegate.account.length == 0) {
+        return;
+    }
+    
+    if (self.serverUrl == nil) {
+        [[NCNetworking shared] listingFavoritescompletionWithSelector:(selectorListingFavorite) completion:^(NSString *account, NSArray *metadatas, NSInteger errorCode, NSString *errorDescription) {
+            for (tableMetadata *metadata in metadatas) {
+                if (!metadata.directory && CCUtility.getFavoriteOffline) {
+                    tableLocalFile *localFile = [[NCManageDatabase sharedInstance] getTableLocalFileWithPredicate:[NSPredicate predicateWithFormat:@"ocId == %@", metadata.ocId]];
+                    if (localFile == nil || ![localFile.etag isEqualToString:metadata.etag]) {
+                        [[NCOperationQueue shared] downloadWithMetadata:metadata selector:selectorDownloadFile setFavorite:false];
+                    }
+                }
+            }
+            [self reloadDatasource];
+        }];
+    } else {
+        [[NCNetworking shared] readFolderWithServerUrl:self.serverUrl account:appDelegate.account completion:^(NSString *account, tableMetadata *metadataFolder, NSArray *metadatas, NSArray *metadatasUpdate, NSArray *metadatasLocalUpdate, NSInteger errorCode, NSString *errorDescription) {
+            if (errorCode == 0) {
+                for (tableMetadata *metadata in metadatas) {
+                    if (!metadata.directory && CCUtility.getFavoriteOffline) {
+                        tableLocalFile *localFile = [[NCManageDatabase sharedInstance] getTableLocalFileWithPredicate:[NSPredicate predicateWithFormat:@"ocId == %@", metadata.ocId]];
+                        if (localFile == nil || ![localFile.etag isEqualToString:metadata.etag]) {
+                            [[NCOperationQueue shared] downloadWithMetadata:metadata selector:selectorDownloadFile setFavorite:false];
+                        }
+                    }
+                }
+                [self reloadDatasource];
+            }
         }];
     }
 }
@@ -232,9 +259,9 @@
     UIAlertController *alertController = [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:UIAlertControllerStyleActionSheet];
     
     [alertController addAction: [UIAlertAction actionWithTitle:NSLocalizedString(@"_cancel_all_task_", nil) style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
-        [NCUtility.sharedInstance startActivityIndicatorWithView:self.view bottom:0];
+        [NCUtility.shared startActivityIndicatorWithView:self.view bottom:0];
         [[NCMainCommon sharedInstance] cancelAllTransfer];
-        [NCUtility.sharedInstance stopActivityIndicator];
+        [NCUtility.shared stopActivityIndicator];
     }]];
     
     [alertController addAction: [UIAlertAction actionWithTitle:NSLocalizedString(@"_cancel_", nil) style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) { }]];
@@ -269,7 +296,7 @@
         viewController.imageFile = cell.file.image;
         viewController.showOpenIn = true;
         viewController.showShare = false;
-        viewController.showOpenQuickLook = [[NCUtility sharedInstance] isQuickLookDisplayableWithMetadata:metadata];
+        viewController.showOpenQuickLook = [[NCUtility shared] isQuickLookDisplayableWithMetadata:metadata];
        
         return viewController;
     }
@@ -314,7 +341,7 @@
     if (direction == MGSwipeDirectionLeftToRight) {
         
         tableMetadata *metadata = [[NCMainCommon sharedInstance] getMetadataFromSectionDataSourceIndexPath:indexPath sectionDataSource:sectionDataSource];
-        [[NCNetworking shared] favoriteMetadata:metadata url:appDelegate.activeUrl completion:^(NSInteger errorCode, NSString *errorDescription) { }];
+        [[NCNetworking shared] favoriteMetadata:metadata urlBase:appDelegate.urlBase completion:^(NSInteger errorCode, NSString *errorDescription) { }];
     }
     
     return YES;
@@ -326,7 +353,7 @@
     UIAlertController *alertController = [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:UIAlertControllerStyleActionSheet];
     
     [alertController addAction: [UIAlertAction actionWithTitle:NSLocalizedString(@"_delete_", nil) style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
-        [[NCNetworking shared] deleteMetadata:metadata account:appDelegate.activeAccount url:appDelegate.activeUrl completion:^(NSInteger errorCode, NSString *errorDescription) { }];
+        [[NCNetworking shared] deleteMetadata:metadata account:appDelegate.account urlBase:appDelegate.urlBase completion:^(NSInteger errorCode, NSString *errorDescription) { }];
     }]];
     
    
@@ -365,7 +392,7 @@
 - (void)reloadDatasource
 {
     // test
-    if (appDelegate.activeAccount.length == 0) { // || self.view.window == nil) {
+    if (appDelegate.account.length == 0) { // || self.view.window == nil) {
         return;
     }
     
@@ -378,18 +405,18 @@
     
     // get auto upload folder
     autoUploadFileName = [[NCManageDatabase sharedInstance] getAccountAutoUploadFileName];
-    autoUploadDirectory = [[NCManageDatabase sharedInstance] getAccountAutoUploadDirectory:appDelegate.activeUrl];
+    autoUploadDirectory = [[NCManageDatabase sharedInstance] getAccountAutoUploadDirectoryWithUrlBase:appDelegate.urlBase account:appDelegate.account];
     
     if (!_serverUrl) {
         
-        recordsTableMetadata = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND favorite == true", appDelegate.activeAccount] page:0 limit:0 sorted:@"fileName" ascending:NO];
+        recordsTableMetadata = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND favorite == true", appDelegate.account] page:0 limit:0 sorted:@"fileName" ascending:NO];
         
     } else {
         
-        recordsTableMetadata = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", appDelegate.activeAccount, self.serverUrl] page:0 limit:0 sorted:@"fileName" ascending:NO];
+        recordsTableMetadata = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", appDelegate.account, self.serverUrl] page:0 limit:0 sorted:@"fileName" ascending:NO];
     }
     
-    sectionDataSource = [CCSectionMetadata creataDataSourseSectionMetadata:recordsTableMetadata listProgressMetadata:nil groupByField:nil filterTypeFileImage:NO filterTypeFileVideo:NO filterLivePhoto:YES sorted:sorted ascending:[CCUtility getAscendingSettings] activeAccount:appDelegate.activeAccount];
+    sectionDataSource = [CCSectionMetadata creataDataSourseSectionMetadata:recordsTableMetadata listProgressMetadata:nil groupByField:nil filterTypeFileImage:NO filterTypeFileVideo:NO filterLivePhoto:YES sorted:sorted ascending:[CCUtility getAscendingSettings] account:appDelegate.account];
     
     [self.tableView reloadData];
 }
@@ -420,7 +447,7 @@
         return [CCCellMain new];
     }
     
-    tableDirectory *directory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", appDelegate.activeAccount, metadata.serverUrl]];
+    tableDirectory *directory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", appDelegate.account, metadata.serverUrl]];
     if (directory != nil) {
         metadataFolder = [[NCManageDatabase sharedInstance] getMetadataWithPredicate:[NSPredicate predicateWithFormat:@"ocId == %@", directory.ocId]];
     }
@@ -524,9 +551,9 @@
                                         
         } else {
             
-            tableDirectory *tableDirectory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", appDelegate.activeAccount, self.metadata.serverUrl]];
+            tableDirectory *tableDirectory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", appDelegate.account, self.metadata.serverUrl]];
                 
-            if (tableDirectory.e2eEncrypted && ![CCUtility isEndToEndEnabled:appDelegate.activeAccount]) {
+            if (tableDirectory.e2eEncrypted && ![CCUtility isEndToEndEnabled:appDelegate.account]) {
                     
                 [[NCContentPresenter shared] messageNotification:@"_info_" description:@"_e2e_goto_settings_for_enable_" delay:k_dismissAfterSecond type:messageTypeInfo errorCode:k_CCErrorInternalError forced:false];
                     
@@ -536,7 +563,7 @@
                         
                     [self shouldPerformSegue:self.metadata selector:@""];
                 
-                } else if ([self.metadata.typeFile isEqualToString: k_metadataTypeFile_document] && [[NCUtility sharedInstance] isDirectEditingWithAccount:self.metadata.account contentType:self.metadata.contentType] != nil) {
+                } else if ([self.metadata.typeFile isEqualToString: k_metadataTypeFile_document] && [[NCUtility shared] isDirectEditingWithAccount:self.metadata.account contentType:self.metadata.contentType] != nil) {
                         
                         if (NCCommunication.shared.isNetworkReachable) {
                             [self shouldPerformSegue:self.metadata selector:@""];
@@ -544,7 +571,7 @@
                             [[NCContentPresenter shared] messageNotification:@"_info_" description:@"_go_online_" delay:k_dismissAfterSecond type:messageTypeInfo errorCode:k_CCErrorInternalError forced:false];
                         }
                         
-                    } else if ([self.metadata.typeFile isEqualToString: k_metadataTypeFile_document] && [[NCUtility sharedInstance] isRichDocument:self.metadata]) {
+                    } else if ([self.metadata.typeFile isEqualToString: k_metadataTypeFile_document] && [[NCUtility shared] isRichDocument:self.metadata]) {
                         
                         if (NCCommunication.shared.isNetworkReachable) {
                             [self shouldPerformSegue:self.metadata selector:@""];
@@ -616,7 +643,6 @@
     
     detailViewController.metadata = self.metadataForPushDetail;
     detailViewController.selector = self.selectorForPushDetail;
-    detailViewController.favoriteFilterImage = true;
     
     [detailViewController setTitle:self.metadata.fileNameView];
 }

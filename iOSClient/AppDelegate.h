@@ -51,13 +51,12 @@
 // For LMMediaPlayerView
 @property (strong, nonatomic) UIWindow *window;
 
-// User
-@property (nonatomic, strong) NSString *activeAccount;
-@property (nonatomic, strong) NSString *activeUrl;
-@property (nonatomic, strong) NSString *activeUser;
-@property (nonatomic, strong) NSString *activeUserID;
-@property (nonatomic, strong) NSString *activePassword;
-@property (nonatomic, strong) NSString *activeEmail;
+// Parameter account
+@property (nonatomic, strong) NSString *account;
+@property (nonatomic, strong) NSString *urlBase;
+@property (nonatomic, strong) NSString *user;
+@property (nonatomic, strong) NSString *userID;
+@property (nonatomic, strong) NSString *password;
 
 // next version ... ? ...
 @property double currentLatitude;
@@ -120,9 +119,9 @@
 - (void)openLoginView:(UIViewController *)viewController selector:(NSInteger)selector openLoginWeb:(BOOL)openLoginWeb;
 
 // Setting Account & Communication
-- (void)settingActiveAccount:(NSString *)activeAccount activeUrl:(NSString *)activeUrl activeUser:(NSString *)activeUser activeUserID:(NSString *)activeUserID activePassword:(NSString *)activePassword;
+- (void)settingAccount:(NSString *)account urlBase:(NSString *)urlBase user:(NSString *)user userID:(NSString *)userID password:(NSString *)password;
 - (void)deleteAccount:(NSString *)account wipe:(BOOL)wipe;
-- (void)settingSetupCommunicationCapabilities:(NSString *)account;
+- (void)settingSetupCommunication:(NSString *)account;
 
 // Quick Actions - ShotcutItem
 - (void)configDynamicShortcutItems;
@@ -134,7 +133,6 @@
 
 // Push Notification
 - (void)pushNotification;
-//- (void)unsubscribingNextcloudServerPushNotification:(NSString *)account url:(NSString *)url withSubscribing:(BOOL)subscribing;
 
 // Theming Color
 - (void)settingThemingColorBrand;
