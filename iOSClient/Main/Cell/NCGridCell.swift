@@ -24,7 +24,7 @@
 import Foundation
 import UIKit
 
-class NCGridCell: UICollectionViewCell, NCImageCellProtocol {
+class NCGridCell: UICollectionViewCell, UIGestureRecognizerDelegate, NCImageCellProtocol {
     
     @IBOutlet weak var imageItem: UIImageView!
     
@@ -36,22 +36,42 @@ class NCGridCell: UICollectionViewCell, NCImageCellProtocol {
     @IBOutlet weak var labelTitle: UILabel!
     @IBOutlet weak var buttonMore: UIButton!
 
+    @IBOutlet weak var progressView: UIProgressView!
+
     var filePreviewImageView : UIImageView {
         get{
          return imageItem
         }
     }
-
     
     var delegate: NCGridCellDelegate?
-    
     var objectId = ""
     var indexPath = IndexPath()
+    var namedButtonMore = ""
     
     override func awakeFromNib() {
         super.awakeFromNib()
-       
-        buttonMore.setImage(CCGraphics.changeThemingColorImage(UIImage.init(named: "more"), multiplier: 2, color: NCBrandColor.sharedInstance.optionItem), for: UIControl.State.normal)
+        
+        imageItem.layer.cornerRadius = 6
+        imageItem.layer.masksToBounds = true
+        
+        progressView.tintColor = NCBrandColor.sharedInstance.brandElement
+        progressView.transform = CGAffineTransform(scaleX: 1.0, y: 0.5)
+        progressView.trackTintColor = .clear
+        
+        let longPressedGesture = UILongPressGestureRecognizer(target: self, action: #selector(longPress(gestureRecognizer:)))
+        longPressedGesture.minimumPressDuration = 0.5
+        longPressedGesture.delegate = self
+        longPressedGesture.delaysTouchesBegan = true
+        self.addGestureRecognizer(longPressedGesture)
+        
+        let longPressedGestureMore = UILongPressGestureRecognizer(target: self, action: #selector(longPressInsideMore(gestureRecognizer:)))
+        longPressedGestureMore.minimumPressDuration = 0.5
+        longPressedGestureMore.delegate = self
+        longPressedGestureMore.delaysTouchesBegan = true
+        buttonMore.addGestureRecognizer(longPressedGestureMore)
+        
+        setButtonMore(named: "more")
     }
     
     override func prepareForReuse() {
@@ -60,10 +80,31 @@ class NCGridCell: UICollectionViewCell, NCImageCellProtocol {
     }
     
     @IBAction func touchUpInsideMore(_ sender: Any) {
-        delegate?.tapMoreGridItem(with: objectId, sender: sender)
+        delegate?.tapMoreGridItem(with: objectId, namedButtonMore: namedButtonMore, sender: sender)
+    }
+    
+    @objc func longPressInsideMore(gestureRecognizer: UILongPressGestureRecognizer) {
+        if gestureRecognizer.state != .began { return }
+        delegate?.longPressMoreGridItem(with: objectId, namedButtonMore: namedButtonMore, gestureRecognizer: gestureRecognizer)
+    }
+    
+    @objc func longPress(gestureRecognizer: UILongPressGestureRecognizer) {
+        if gestureRecognizer.state != .began { return }
+        delegate?.longPressGridItem(with: objectId, gestureRecognizer: gestureRecognizer)
+    }
+    
+    func setButtonMore(named: String) {
+        namedButtonMore = named
+        buttonMore.setImage(CCGraphics.changeThemingColorImage(UIImage.init(named: named), width: 50, height: 50, color: NCBrandColor.sharedInstance.optionItem), for: UIControl.State.normal)
+    }
+    
+    func hideButtonMore() {
+        buttonMore.isHidden = true
     }
 }
 
 protocol NCGridCellDelegate {
-    func tapMoreGridItem(with objectId: String, sender: Any)
+    func tapMoreGridItem(with objectId: String, namedButtonMore: String, sender: Any)
+    func longPressMoreGridItem(with objectId: String, namedButtonMore: String, gestureRecognizer: UILongPressGestureRecognizer)
+    func longPressGridItem(with objectId: String, gestureRecognizer: UILongPressGestureRecognizer)
 }

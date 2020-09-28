@@ -27,8 +27,9 @@ import FloatingPanel
 import NCCommunication
 
 extension AppDelegate {
-
+    
     @objc public func showMenuIn(viewController: UIViewController) {
+        
         let mainMenuViewController = UIStoryboard.init(name: "NCMenu", bundle: nil).instantiateViewController(withIdentifier: "NCMainMenuTableViewController") as! NCMainMenuTableViewController
         mainMenuViewController.actions = self.initMenu()
 
@@ -42,10 +43,12 @@ extension AppDelegate {
     }
     
     private func initMenu() -> [NCMenuAction] {
+        
         var actions: [NCMenuAction] = []
         let appDelegate = UIApplication.shared.delegate as! AppDelegate
         let directEditingCreators = NCManageDatabase.sharedInstance.getDirectEditingCreators(account: appDelegate.account)
-        let isEncrypted = CCUtility.isFolderEncrypted(appDelegate.activeMain.serverUrl, e2eEncrypted: false, account: appDelegate.account, urlBase: appDelegate.urlBase)
+        let isEncrypted = CCUtility.isFolderEncrypted(appDelegate.activeServerUrl, e2eEncrypted: false, account: appDelegate.account, urlBase: appDelegate.urlBase)
+        let directory = NCManageDatabase.sharedInstance.getTableDirectory(predicate: NSPredicate(format: "account == %@ AND serverUrl == %@", appDelegate.account, appDelegate.activeServerUrl))
         let serverVersionMajor = NCManageDatabase.sharedInstance.getCapabilitiesServerInt(account: appDelegate.account, elements: NCElementsJSON.shared.capabilitiesVersionMajor)
         
         actions.append(
@@ -53,7 +56,7 @@ extension AppDelegate {
                 title: NSLocalizedString("_upload_photos_videos_", comment: ""),
                 icon: CCGraphics.changeThemingColorImage(UIImage(named: "file_photo"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                 action: { menuAction in
-                    appDelegate.activeMain.openAssetsPickerController()
+                    NCPhotosPickerViewController.init(viewController: appDelegate.window.rootViewController!, maxSelectedAssets: 0, singleSelectedMode: false)
                 }
             )
         )
@@ -63,7 +66,11 @@ extension AppDelegate {
                 title: NSLocalizedString("_upload_file_", comment: ""),
                 icon: CCGraphics.changeThemingColorImage(UIImage(named: "file"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                 action: { menuAction in
-                    appDelegate.activeMain.openImportDocumentPicker()
+                    if let navigationController = (self.window.rootViewController as! UISplitViewController).viewControllers.first as? UINavigationController {
+                        if let tabBarController = navigationController.topViewController as? UITabBarController {
+                            self.documentPickerViewController = NCDocumentPickerViewController.init(tabBarController: tabBarController)
+                        }
+                    }
                 }
             )
         )
@@ -74,7 +81,7 @@ extension AppDelegate {
                 title: NSLocalizedString("_im_create_new_file", tableName: "IMLocalizable", bundle: Bundle.main, value: "", comment: ""),
                 icon: CCGraphics.scale(UIImage(named: "imagemeter"), to: CGSize(width: 25, height: 25), isAspectRation: true),
                 action: { menuAction in
-                    _ = IMCreate.init(serverUrl: appDelegate.activeMain.serverUrl, imagemeterViewerDelegate: NCNetworkingMain.sharedInstance)
+                    _ = IMCreate.init(serverUrl: appDelegate.activeServerUrl, imagemeterViewerDelegate: NCNetworkingMain.sharedInstance)
                 }
             )
         )
@@ -93,7 +100,7 @@ extension AppDelegate {
                     viewController.editorId = k_editor_text
                     viewController.creatorId = directEditingCreator.identifier
                     viewController.typeTemplate = k_template_document
-                    viewController.serverUrl = appDelegate.activeMain.serverUrl
+                    viewController.serverUrl = appDelegate.activeServerUrl
                     viewController.titleForm = NSLocalizedString("_create_nextcloudtext_document_", comment: "")
 
                     appDelegate.window.rootViewController?.present(navigationController, animated: true, completion: nil)
@@ -116,7 +123,7 @@ extension AppDelegate {
                 title: NSLocalizedString("_create_voice_memo_", comment: ""),
                 icon: CCGraphics.changeThemingColorImage(UIImage(named: "microphone"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                 action: { menuAction in
-                    NCMainCommon.sharedInstance.startAudioRecorder()
+                    NCMainCommon.shared.startAudioRecorder()
                 }
             )
         )
@@ -125,18 +132,48 @@ extension AppDelegate {
             NCMenuAction(title: NSLocalizedString("_create_folder_", comment: ""),
                 icon: CCGraphics.changeThemingColorImage(UIImage(named: "folder"), width: 50, height: 50, color: NCBrandColor.sharedInstance.brandElement),
                 action: { menuAction in
-                    appDelegate.activeMain.createFolder()
+                    
+                     guard let serverUrl = appDelegate.activeServerUrl else { return }
+                    
+                     let alertController = UIAlertController(title: NSLocalizedString("_create_folder_on_", comment: ""), message: nil, preferredStyle: .alert)
+                    
+                     alertController.addTextField { (textField) in
+                         textField.autocapitalizationType = UITextAutocapitalizationType.sentences
+                     }
+                    
+                     let cancelAction = UIAlertAction(title: NSLocalizedString("_cancel_", comment: ""), style: .cancel, handler: nil)
+                     let okAction = UIAlertAction(title: NSLocalizedString("_ok_", comment: ""), style: .default, handler: { action in
+                         if let fileNameFolder = alertController.textFields?.first?.text {
+                             NCNetworking.shared.createFolder(fileName: fileNameFolder, serverUrl: serverUrl, account: appDelegate.account, urlBase: appDelegate.urlBase, overwrite: false) { (errorCode, errorDescription) in
+                                 if errorCode != 0 {
+                                     NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
+                                 }
+                             }
+                         }
+                     })
+                    
+                     alertController.addAction(cancelAction)
+                     alertController.addAction(okAction)
+
+                     appDelegate.window.rootViewController?.present(alertController, animated: true, completion: nil)
                 }
             )
         )
 
-        if serverVersionMajor >= k_nextcloud_version_18_0 && (self.activeMain.richWorkspaceText == nil || self.activeMain.richWorkspaceText.count == 0) && !isEncrypted && NCCommunication.shared.isNetworkReachable() {
+        if serverVersionMajor >= k_nextcloud_version_18_0 && directory?.richWorkspace == nil && !isEncrypted && NCCommunication.shared.isNetworkReachable() {
             actions.append(
                 NCMenuAction(
                     title: NSLocalizedString("_add_folder_info_", comment: ""),
                     icon: CCGraphics.changeThemingColorImage(UIImage(named: "addFolderInfo"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                     action: { menuAction in
-                        self.activeMain.createRichWorkspace()
+                        let richWorkspaceCommon = NCRichWorkspaceCommon()
+                        if let viewController = appDelegate.window.rootViewController {
+                            if NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "account == %@ AND serverUrl == %@ AND fileNameView LIKE[c] %@", appDelegate.account, appDelegate.activeServerUrl, k_fileNameRichWorkspace.lowercased())) == nil {
+                                richWorkspaceCommon.createViewerNextcloudText(serverUrl: appDelegate.activeServerUrl, viewController: viewController)
+                            } else {
+                                richWorkspaceCommon.openViewerNextcloudText(serverUrl: appDelegate.activeServerUrl, viewController: viewController)
+                            }
+                        }
                     }
                 )
             )
@@ -158,7 +195,7 @@ extension AppDelegate {
                         viewController.editorId = k_editor_onlyoffice
                         viewController.creatorId = directEditingCreator.identifier
                         viewController.typeTemplate = k_template_document
-                        viewController.serverUrl = appDelegate.activeMain.serverUrl
+                        viewController.serverUrl = appDelegate.activeServerUrl
                         viewController.titleForm = NSLocalizedString("_create_new_document_", comment: "")
 
                         appDelegate.window.rootViewController?.present(navigationController, animated: true, completion: nil)
@@ -183,7 +220,7 @@ extension AppDelegate {
                         viewController.editorId = k_editor_onlyoffice
                         viewController.creatorId = directEditingCreator.identifier
                         viewController.typeTemplate = k_template_spreadsheet
-                        viewController.serverUrl = appDelegate.activeMain.serverUrl
+                        viewController.serverUrl = appDelegate.activeServerUrl
                         viewController.titleForm = NSLocalizedString("_create_new_spreadsheet_", comment: "")
 
                         appDelegate.window.rootViewController?.present(navigationController, animated: true, completion: nil)
@@ -208,7 +245,7 @@ extension AppDelegate {
                         viewController.editorId = k_editor_onlyoffice
                         viewController.creatorId = directEditingCreator.identifier
                         viewController.typeTemplate = k_template_presentation
-                        viewController.serverUrl = appDelegate.activeMain.serverUrl
+                        viewController.serverUrl = appDelegate.activeServerUrl
                         viewController.titleForm = NSLocalizedString("_create_new_presentation_", comment: "")
 
                         appDelegate.window.rootViewController?.present(navigationController, animated: true, completion: nil)
@@ -232,7 +269,7 @@ extension AppDelegate {
                             let viewController = (navigationController as! UINavigationController).topViewController as! NCCreateFormUploadDocuments
                             viewController.editorId = k_editor_collabora
                             viewController.typeTemplate = k_template_document
-                            viewController.serverUrl = appDelegate.activeMain.serverUrl
+                            viewController.serverUrl = appDelegate.activeServerUrl
                             viewController.titleForm = NSLocalizedString("_create_nextcloudtext_document_", comment: "")
 
                             appDelegate.window.rootViewController?.present(navigationController, animated: true, completion: nil)
@@ -253,7 +290,7 @@ extension AppDelegate {
                             let viewController = (navigationController as! UINavigationController).topViewController as! NCCreateFormUploadDocuments
                             viewController.editorId = k_editor_collabora
                             viewController.typeTemplate = k_template_spreadsheet
-                            viewController.serverUrl = appDelegate.activeMain.serverUrl
+                            viewController.serverUrl = appDelegate.activeServerUrl
                             viewController.titleForm = NSLocalizedString("_create_new_spreadsheet_", comment: "")
 
                             appDelegate.window.rootViewController?.present(navigationController, animated: true, completion: nil)
@@ -274,7 +311,7 @@ extension AppDelegate {
                             let viewController = (navigationController as! UINavigationController).topViewController as! NCCreateFormUploadDocuments
                             viewController.editorId = k_editor_collabora
                             viewController.typeTemplate = k_template_presentation
-                            viewController.serverUrl = appDelegate.activeMain.serverUrl
+                            viewController.serverUrl = appDelegate.activeServerUrl
                             viewController.titleForm = NSLocalizedString("_create_new_presentation_", comment: "")
 
                             appDelegate.window.rootViewController?.present(navigationController, animated: true, completion: nil)

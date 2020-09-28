@@ -33,6 +33,7 @@ class NCSplitViewController: UISplitViewController {
                 
         self.delegate = self
         self.preferredDisplayMode = .allVisible
+              
         if UIScreen.main.bounds.width > UIScreen.main.bounds.height {
             self.maximumPrimaryColumnWidth = UIScreen.main.bounds.width
         } else {
@@ -44,6 +45,8 @@ class NCSplitViewController: UISplitViewController {
         if let tabBarController = navigationController?.topViewController as? UITabBarController {
             appDelegate.createTabBarController(tabBarController)
         }
+        
+        //setPrimaryColumn()
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -59,6 +62,59 @@ class NCSplitViewController: UISplitViewController {
                     timer = Timer.scheduledTimer(timeInterval: 0.2, target: self, selector: #selector(timerHandlerChangeTheming(_:)), userInfo: nil, repeats: false)
                 }
             }
+        }
+    }
+    
+    override func viewDidLayoutSubviews() {
+        //setPrimaryColumn()
+    }
+    
+    private func setPrimaryColumn() {
+        
+        var fraction: CGFloat = 0.4
+        let gap = 1.0 / self.traitCollection.displayScale
+        let device = UIDevice.current.userInterfaceIdiom
+        var collectionView: UICollectionView?
+        
+        if device == .pad {
+            if let detailNavigationController = self.viewControllers.last as? NCDetailNavigationController {
+                if let detailViewController = detailNavigationController.topViewController as? NCDetailViewController {
+                    if detailViewController.metadata == nil {
+                        fraction = 1
+                    }
+                }
+            }
+        }
+        
+        if fraction == 1 || self.isCollapsed {
+           if UIScreen.main.bounds.width > UIScreen.main.bounds.height {
+               self.maximumPrimaryColumnWidth = max(UIScreen.main.bounds.width - gap, UIScreen.main.bounds.height - gap)
+           } else {
+               self.maximumPrimaryColumnWidth = min(UIScreen.main.bounds.width - gap, UIScreen.main.bounds.height - gap)
+           }
+        } else {
+            if UIScreen.main.bounds.width > UIScreen.main.bounds.height {
+                self.maximumPrimaryColumnWidth = UIScreen.main.bounds.width
+            } else {
+                self.maximumPrimaryColumnWidth = UIScreen.main.bounds.height
+            }
+        }
+        
+        if appDelegate.activeMedia?.view?.window != nil {
+            collectionView = self.appDelegate.activeMedia?.collectionView
+        } else if appDelegate.activeFavorite?.view?.window != nil {
+            collectionView = self.appDelegate.activeFavorite?.collectionView
+        } else if appDelegate.activeOffline?.view?.window != nil {
+            collectionView = self.appDelegate.activeOffline?.collectionView
+        } else if appDelegate.activeTrash?.view?.window != nil {
+            collectionView = self.appDelegate.activeTrash?.collectionView
+        } else {
+            self.preferredPrimaryColumnWidthFraction = fraction
+        }
+        
+        UIView.animate(withDuration: 0.1) {
+            self.preferredPrimaryColumnWidthFraction = fraction
+            collectionView?.collectionViewLayout.invalidateLayout()
         }
     }
     

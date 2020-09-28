@@ -147,31 +147,89 @@ class NCUtility: NSObject {
         return blurEffectView
     }
     
-    func setLayoutForView(key: String, layout: String, sort: String, ascending: Bool, groupBy: String, directoryOnTop: Bool) {
+    func setLayoutForView(key: String, layout: String, sort: String, ascending: Bool, groupBy: String, directoryOnTop: Bool, titleButton: String, itemForLine: Int) {
         
-        let string =  layout + "|" + sort + "|" + "\(ascending)" + "|" + groupBy + "|" + "\(directoryOnTop)"
+        let string =  layout + "|" + sort + "|" + "\(ascending)" + "|" + groupBy + "|" + "\(directoryOnTop)" + "|" + titleButton + "|" + "\(itemForLine)"
         
         UICKeyChainStore.setString(string, forKey: key, service: k_serviceShareKeyChain)
     }
     
-    func getLayoutForView(key: String) -> (String, String, Bool, String, Bool) {
+    func setLayoutForView(key: String, layout: String) {
+        
+        var sort: String
+        var ascending: Bool
+        var groupBy: String
+        var directoryOnTop: Bool
+        var titleButton: String
+        var itemForLine: Int
+
+        (_, sort, ascending, groupBy, directoryOnTop, titleButton, itemForLine) = NCUtility.shared.getLayoutForView(key: k_layout_view_favorite)
+
+        setLayoutForView(key: key, layout: layout, sort: sort, ascending: ascending, groupBy: groupBy, directoryOnTop: directoryOnTop, titleButton: titleButton, itemForLine: itemForLine)
+    }
+    
+    @objc func getLayoutForView(key: String) -> (String) {
+        
+        var layout: String
+        (layout, _, _, _, _, _, _) = NCUtility.shared.getLayoutForView(key: key)
+        return layout
+    }
+    
+    @objc func getSortedForView(key: String) -> (String) {
+        
+        var sort: String
+        (_, sort, _, _, _, _, _) = NCUtility.shared.getLayoutForView(key: key)
+        return sort
+    }
+    
+    @objc func getAscendingForView(key: String) -> (Bool) {
+        
+        var ascending: Bool
+        (_, _, ascending, _, _, _, _) = NCUtility.shared.getLayoutForView(key: key)
+        return ascending
+    }
+    
+    @objc func getGroupByForView(key: String) -> (String) {
+        
+        var groupBy: String
+        (_, _, _, groupBy, _, _, _) = NCUtility.shared.getLayoutForView(key: key)
+        return groupBy
+    }
+    
+    @objc func getDirectoryOnTopForView(key: String) -> (Bool) {
+        
+        var directoryOnTop: Bool
+        (_, _, _, _, directoryOnTop, _, _) = NCUtility.shared.getLayoutForView(key: key)
+        return directoryOnTop
+    }
+    
+    @objc func getTitleButtonForView(key: String) -> (String) {
+        
+        var titleButton: String
+        (_, _, _, _, _, titleButton, _) = NCUtility.shared.getLayoutForView(key: key)
+        return titleButton
+    }
+    
+    func getLayoutForView(key: String) -> (layout: String, sort: String, ascending: Bool, groupBy: String, directoryOnTop: Bool, titleButton: String, itemForLine: Int) {
         
         guard let string = UICKeyChainStore.string(forKey: key, service: k_serviceShareKeyChain) else {
-            return (k_layout_list, "fileName", true, "none", true)
+            setLayoutForView(key: key, layout: k_layout_list, sort: "fileName", ascending: true, groupBy: "none", directoryOnTop: true, titleButton: "_sorted_by_name_a_z_", itemForLine: 3)
+            return (k_layout_list, "fileName", true, "none", true, "_sorted_by_name_a_z_", 3)
         }
 
         let array = string.components(separatedBy: "|")
-        if array.count == 5 {
+        if array.count == 7 {
             let sort = NSString(string: array[2])
             let directoryOnTop = NSString(string: array[4])
+            let itemForLine = NSString(string: array[6])
 
-            return (array[0], array[1], sort.boolValue, array[3], directoryOnTop.boolValue)
+            return (array[0], array[1], sort.boolValue, array[3], directoryOnTop.boolValue, array[5], Int(itemForLine.intValue))
         }
         
-        return (k_layout_list, "fileName", true, "none", true)
+        setLayoutForView(key: key, layout: k_layout_list, sort: "fileName", ascending: true, groupBy: "none", directoryOnTop: true, titleButton: "_sorted_by_name_a_z_", itemForLine: 3)
+        return (k_layout_list, "fileName", true, "none", true, "_sorted_by_name_a_z_", 3)
     }
-    
-    
+        
     func convertSVGtoPNGWriteToUserData(svgUrlString: String, fileName: String?, width: CGFloat?, rewrite: Bool, account: String, closure: @escaping (String?) -> ()) {
         
         var fileNamePNG = ""

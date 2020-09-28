@@ -186,8 +186,10 @@ class NCDetailViewController: UIViewController {
         guard let metadata = self.metadata else { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let account = userInfo["account"] as? String, let serverUrl = userInfo["serverUrl"] as? String, let progress = userInfo["progress"] as? Float {
+            if let account = userInfo["account"] as? String, let serverUrl = userInfo["serverUrl"] as? String {
                 if account == metadata.account && serverUrl == metadata.serverUrl {
+                    let progressNumber = userInfo["progress"] as? NSNumber ?? 0
+                    let progress = progressNumber.floatValue
                     self.progress(progress)
                 }
             }
@@ -198,35 +200,29 @@ class NCDetailViewController: UIViewController {
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let metadataNew = userInfo["metadataNew"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int, let errorDescription = userInfo["errorDescription"] as? String {
+            if let metadata = userInfo["metadata"] as? tableMetadata, let metadataNew = userInfo["metadataNew"] as? tableMetadata {
                 if metadata.account != self.metadata?.account { return }
                 
-                if errorCode == 0 {
+                // IMAGE
+                if (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
                     
-                    // IMAGE
-                    if (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
-                        
-                        viewImage()
-                    }
+                    viewImage()
+                }
+                
+                // OTHER
+                if (metadata.typeFile == k_metadataTypeFile_document || metadata.typeFile == k_metadataTypeFile_unknown) && metadataNew.ocId == self.metadata?.ocId {
                     
-                    // OTHER
-                    if (metadata.typeFile == k_metadataTypeFile_document || metadata.typeFile == k_metadataTypeFile_unknown) && metadataNew.ocId == self.metadata?.ocId {
-                        
-                        self.metadata = metadataNew
-                        
-                        // update subview
-                        for view in backgroundView.subviews {
-                            if view is NCViewerNextcloudText {
-                                (view as! NCViewerNextcloudText).metadata = self.metadata
-                            }
-                            else if view is NCViewerRichdocument {
-                                (view as! NCViewerRichdocument).metadata = self.metadata
-                            }
+                    self.metadata = metadataNew
+                    
+                    // update subview
+                    for view in backgroundView.subviews {
+                        if view is NCViewerNextcloudText {
+                            (view as! NCViewerNextcloudText).metadata = self.metadata
+                        }
+                        else if view is NCViewerRichdocument {
+                            (view as! NCViewerRichdocument).metadata = self.metadata
                         }
                     }
-                    
-                } else {
-                    NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
                 }
             }
         }
@@ -236,33 +232,28 @@ class NCDetailViewController: UIViewController {
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int, let errorDescription = userInfo["errorDescription"] as? String{
+            if let metadata = userInfo["metadata"] as? tableMetadata {
                 if metadata.account != self.metadata?.account || metadata.serverUrl != self.metadata?.serverUrl { return }
+                                    
+                // IMAGE
+                if (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
                 
-                if errorCode == 0 {
-                    
-                    // IMAGE
-                    if (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
-                    
-                        let metadatas = self.metadatas.filter { $0.ocId != metadata.ocId }                        
-                        if metadatas.count > 0 {
-                            if self.metadata?.ocId == metadata.ocId {
-                                var index = viewerImageViewController!.index - 1
-                                if index < 0 { index = 0}
-                                self.metadata = metadatas[index]
-                            }
-                            viewImage()
-                        } else {
-                            viewUnload()
+                    let metadatas = self.metadatas.filter { $0.ocId != metadata.ocId }
+                    if metadatas.count > 0 {
+                        if self.metadata?.ocId == metadata.ocId {
+                            var index = viewerImageViewController!.index - 1
+                            if index < 0 { index = 0}
+                            self.metadata = metadatas[index]
                         }
-                    }
-                    
-                    // OTHER
-                    if (metadata.typeFile == k_metadataTypeFile_document || metadata.typeFile == k_metadataTypeFile_unknown) && metadata.ocId == self.metadata?.ocId {
+                        viewImage()
+                    } else {
                         viewUnload()
                     }
-                } else {
-                    NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
+                }
+                
+                // OTHER
+                if (metadata.typeFile == k_metadataTypeFile_document || metadata.typeFile == k_metadataTypeFile_unknown) && metadata.ocId == self.metadata?.ocId {
+                    viewUnload()
                 }
             }
         }
@@ -272,30 +263,24 @@ class NCDetailViewController: UIViewController {
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int, let errorDescription = userInfo["errorDescription"] as? String {
+            if let metadata = userInfo["metadata"] as? tableMetadata {
                 if metadata.account != self.metadata?.account || metadata.serverUrl != self.metadata?.serverUrl { return }
                 
-                if errorCode == 0 {
+                // IMAGE
+                if (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
                     
-                    // IMAGE
-                    if (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
-                        
-                        viewImage()
+                    viewImage()
+                }
+                
+                // OTHER
+                if (metadata.typeFile == k_metadataTypeFile_document || metadata.typeFile == k_metadataTypeFile_unknown) && metadata.ocId == self.metadata?.ocId {
+                    
+                    if let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(metadata.ocId) {
+                        self.metadata = metadata
+                        self.navigationController?.navigationBar.topItem?.title = metadata.fileNameView
+                    } else {
+                        viewUnload()
                     }
-                    
-                    // OTHER
-                    if (metadata.typeFile == k_metadataTypeFile_document || metadata.typeFile == k_metadataTypeFile_unknown) && metadata.ocId == self.metadata?.ocId {
-                        
-                        if let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId)) {
-                            self.metadata = metadata
-                            self.navigationController?.navigationBar.topItem?.title = metadata.fileNameView
-                        } else {
-                            viewUnload()
-                        }
-                    }
-                    
-                } else {
-                    NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
                 }
             }
         }
@@ -387,7 +372,6 @@ class NCDetailViewController: UIViewController {
                     navigationController.popViewController(animated: true)
                 }
             } else {
-                
                 closeAllSubView()
                 self.navigationController?.navigationBar.topItem?.title = ""
             }
@@ -416,7 +400,7 @@ class NCDetailViewController: UIViewController {
     
     @objc func viewFile(metadata: tableMetadata, selector: String?) {
                 
-        self.metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
+        self.metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(metadata.ocId)
         self.selector = selector
         self.backgroundView.image = nil
         
@@ -722,7 +706,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
         let ocId = metadata.ocId
         if metadata.typeFile == k_metadataTypeFile_image && !view.isLoading {
             DispatchQueue.global().async {
-                if let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", ocId)) {
+                if let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
                     if let image = NCViewerImageCommon.shared.getImage(metadata: metadata) {
                         DispatchQueue.main.async {
                             view.image = image
@@ -845,12 +829,20 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
 
 extension NCDetailViewController: NCSelectDelegate {
     
-    func dismissSelect(serverUrl: String?, metadata: tableMetadata?, type: String, buttonType: String, overwrite: Bool) {
+    func dismissSelect(serverUrl: String?, metadata: tableMetadata?, type: String, array: [Any], buttonType: String, overwrite: Bool) {
         if let metadata = self.metadata, let serverUrl = serverUrl {
             if buttonType == "done" {
-                NCNetworking.shared.moveMetadata(metadata, serverUrlTo: serverUrl, overwrite: overwrite) { (errorCode, errorDescription) in }
+                NCNetworking.shared.moveMetadata(metadata, serverUrlTo: serverUrl, overwrite: overwrite) { (errorCode, errorDescription) in
+                    if errorCode != 0 {
+                        NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
+                    }
+                }
             } else {
-                NCNetworking.shared.copyMetadata(metadata, serverUrlTo: serverUrl, overwrite: overwrite) { (errorCode, errorDescription) in }
+                NCNetworking.shared.copyMetadata(metadata, serverUrlTo: serverUrl, overwrite: overwrite) { (errorCode, errorDescription) in
+                    if errorCode != 0 {
+                        NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
+                    }
+                }
             }
         }
     }

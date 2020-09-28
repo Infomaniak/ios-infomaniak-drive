@@ -39,7 +39,7 @@
 @class tableMetadata;
 @class NCViewRichWorkspace;
 
-@interface CCMain : UITableViewController <UIActionSheetDelegate, UIGestureRecognizerDelegate, UIViewControllerPreviewingDelegate, UISplitViewControllerDelegate, UIPopoverControllerDelegate, UIDocumentMenuDelegate, UIDocumentPickerDelegate, UISearchResultsUpdating, UISearchControllerDelegate, UISearchBarDelegate, UIScrollViewDelegate, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate>
+@interface CCMain : UITableViewController <UIActionSheetDelegate, UIGestureRecognizerDelegate, UIViewControllerPreviewingDelegate, UISplitViewControllerDelegate, UIPopoverControllerDelegate, UIDocumentPickerDelegate, UISearchResultsUpdating, UISearchControllerDelegate, UISearchBarDelegate, UIScrollViewDelegate, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate>
 
 @property (nonatomic, strong) NCViewRichWorkspace *viewRichWorkspace;
 @property (nonatomic, strong) UIButton *sortButton;
@@ -70,25 +70,15 @@
 
 - (void)readFolder:(NSString *)serverUrl;
 - (void)readFileReloadFolder;
-
-- (void)uploadFileAsset:(NSMutableArray *)assets serverUrl:(NSString *)serverUrl useSubFolder:(BOOL)useSubFolder session:(NSString *)session;
-
-- (void)openAssetsPickerController;
-- (void)openImportDocumentPicker;
-- (void)createFolder;
-
 - (void)setTableViewHeader;
 
 //expose methods for swift
 - (void)didSelectAll;
 - (void)deleteMetadatas;
 - (void)saveSelectedFiles;
-- (void)downloadSelectedFilesFolders;
 - (void)moveOpenWindow:(NSArray *)indexPaths;
 
-- (void)minCharTextFieldDidChange:(UITextField *)sender;
 - (void)actionDelete:(NSIndexPath *)indexPath;
-- (void)createRichWorkspace;
 
 @end
 

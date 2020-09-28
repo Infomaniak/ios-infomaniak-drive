@@ -23,14 +23,11 @@
 
 import Foundation
 
-@objc class NCNetworkingNotificationCenter: NSObject {
+@objc class NCNetworkingNotificationCenter: NSObject, UIDocumentInteractionControllerDelegate {
     @objc public static let shared: NCNetworkingNotificationCenter = {
         let instance = NCNetworkingNotificationCenter()
         
-        NotificationCenter.default.addObserver(instance, selector: #selector(downloadFileStart(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_downloadFileStart), object: nil)
         NotificationCenter.default.addObserver(instance, selector: #selector(downloadedFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_downloadedFile), object: nil)
-
-        NotificationCenter.default.addObserver(instance, selector: #selector(uploadFileStart(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_uploadFileStart), object: nil)
         NotificationCenter.default.addObserver(instance, selector: #selector(uploadedFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_uploadedFile), object: nil)
         
         return instance
@@ -38,16 +35,10 @@ import Foundation
     
     let appDelegate = UIApplication.shared.delegate as! AppDelegate
     var viewerQuickLook: NCViewerQuickLook?
+    var docController: UIDocumentInteractionController?
     
     //MARK: - Download
 
-    @objc func downloadFileStart(_ notification: NSNotification) {
-        
-//        if let userInfo = notification.userInfo as NSDictionary? {
-//            if let ocId = userInfo["ocId"] as? String, let serverUrl = userInfo["serverUrl"] as? String { }
-//        }
-    }
-    
     @objc func downloadedFile(_ notification: NSNotification) {
             
         if let userInfo = notification.userInfo as NSDictionary? {
@@ -68,28 +59,30 @@ import Foundation
                         viewerQuickLook = NCViewerQuickLook.init()
                         viewerQuickLook?.quickLook(url: URL(fileURLWithPath: fileNamePath), viewController: appDelegate.activeMain)
                         
-                    case selectorLoadFileView, selectorLoadFileViewFavorite:
+                    case selectorLoadFileView:
                         
                         if UIApplication.shared.applicationState == UIApplication.State.active {
                                                         
                             if metadata.contentType.contains("opendocument") && !NCUtility.shared.isRichDocument(metadata) {
                                 
-                                NCMainCommon.sharedInstance.openIn(fileURL: fileURL, selector: selector)
+                                openIn(fileURL: fileURL, selector: selector)
                                 
                             } else if metadata.typeFile == k_metadataTypeFile_compress || metadata.typeFile == k_metadataTypeFile_unknown {
 
-                                NCMainCommon.sharedInstance.openIn(fileURL: fileURL, selector: selector)
+                                openIn(fileURL: fileURL, selector: selector)
                                 
                             } else if metadata.typeFile == k_metadataTypeFile_imagemeter {
                                 
-                                NCMainCommon.sharedInstance.openIn(fileURL: fileURL, selector: selector)
+                                openIn(fileURL: fileURL, selector: selector)
                                 
                             } else {
                                 
-                                if appDelegate.activeMain.view.window != nil {
-                                    appDelegate.activeMain.shouldPerformSegue(metadata, selector: selector)
-                                } else if appDelegate.activeFavorites.view.window != nil {
-                                    appDelegate.activeFavorites.shouldPerformSegue(metadata, selector: selector)
+                                if self.appDelegate.activeViewController is CCMain {
+                                    (self.appDelegate.activeViewController as! CCMain).shouldPerformSegue(metadata, selector: "")
+                                } else if self.appDelegate.activeViewController is NCFavorite {
+                                    (self.appDelegate.activeViewController as! NCFavorite).segue(metadata: metadata)
+                                } else if self.appDelegate.activeViewController is NCOffline {
+                                    (self.appDelegate.activeViewController as! NCOffline).segue(metadata: metadata)
                                 }
                             }
                         }
@@ -98,7 +91,7 @@ import Foundation
                         
                         if UIApplication.shared.applicationState == UIApplication.State.active {
                             
-                            NCMainCommon.sharedInstance.openIn(fileURL: fileURL, selector: selector)
+                            openIn(fileURL: fileURL, selector: selector)
                         }
                         
                     case selectorSaveAlbum:
@@ -107,7 +100,16 @@ import Foundation
                         
                     case selectorLoadCopy:
                         
-                        appDelegate.activeMain.copyFile(toPasteboard: metadata)
+                        var items = UIPasteboard.general.items
+                        
+                        do {
+                            let etagPasteboard = try NSKeyedArchiver.archivedData(withRootObject: metadata.ocId, requiringSecureCoding: false)
+                            items.append([k_metadataKeyedUnarchiver:etagPasteboard])
+                        } catch {
+                            print("error")
+                        }
+                        
+                        UIPasteboard.general.setItems(items, options: [:])
                         
                     case selectorLoadOffline:
                         
@@ -139,24 +141,34 @@ import Foundation
         }
     }
     
-    //MARK: - Upload
-
-    @objc func uploadFileStart(_ notification: NSNotification) {
+    func openIn(fileURL: URL, selector: String?) {
         
-//        if let userInfo = notification.userInfo as NSDictionary? {
-//            if let ocId = userInfo["ocId"] as? String, let serverUrl = userInfo["serverUrl"] as? String, let _ = userInfo["task"] as? URLSessionUploadTask { }
-//        }
+        docController = UIDocumentInteractionController(url: fileURL)
+        docController?.delegate = self
+        
+        if selector == selectorOpenInDetail {
+            guard let barButtonItem = appDelegate.activeDetail.navigationItem.rightBarButtonItem else { return }
+            guard let buttonItemView = barButtonItem.value(forKey: "view") as? UIView else { return }
+            
+            docController?.presentOptionsMenu(from: buttonItemView.frame, in: buttonItemView, animated: true)
+            
+        } else {
+            guard let splitViewController = appDelegate.window?.rootViewController as? UISplitViewController, let view = splitViewController.viewControllers.first?.view, let frame = splitViewController.viewControllers.first?.view.frame else {
+                return }
+    
+            docController?.presentOptionsMenu(from: frame, in: view, animated: true)
+        }
     }
     
+    //MARK: - Upload
+
     @objc func uploadedFile(_ notification: NSNotification) {
     
         if let userInfo = notification.userInfo as NSDictionary? {
             if let metadata = userInfo["metadata"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int, let errorDescription = userInfo["errorDescription"] as? String {
                                                 
                 if metadata.account == appDelegate.account {
-                    if errorCode == 0 {
-                        //appDelegate.startLoadAutoUpload()
-                    } else {
+                    if errorCode != 0 {
                         if errorCode != -999 && errorCode != 401 && errorDescription != "" {
                             NCContentPresenter.shared.messageNotification("_upload_file_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
                         }
@@ -165,6 +177,5 @@ import Foundation
             }
         }
     }
-    
 }
 

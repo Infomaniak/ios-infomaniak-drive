@@ -68,15 +68,16 @@
     
     // Networking
     [[NCCommunicationCommon shared] setupWithDelegate:[NCNetworking shared]];
-    [[NCCommunicationCommon shared] setupWithUserAgent:[CCUtility getUserAgent] capabilitiesGroup:[NCBrandOptions sharedInstance].capabilitiesGroups];
+    [[NCCommunicationCommon shared] setupWithUserAgent:[CCUtility getUserAgent]];
+    
     NSInteger logLevel = [CCUtility getLogLevel];
     [[NCCommunicationCommon shared] setFileLogWithLevel:logLevel echo:true];
     NSString *versionApp = [NSString stringWithFormat:@"%@.%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"], [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleVersion"]];
     NSString *versionNextcloudiOS = [NSString stringWithFormat:[NCBrandOptions sharedInstance].textCopyrightNextcloudiOS, versionApp];
     if (isSimulatorOrTestFlight) {
-        [[NCCommunicationCommon shared] writeLog:[NSString stringWithFormat:@"[LOG] Start session with level %lu %@ (Simulator / TestFlight)", (unsigned long)logLevel, versionNextcloudiOS]];
+        [[NCCommunicationCommon shared] writeLog:[NSString stringWithFormat:@"Start session with level %lu %@ (Simulator / TestFlight)", (unsigned long)logLevel, versionNextcloudiOS]];
     } else {
-        [[NCCommunicationCommon shared] writeLog:[NSString stringWithFormat:@"[LOG] Start session with level %lu %@", (unsigned long)logLevel, versionNextcloudiOS]];
+        [[NCCommunicationCommon shared] writeLog:[NSString stringWithFormat:@"Start session with level %lu %@", (unsigned long)logLevel, versionNextcloudiOS]];
     }
     
     // Set account, if no exists clear all
@@ -107,7 +108,9 @@
 
     self.listProgressMetadata = [NSMutableDictionary new];
     self.listMainVC = [NSMutableDictionary new];
-   
+    self.listFavoriteVC = [NSMutableDictionary new];
+    self.listOfflineVC = [NSMutableDictionary new];
+
     // Push Notification
     [application registerForRemoteNotifications];
     
@@ -210,9 +213,6 @@
     // Request Passcode
     [self passcodeWithAutomaticallyPromptForBiometricValidation:true];
     
-    // Request Service Server Nextcloud
-    [[NCService shared] startRequestServicesServer];
-    
     // Initialize Auto upload
     [[NCAutoUpload sharedInstance] initStateAutoUpload];
     
@@ -224,6 +224,11 @@
     
     // RichDocument
     [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_richdocumentGrabFocus object:nil];
+    
+    // Request Service Server Nextcloud
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
+        [[NCService shared] startRequestServicesServer];
+    });
 }
 
 //
@@ -265,7 +270,7 @@
 //
 - (void)applicationWillTerminate:(UIApplication *)application
 {    
-    [[NCCommunicationCommon shared] writeLog:@"[LOG] bye bye"];
+    [[NCCommunicationCommon shared] writeLog:@"bye bye"];
 }
 
 #pragma --------------------------------------------------------------------------------------------
@@ -463,7 +468,7 @@
     NSInteger serverVersionMajor = [[NCManageDatabase sharedInstance] getCapabilitiesServerIntWithAccount:account elements:NCElementsJSON.shared.capabilitiesVersionMajor];
     if (serverVersionMajor > 0) {
         [[NCCommunicationCommon shared] setupWithNextcloudVersion:serverVersionMajor];
-     }
+    }
     
     [[NCCommunicationCommon shared] setupWithWebDav:[[NCUtility shared] getWebDAVWithAccount:account]];
     [[NCCommunicationCommon shared] setupWithDav:[[NCUtility shared] getDAV]];
@@ -513,7 +518,7 @@
             [[NCCommunication shared] subscribingPushProxyWithProxyServerUrl:proxyServerPath pushToken:self.pushKitToken deviceIdentifier:deviceIdentifier signature:signature publicKey:publicKey userAgent:userAgent completionHandler:^(NSInteger errorCode, NSString *errorDescription) {
                 if (errorCode == 0) {
                     
-                    [[NCCommunicationCommon shared] writeLog:@"[LOG] Subscribed to Push Notification server & proxy successfully"];
+                    [[NCCommunicationCommon shared] writeLog:@"Subscribed to Push Notification server & proxy successfully"];
 
                     [CCUtility setPushNotificationToken:account token:self.pushKitToken];
                     [CCUtility setPushNotificationDeviceIdentifier:account deviceIdentifier:deviceIdentifier];
@@ -542,7 +547,7 @@
             [[NCCommunication shared] unsubscribingPushProxyWithProxyServerUrl:proxyServerPath deviceIdentifier:deviceIdentifier signature:signature publicKey:publicKey userAgent:userAgent completionHandler:^(NSInteger errorCode, NSString *errorDescription) {
                 if (errorCode == 0) {
                 
-                    [[NCCommunicationCommon shared] writeLog:@"[LOG] Unsubscribed to Push Notification server & proxy successfully."];
+                    [[NCCommunicationCommon shared] writeLog:@"Unsubscribed to Push Notification server & proxy successfully."];
                     
                     [CCUtility setPushNotificationPublicKey:account data:nil];
                     [CCUtility setPushNotificationSubscribingPublicKey:account publicKey:nil];
@@ -866,34 +871,6 @@
     }
 }
 
-- (NSString *)getTabBarControllerActiveServerUrl
-{
-    NSString *serverUrl = [[NCUtility shared] getHomeServerWithUrlBase:self.urlBase account:self.account];
-
-    UISplitViewController *splitViewController = (UISplitViewController *)self.window.rootViewController;
-    if ([splitViewController isKindOfClass:[UISplitViewController class]]) {
-        UINavigationController *masterNavigationController = [splitViewController.viewControllers firstObject];
-        if ([masterNavigationController isKindOfClass:[UINavigationController class]]) {
-            UITabBarController *tabBarController = [masterNavigationController.viewControllers firstObject];
-            if ([tabBarController isKindOfClass:[UITabBarController class]]) {
-                NSInteger index = tabBarController.selectedIndex;
-                   
-                // select active serverUrl
-                if (index == k_tabBarApplicationIndexFile) {
-                    serverUrl = self.activeMain.serverUrl;
-                } else if (index == k_tabBarApplicationIndexFavorite) {
-                    if (self.activeFavorites.serverUrl)
-                        serverUrl = self.activeFavorites.serverUrl;
-                } else if (index == k_tabBarApplicationIndexMedia) {
-                    serverUrl = [[NCManageDatabase sharedInstance] getAccountAutoUploadPathWithUrlBase:self.urlBase account:self.account];
-                }
-            }
-        }
-    }
-    
-    return serverUrl;
-}
-
 #pragma --------------------------------------------------------------------------------------------
 #pragma mark ===== Theming Color =====
 #pragma --------------------------------------------------------------------------------------------
@@ -917,7 +894,7 @@
         if (isTooLight) {
             NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.brandElement darkerBy:10];
         } else if (isTooDark) {
-            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.brandElement lighterBy:25];
+            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.brandElement lighterBy:40];
         }
     
     } else {
@@ -928,7 +905,7 @@
         if (isTooLight) {
             NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.customer darkerBy:10];
         } else if (isTooDark) {
-            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.customer lighterBy:25];
+            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.customer lighterBy:40];
         } else {
             NCBrandColor.sharedInstance.brandElement = NCBrandColor.sharedInstance.customer;
         }
@@ -939,7 +916,7 @@
         
     [NCBrandColor.sharedInstance setDarkMode];
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        [[NCMainCommon sharedInstance] createImagesThemingColor];
+        [[NCMainCommon shared] createImagesThemingColor];
         [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_changeTheming object:nil];
     });
 }
@@ -999,23 +976,15 @@
         return;
     }
     
-    [[NCCommunicationCommon shared] writeLog:@"[LOG] Start perform Fetch With Completion Handler"];
+    [[NCCommunicationCommon shared] writeLog:@"Start perform Fetch With Completion Handler"];
     
     // Verify new photo
     [[NCAutoUpload sharedInstance] initStateAutoUpload];
     
     // after 20 sec
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 20 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-        
-        NSInteger results = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"session != ''"] page:0 limit:0 sorted:@"fileName" ascending:NO].count;
-        
-        if (results > 0) {
-            completionHandler(UIBackgroundFetchResultNewData);
-        } else {
-            completionHandler(UIBackgroundFetchResultNoData);
-        }
-        
-        [[NCCommunicationCommon shared] writeLog:@"[LOG] End 20 sec. perform Fetch With Completion Handler"];
+        [[NCCommunicationCommon shared] writeLog:@"End 20 sec. perform Fetch With Completion Handler"];
+        completionHandler(UIBackgroundFetchResultNoData);
     });
 }
 
@@ -1028,7 +997,9 @@
 //
 - (void)application:(UIApplication *)application handleEventsForBackgroundURLSession:(NSString *)identifier completionHandler:(void (^)(void))completionHandler
 {
-    [[NCCommunicationCommon shared] writeLog:[NSString stringWithFormat:@"[LOG] Start handle Events For Background URLSession: %@", identifier]];
+    [[NCCommunicationCommon shared] writeLog:[NSString stringWithFormat:@"Start handle Events For Background URLSession: %@", identifier]];
+    
+    [self updateApplicationIconBadgeNumber];
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 20 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         self.backgroundSessionCompletionHandler = completionHandler;
@@ -1247,22 +1218,16 @@
             }
         }
     
-        [self.window.rootViewController presentViewController:self.passcodeViewController animated:YES completion:nil];
-    }
+        [self.window.rootViewController presentViewController:self.passcodeViewController animated:YES completion:^{
+            [self enableTouchFaceID:automaticallyPromptForBiometricValidation];
+        }];
+        
+    } else {
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
-        if (CCUtility.getEnableTouchFaceID && automaticallyPromptForBiometricValidation && self.passcodeViewController.view.window) {
-            [[LAContext new] evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics localizedReason:[[NCBrandOptions sharedInstance] brand] reply:^(BOOL success, NSError * _Nullable error) {
-                if (success) {
-                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
-                        [self.passcodeViewController dismissViewControllerAnimated:YES completion:^{
-                            self.passcodeViewController = nil;
-                        }];
-                    });
-                }
-            }];
-        }
-    });
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
+            [self enableTouchFaceID:automaticallyPromptForBiometricValidation];
+        });
+    }
 }
 
 - (void)didInputCorrectPasscodeInPasscodeViewController:(TOPasscodeViewController *)passcodeViewController
@@ -1288,6 +1253,21 @@
             });
         }
     }];
+}
+
+- (void)enableTouchFaceID:(BOOL)automaticallyPromptForBiometricValidation
+{
+    if (CCUtility.getEnableTouchFaceID && automaticallyPromptForBiometricValidation && self.passcodeViewController.view.window) {
+        [[LAContext new] evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics localizedReason:[[NCBrandOptions sharedInstance] brand] reply:^(BOOL success, NSError * _Nullable error) {
+            if (success) {
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
+                    [self.passcodeViewController dismissViewControllerAnimated:YES completion:^{
+                        self.passcodeViewController = nil;
+                    }];
+                });
+            }
+        }];
+    }
 }
 
 #pragma --------------------------------------------------------------------------------------------

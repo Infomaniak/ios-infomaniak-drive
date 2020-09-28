@@ -100,43 +100,6 @@
     [UICKeyChainStore setString:sSet forKey:@"enableTouchFaceID" service:k_serviceShareKeyChain];
 }
 
-+ (NSString *)getOrderSettings
-{
-    NSString *order = [UICKeyChainStore stringForKey:@"order" service:k_serviceShareKeyChain];
-    
-    if (order == nil) {
-        
-        [self setOrderSettings:@"fileName"];
-        return @"fileName";
-    }
-    
-    return order;
-}
-
-+ (void)setOrderSettings:(NSString *)order
-{
-    [UICKeyChainStore setString:order forKey:@"order" service:k_serviceShareKeyChain];
-}
-
-+ (BOOL)getAscendingSettings
-{
-    NSString *ascending = [UICKeyChainStore stringForKey:@"ascending" service:k_serviceShareKeyChain];
-    
-    if (ascending == nil) {
-        
-        [self setAscendingSettings:YES];
-        return YES;
-    }
-    
-    return [ascending boolValue];
-}
-
-+ (void)setAscendingSettings:(BOOL)ascendente
-{
-    NSString *sAscendente = (ascendente) ? @"true" : @"false";
-    [UICKeyChainStore setString:sAscendente forKey:@"ascending" service:k_serviceShareKeyChain];
-}
-
 + (NSString *)getGroupBySettings
 {
     NSString *groupby = [UICKeyChainStore stringForKey:@"groupby" service:k_serviceShareKeyChain];
@@ -189,7 +152,7 @@
     number++;
     if (number >= 9999) number = 1;
     
-    [UICKeyChainStore setString:[NSString stringWithFormat:@"%ld", number] forKey:@"incrementalnumber"];
+    [UICKeyChainStore setString:[NSString stringWithFormat:@"%ld", number] forKey:@"incrementalnumber" service:k_serviceShareKeyChain];
     
     return [NSString stringWithFormat:@"%04ld", number];
 }
@@ -252,25 +215,6 @@
 + (void)setHint:(NSString *)hint
 {
     [UICKeyChainStore setString:hint forKey:@"hint" service:k_serviceShareKeyChain];
-}
-
-+ (BOOL)getDirectoryOnTop
-{
-    NSString *valueString = [UICKeyChainStore stringForKey:@"directoryOnTop" service:k_serviceShareKeyChain];
-    
-    // Default TRUE
-    if (valueString == nil) {
-        [self setDirectoryOnTop:YES];
-        return true;
-    }
-    
-    return [valueString boolValue];
-}
-
-+ (void)setDirectoryOnTop:(BOOL)directoryOnTop
-{
-    NSString *sDirectoryOnTop = (directoryOnTop) ? @"true" : @"false";
-    [UICKeyChainStore setString:sDirectoryOnTop forKey:@"directoryOnTop" service:k_serviceShareKeyChain];
 }
 
 + (BOOL)getOriginalFileName:(NSString *)key
@@ -615,6 +559,12 @@
 
 + (void)setCertificateError:(NSString *)account error:(BOOL)error
 {
+    // In background do not write the error
+    UIApplicationState state = [[UIApplication sharedApplication] applicationState];
+    if (error && (state == UIApplicationStateBackground || state == UIApplicationStateInactive)) {
+        return;
+    }
+    
     NSString *key = [@"certificateError" stringByAppendingString:account];
     NSString *sError = (error) ? @"true" : @"false";
     
@@ -1346,11 +1296,11 @@
     return fileName;
 }
 
-+ (NSArray *)createNameSubFolder:(PHFetchResult *)alassets
++ (NSArray *)createNameSubFolder:(NSArray *)assets
 {
     NSMutableOrderedSet *datesSubFolder = [NSMutableOrderedSet new];
     
-    for (PHAsset *asset in alassets) {
+    for (PHAsset *asset in assets) {
         
         NSDate *assetDate = asset.creationDate;
         
@@ -1429,13 +1379,14 @@
     return [NSString stringWithFormat:@"%f", [[NSDate date] timeIntervalSince1970]];
 }
 
-+ (void)extractImageVideoFromAssetLocalIdentifierForUpload:(tableMetadata *)metadata notification:(BOOL)notification completion:(void(^)(tableMetadata *newMetadata, NSString* fileNamePath))completion
++ (void)extractImageVideoFromAssetLocalIdentifierForUpload:(tableMetadata *)metadataForUpload notification:(BOOL)notification completion:(void(^)(tableMetadata *metadata, NSString* fileNamePath))completion
 {
-    if (metadata == nil) {
+    if (metadataForUpload == nil) {
         completion(nil, nil);
         return;
     }
-    tableMetadata *newMetadata = [[NCManageDatabase sharedInstance] copyObjectWithMetadata:metadata];
+    
+    tableMetadata *metadata = [[NCManageDatabase sharedInstance] copyObjectWithMetadata:metadataForUpload];
     
     PHFetchResult *result = [PHAsset fetchAssetsWithLocalIdentifiers:@[metadata.assetLocalIdentifier] options:nil];
     if (!result.count) {
@@ -1451,17 +1402,6 @@
     NSDate *creationDate = asset.creationDate;
     NSDate *modificationDate = asset.modificationDate;
     NSArray *resourceArray = [PHAssetResource assetResourcesForAsset:asset];
-    /*
-    BOOL isLocallayAvailable = [[resourceArray.firstObject valueForKey:@"locallyAvailable"] boolValue];
-    if (!isLocallayAvailable) {
-        if (notification) {
-            [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_uploadedFile object:nil userInfo:@{@"metadata": metadata, @"errorCode": @(k_CCErrorInternalError), @"errorDescription": @"_err_asset_not_found_locally_"}];
-        }
-        
-        completion(nil, nil);
-        return;
-    }
-    */
     long fileSize = [[resourceArray.firstObject valueForKey:@"fileSize"] longValue];
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
@@ -1501,7 +1441,7 @@
                     
                     NSString *fileNameJPEG = [[metadata.fileName lastPathComponent] stringByDeletingPathExtension];
                     fileName = [fileNameJPEG stringByAppendingString:@".jpg"];
-                    newMetadata.contentType = @"image/jpeg";
+                    metadata.contentType = @"image/jpeg";
                 }
                 
                 NSString *fileNamePath = [NSTemporaryDirectory() stringByAppendingString:fileName];
@@ -1509,19 +1449,19 @@
                 [[NSFileManager defaultManager]removeItemAtPath:fileNamePath error:nil];
                 [imageData writeToFile:fileNamePath options:NSDataWritingAtomic error:&error];
                 
-                if (newMetadata.e2eEncrypted) {
-                    newMetadata.fileNameView = fileName;
+                if (metadata.e2eEncrypted) {
+                    metadata.fileNameView = fileName;
                 } else {
-                    newMetadata.fileNameView = fileName;
-                    newMetadata.fileName = fileName;
+                    metadata.fileNameView = fileName;
+                    metadata.fileName = fileName;
                 }
                      
-                newMetadata.creationDate = creationDate;
-                newMetadata.date = modificationDate;
-                newMetadata.size = fileSize;
+                metadata.creationDate = creationDate;
+                metadata.date = modificationDate;
+                metadata.size = fileSize;
                 
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    completion(newMetadata, fileNamePath);
+                    completion(metadata, fileNamePath);
                 });
             }];
         }
@@ -1549,7 +1489,7 @@
                 
                 if ([asset isKindOfClass:[AVURLAsset class]]) {
                     
-                    NSString *fileNamePath = [NSTemporaryDirectory() stringByAppendingString:newMetadata.fileNameView];
+                    NSString *fileNamePath = [NSTemporaryDirectory() stringByAppendingString:metadata.fileNameView];
                     NSURL *fileNamePathURL = [[NSURL alloc] initFileURLWithPath:fileNamePath];
                     NSError *error = nil;
                                        
@@ -1568,11 +1508,11 @@
                             
                         } else {
                             
-                            newMetadata.creationDate = creationDate;
-                            newMetadata.date = modificationDate;
-                            newMetadata.size = fileSize;
+                            metadata.creationDate = creationDate;
+                            metadata.date = modificationDate;
+                            metadata.size = fileSize;
                             
-                            completion(newMetadata, fileNamePath);
+                            completion(metadata, fileNamePath);
                         }
                     });
                 }
@@ -1625,14 +1565,14 @@
 {
     NSString *home = [[NCUtility shared] getHomeServerWithUrlBase:urlBase account:account];
         
-    if ([serverUrl isEqualToString:home] || [serverUrl isEqualToString:@".."]) {
-        
-        return false;
-        
-    } else if (e2eEncrypted) {
-        
+    if (e2eEncrypted) {
+    
         return true;
         
+    } else if ([serverUrl isEqualToString:home] || [serverUrl isEqualToString:@".."]) {
+        
+        return false;
+
     } else {
        
         tableDirectory *directory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", account, serverUrl]];

@@ -79,7 +79,10 @@
 
 // Database Realm
 #define k_databaseDefault                               @"nextcloud.realm"
-#define k_databaseSchemaVersion                         141
+#define k_databaseSchemaVersion                         143
+
+// Database JSON
+#define k_databaseDefaultJSON                           @"nextcloud.json"
 
 // Intro selector
 #define k_intro_login                                   0
@@ -125,16 +128,20 @@
 //
 #define k_metadataStatusNormal                          0
 
+#define k_metadataStatustypeDownload                    1
+
 #define k_metadataStatusWaitDownload                    2
 #define k_metadataStatusInDownload                      3
 #define k_metadataStatusDownloading                     4
 #define k_metadataStatusDownloadError                   5
 
-#define k_metadataStatusWaitUpload                      6
-#define k_metadataStatusInUpload                        7
-#define k_metadataStatusUploading                       8
-#define k_metadataStatusUploadError                     9
-#define k_metadataStatusUploadForcedStart               10
+#define k_metadataStatusTypeUpload                      6
+
+#define k_metadataStatusWaitUpload                      7
+#define k_metadataStatusInUpload                        8
+#define k_metadataStatusUploading                       9
+#define k_metadataStatusUploadError                     10
+#define k_metadataStatusUploadForcedStart               11
 
 // Timer
 #define k_timerAutoUpload                               5
@@ -171,7 +178,6 @@
 #define selectorReadFile                                @"readFile"
 #define selectorListingFavorite                         @"listingFavorite"
 #define selectorLoadFileView                            @"loadFileView"
-#define selectorLoadFileViewFavorite                    @"loadFileViewFavorite"
 #define selectorLoadFileQuickLook                       @"loadFileQuickLook"
 #define selectorLoadCopy                                @"loadCopy"
 #define selectorLoadOffline                             @"loadOffline"
@@ -270,6 +276,9 @@
 #define k_layout_view_richdocument                      @"LayoutRichdocument"
 #define k_layout_view_trash                             @"LayoutTrash"
 #define k_layout_view_offline                           @"LayoutOffline"
+#define k_layout_view_favorite                          @"LayoutFavorite"
+#define k_layout_view_main                              @"LayoutMain"
+#define k_layout_view_transfers                         @"LayoutTransfers"
 
 // Rich Workspace
 #define k_fileNameRichWorkspace                         @"Readme.md"
@@ -315,18 +324,25 @@
 #define k_notificationCenter_reloadDataNCShare          @"reloadDataNCShare"
 #define k_notificationCenter_reloadDataSource           @"reloadDataSource"                 // userInfo: ocId?, serverUrl?
 #define k_notificationCenter_reloadMediaDataSource      @"reloadMediaDataSource"
+#define k_notificationCenter_mediaFileNotFound          @"mediaFileNotFound"                // userInfo: metadata
+#define k_notificationCenter_changeStatusFolderE2EE     @"changeStatusFolderE2EE"           // userInfo: serverUrl
 
-#define k_notificationCenter_uploadFileStart            @"uploadFileStart"                  // userInfo: ocId, task, serverUrl, account
-#define k_notificationCenter_uploadedFile               @"uploadedFile"                     // userInfo: metadata, errorCode, errorDescription
-#define k_notificationCenter_downloadFileStart          @"downloadFileStart"                // userInfo: ocId, serverUrl, account
+#define k_notificationCenter_downloadStartFile          @"downloadStartFile"                // userInfo: metadata
 #define k_notificationCenter_downloadedFile             @"downloadedFile"                   // userInfo: metadata, selector, errorCode, errorDescription
+#define k_notificationCenter_downloadCancelFile         @"downloadCancelFile"               // userInfo: metadata
+
+#define k_notificationCenter_uploadStartFile            @"uploadStartFile"                  // userInfo: metadata
+#define k_notificationCenter_uploadedFile               @"uploadedFile"                     // userInfo: metadata, ocIdTemp, errorCode, errorDescription
+#define k_notificationCenter_uploadCancelFile           @"uploadCancelFile"                 // userInfo: metadata
+
 #define k_notificationCenter_progressTask               @"progressTask"                     // userInfo: account, ocId, serverUrl, status, progress, totalBytes, totalBytesExpected
-#define k_notificationCenter_createFolder               @"createFolder"                     // userInfo: fileName, serverUrl, errorCode, errorDescription
-#define k_notificationCenter_deleteFile                 @"deleteFile"                       // userInfo: metadata, errorCode, errorDescription
+
+#define k_notificationCenter_createFolder               @"createFolder"                     // userInfo: metadata
+#define k_notificationCenter_deleteFile                 @"deleteFile"                       // userInfo: metadata, onlyLocal
 #define k_notificationCenter_renameFile                 @"renameFile"                       // userInfo: metadata, errorCode, errorDescription
-#define k_notificationCenter_moveFile                   @"moveFile"                         // userInfo: metadata, metadataNew, errorCode, errorDescription
-#define k_notificationCenter_copyFile                   @"copyFile"                         // userInfo: metadata, serverUrlTo, errorCode, errorDescription
-#define k_notificationCenter_favoriteFile               @"favoriteFile"                     // userInfo: metadata, favorite, errorCode, errorDescription
+#define k_notificationCenter_moveFile                   @"moveFile"                         // userInfo: metadata, metadataNew
+#define k_notificationCenter_copyFile                   @"copyFile"                         // userInfo: metadata, serverUrlTo
+#define k_notificationCenter_favoriteFile               @"favoriteFile"                     // userInfo: metadata
 
 #define k_notificationCenter_menuSearchTextPDF          @"menuSearchTextPDF"
 #define k_notificationCenter_menuDownloadImage          @"menuDownloadImage"                // userInfo: metadata

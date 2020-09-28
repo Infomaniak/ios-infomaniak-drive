@@ -47,6 +47,8 @@ class NCActivity: UIViewController, DZNEmptyDataSetSource, DZNEmptyDataSetDelega
     override func viewDidLoad() {
         super.viewDidLoad()
     
+        self.navigationController?.navigationBar.prefersLargeTitles = true
+        
         self.title = NSLocalizedString("_activity_", comment: "")
 
         // empty Data Source
@@ -58,8 +60,8 @@ class NCActivity: UIViewController, DZNEmptyDataSetSource, DZNEmptyDataSetDelega
         tableView.tableFooterView = UIView()
         tableView.contentInset = insets
         
-        // changeTheming
         NotificationCenter.default.addObserver(self, selector: #selector(self.changeTheming), name: NSNotification.Name(rawValue: k_notificationCenter_changeTheming), object: nil)
+        
         changeTheming()
     }
     
@@ -67,11 +69,12 @@ class NCActivity: UIViewController, DZNEmptyDataSetSource, DZNEmptyDataSetDelega
         super.viewWillAppear(animated)
         
         loadDataSource()
-        loadActivity(idActivity: 0)
     }
     
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        loadActivity(idActivity: 0)
     }
     
     @objc func changeTheming() {
@@ -103,7 +106,7 @@ class NCActivity: UIViewController, DZNEmptyDataSetSource, DZNEmptyDataSetDelega
     }
     
     func image(forEmptyDataSet scrollView: UIScrollView) -> UIImage? {
-        return CCGraphics.changeThemingColorImage(UIImage.init(named: "activity"), width: 300, height: 300, color: NCBrandColor.sharedInstance.graySoft)
+        return CCGraphics.changeThemingColorImage(UIImage.init(named: "activity"), width: 300, height: 300, color: .gray)
     }
     
     func title(forEmptyDataSet scrollView: UIScrollView) -> NSAttributedString? {
@@ -358,7 +361,7 @@ extension activityTableViewCell: UICollectionViewDelegate {
                 if let viewController = UIStoryboard.init(name: "NCTrash", bundle: nil).instantiateInitialViewController() as? NCTrash {
                     if let result = NCManageDatabase.sharedInstance.getTrashItem(fileId: String(activityPreview.fileId), account: activityPreview.account) {
                         viewController.blinkocId = result.fileId
-                        viewController.path = result.filePath
+                        viewController.trashPath = result.filePath
                         (responder as? UIViewController)!.navigationController?.pushViewController(viewController, animated: true)
                     } else {
                         NCContentPresenter.shared.messageNotification("_error_", description: "_trash_file_not_found_", delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.info, errorCode: Int(k_CCErrorInternalError))

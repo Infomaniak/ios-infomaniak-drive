@@ -137,13 +137,13 @@
     
     if ([CLLocationManager locationServicesEnabled]) {
         
-        [[NCCommunicationCommon shared] writeLog:[NSString stringWithFormat:@"[LOG] checkIfLocationIsEnabled : authorizationStatus: %d", [CLLocationManager authorizationStatus]]];
+        [[NCCommunicationCommon shared] writeLog:[NSString stringWithFormat:@"Check if location is enabled: authorizationStatus: %d", [CLLocationManager authorizationStatus]]];
         
         if ([CLLocationManager authorizationStatus] != kCLAuthorizationStatusAuthorizedAlways) {
             
             if ([CLLocationManager authorizationStatus] == kCLAuthorizationStatusNotDetermined ) {
                 
-                [[NCCommunicationCommon shared] writeLog:@"[LOG] checkIfLocationIsEnabled : Location services not determined"];
+                [[NCCommunicationCommon shared] writeLog:@"Check if location is enabled: Location services not determined"];
                 [[CCManageLocation sharedInstance] startSignificantChangeUpdates];
                 
             } else {
@@ -295,7 +295,7 @@
             //check location
             if ([CLLocationManager authorizationStatus] == kCLAuthorizationStatusAuthorizedAlways) {
                 
-                [[NCCommunicationCommon shared] writeLog:@"[LOG] Changed Location call uploadNewAssets"];
+                [[NCCommunicationCommon shared] writeLog:@"Changed Location call upload new assets"];
                 [self uploadNewAssets];
             }
             
@@ -346,17 +346,17 @@
     NSString *serverUrl;
     
     // Check Asset : NEW or FULL
-    PHFetchResult *newAssetToUpload = [self getCameraRollAssets:tableAccount selector:selector alignPhotoLibrary:NO];
+    NSArray *newAssetToUpload = [self getCameraRollAssets:tableAccount selector:selector alignPhotoLibrary:NO];
     
     // News Assets ? if no verify if blocked Table Auto Upload -> Autostart
     if (newAssetToUpload == nil || [newAssetToUpload count] == 0) {
         
-        [[NCCommunicationCommon shared] writeLog:@"[LOG] Auto upload, no new asset found"];
+        [[NCCommunicationCommon shared] writeLog:@"Auto upload, no new assets found"];
         return;
         
     } else {
         
-        [[NCCommunicationCommon shared] writeLog:[NSString stringWithFormat:@"[LOG] Auto upload, new %lu asset found", (unsigned long)[newAssetToUpload count]]];
+        [[NCCommunicationCommon shared] writeLog:[NSString stringWithFormat:@"Auto upload, new %lu assets found", (unsigned long)[newAssetToUpload count]]];
     }
     
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -364,12 +364,13 @@
             if (!_hud)
                 _hud = [[CCHud alloc] initWithView:[[[UIApplication sharedApplication] delegate] window]];
         
-            [_hud visibleHudTitle:NSLocalizedString(@"_create_full_upload_", nil) mode:MBProgressHUDModeIndeterminate color:nil];
+            [[NCContentPresenter shared] messageNotification:@"_attention_" description:@"_create_full_upload_" delay:k_dismissAfterSecondLong type:messageTypeInfo errorCode:0 forced:true];
+            [_hud visibleHudTitle:NSLocalizedString(@"_wait_", nil) mode:MBProgressHUDModeIndeterminate color:nil];
         }
     });
     
     // Create the folder for auto upload & if request the subfolders
-    if ([[NCNetworking shared] createFoloderWithAssets:newAssetToUpload selector:selector useSubFolder:tableAccount.autoUploadCreateSubfolder account:appDelegate.account urlBase:appDelegate.urlBase]) {
+    if ([[NCNetworking shared] createFolderWithAssets:newAssetToUpload selector:selector useSubFolder:tableAccount.autoUploadCreateSubfolder account:appDelegate.account urlBase:appDelegate.urlBase]) {
         if ([selector isEqualToString:selectorUploadAutoUploadAll]) {        
             [[NCContentPresenter shared] messageNotification:@"_error_" description:@"_error_createsubfolders_upload_" delay:k_dismissAfterSecond type:messageTypeError errorCode:k_CCErrorInternalError forced:true];
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -395,10 +396,15 @@
         
         // Select type of session
         
-        if (assetMediaType == PHAssetMediaTypeImage && tableAccount.autoUploadWWAnPhoto == NO) session = NCCommunicationCommon.shared.sessionIdentifierBackground;
-        if (assetMediaType == PHAssetMediaTypeVideo && tableAccount.autoUploadWWAnVideo == NO) session = NCCommunicationCommon.shared.sessionIdentifierBackground;
-        if (assetMediaType == PHAssetMediaTypeImage && tableAccount.autoUploadWWAnPhoto) session = NCCommunicationCommon.shared.sessionIdentifierBackgroundWWan;
-        if (assetMediaType == PHAssetMediaTypeVideo && tableAccount.autoUploadWWAnVideo) session = NCCommunicationCommon.shared.sessionIdentifierBackgroundWWan;
+        if ([selector isEqualToString:selectorUploadAutoUploadAll]) {
+            session = NCCommunicationCommon.shared.sessionIdentifierUpload;
+        } else {
+            if (assetMediaType == PHAssetMediaTypeImage && tableAccount.autoUploadWWAnPhoto == NO) session = NCNetworking.shared.sessionIdentifierBackground;
+            else if (assetMediaType == PHAssetMediaTypeVideo && tableAccount.autoUploadWWAnVideo == NO) session = NCNetworking.shared.sessionIdentifierBackground;
+            else if (assetMediaType == PHAssetMediaTypeImage && tableAccount.autoUploadWWAnPhoto) session = NCNetworking.shared.sessionIdentifierBackgroundWWan;
+            else if (assetMediaType == PHAssetMediaTypeVideo && tableAccount.autoUploadWWAnVideo) session = NCNetworking.shared.sessionIdentifierBackgroundWWan;
+            else session = NCNetworking.shared.sessionIdentifierBackground;
+        }
         
         NSDateFormatter *formatter = [NSDateFormatter new];
         
@@ -444,6 +450,9 @@
                         
                         tableMetadata *metadataMOVForUpload = [[NCManageDatabase sharedInstance] createMetadataWithAccount:appDelegate.account fileName:fileNameMove ocId:ocId serverUrl:serverUrl urlBase:appDelegate.urlBase url:@"" contentType:@"" livePhoto:livePhoto];
                         
+                        metadataForUpload.livePhoto = true;
+                        metadataMOVForUpload.livePhoto = true;
+                        
                         metadataMOVForUpload.session = session;
                         metadataMOVForUpload.sessionSelector = selector;
                         metadataMOVForUpload.size = fileSize;
@@ -451,10 +460,10 @@
                         metadataMOVForUpload.typeFile = k_metadataTypeFile_video;
 
                         [metadataFull addObject:metadataMOVForUpload];
-                        
+                                                
                         // Update database Auto Upload
                         if ([selector isEqualToString:selectorUploadAutoUpload])
-                            [[NCManageDatabase sharedInstance] addMetadata:metadataMOVForUpload];
+                            [[NCManageDatabase sharedInstance] addMetadataForAutoUpload:metadataMOVForUpload];
                     }
                     
                     dispatch_semaphore_signal(semaphore);
@@ -482,14 +491,16 @@
         }
         // end loadingcand reload
         [_hud hideHud];
-    });    
+        // START
+        [[appDelegate networkingAutoUpload] startProcess];
+    });
 }
 
 - (void)addQueueUploadAndPhotoLibrary:(tableMetadata *)metadata asset:(PHAsset *)asset
 {
     @synchronized(self) {
         
-        [[NCManageDatabase sharedInstance] addMetadata:metadata];
+        [[NCManageDatabase sharedInstance] addMetadataForAutoUpload:metadata];
         
         // Add asset in table Photo Library
         if ([metadata.sessionSelector isEqualToString:selectorUploadAutoUpload]) {
@@ -502,7 +513,7 @@
 #pragma mark ===== get Camera Roll new Asset ====
 #pragma --------------------------------------------------------------------------------------------
 
-- (PHFetchResult *)getCameraRollAssets:(tableAccount *)account selector:(NSString *)selector alignPhotoLibrary:(BOOL)alignPhotoLibrary
+- (NSArray *)getCameraRollAssets:(tableAccount *)account selector:(NSString *)selector alignPhotoLibrary:(BOOL)alignPhotoLibrary
 {
     @synchronized(self) {
         
@@ -560,11 +571,11 @@
                         [newAssets addObject:asset];
                 }
                 
-                return (PHFetchResult *)newAssets;
+                return newAssets;
                 
             } else {
             
-                return assets;
+                return (NSArray *)[assets copy];
             }
         }
     }
@@ -580,13 +591,13 @@
 {
     tableAccount *account = [[NCManageDatabase sharedInstance] getAccountActive];
 
-    PHFetchResult *assets = [self getCameraRollAssets:account selector:selectorUploadAutoUploadAll alignPhotoLibrary:YES];
+    NSArray *assets = [self getCameraRollAssets:account selector:selectorUploadAutoUploadAll alignPhotoLibrary:YES];
    
     [[NCManageDatabase sharedInstance] clearTable:[tablePhotoLibrary class] account:appDelegate.account];
     if (assets != nil) {
-        (void)[[NCManageDatabase sharedInstance] addPhotoLibrary:(NSArray *)assets account:account.account];
+        (void)[[NCManageDatabase sharedInstance] addPhotoLibrary:assets account:account.account];
 
-        [[NCCommunicationCommon shared] writeLog:[NSString stringWithFormat:@"[LOG] Align Photo Library %lu", (unsigned long)[assets count]]];
+        [[NCCommunicationCommon shared] writeLog:[NSString stringWithFormat:@"Align Photo Library %lu", (unsigned long)[assets count]]];
     }
 }
 

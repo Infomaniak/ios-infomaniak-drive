@@ -66,6 +66,7 @@ class NCService: NSObject {
                 
                 let user = tableAccount.user
                 let url = tableAccount.urlBase
+                let stringUser = CCUtility.getStringUser(user, urlBase: url)!
                 
                 self.appDelegate.settingAccount(tableAccount.account, urlBase: tableAccount.urlBase, user: tableAccount.user, userID: tableAccount.userID, password: CCUtility.getPassword(tableAccount.account))
                        
@@ -79,7 +80,7 @@ class NCService: NSObject {
                 // Synchronize Offline Directory ---
                 if let directories = NCManageDatabase.sharedInstance.getTablesDirectory(predicate: NSPredicate(format: "account == %@ AND offline == true", tableAccount.account), sorted: "serverUrl", ascending: true) {
                     for directory: tableDirectory in directories {
-                        guard let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", directory.ocId)) else {
+                        guard let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(directory.ocId) else {
                             continue
                         }
                         NCOperationQueue.shared.synchronizationMetadata(metadata, selector: selectorDownloadFile)
@@ -89,14 +90,14 @@ class NCService: NSObject {
                 // Synchronize Offline Files ---
                 let files = NCManageDatabase.sharedInstance.getTableLocalFiles(predicate: NSPredicate(format: "account == %@ AND offline == true", tableAccount.account), sorted: "fileName", ascending: true)
                 for file: tableLocalFile in files {
-                    guard let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", file.ocId)) else {
+                    guard let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(file.ocId) else {
                         continue
                     }
                     NCOperationQueue.shared.synchronizationMetadata(metadata, selector: selectorDownloadFile)
                 }
                                         
                 let avatarUrl = "\(self.appDelegate.urlBase!)/index.php/avatar/\(self.appDelegate.user!)/\(k_avatar_size)".addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed)!
-                let fileNamePath = CCUtility.getDirectoryUserData() + "/" + CCUtility.getStringUser(user, urlBase: url) + "-" + self.appDelegate.user + ".png"
+                let fileNamePath = CCUtility.getDirectoryUserData() + "/" + stringUser + "-" + self.appDelegate.user + ".png"
                         
                 NCCommunication.shared.downloadContent(serverUrl: avatarUrl) { (account, data, errorCode, errorMessage) in
                     if errorCode == 0 {
@@ -183,7 +184,7 @@ class NCService: NSObject {
                     }
                 }
                 
-                let isExternalSitesServerEnabled = NCManageDatabase.sharedInstance.getCapabilitiesServerBool(account: account, elements: NCElementsJSON.shared.capabilitiesExternalSitesExists, exists: false)
+                let isExternalSitesServerEnabled = NCManageDatabase.sharedInstance.getCapabilitiesServerBool(account: account, elements: NCElementsJSON.shared.capabilitiesExternalSitesExists, exists: true)
                 if (isExternalSitesServerEnabled) {
                     NCCommunication.shared.getExternalSite() { (account, externalSites, errorCode, errorDescription) in
                         if errorCode == 0 && account == self.appDelegate.account {

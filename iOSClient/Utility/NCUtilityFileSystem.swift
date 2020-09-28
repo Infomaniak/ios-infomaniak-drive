@@ -88,5 +88,25 @@ class NCUtilityFileSystem: NSObject {
             return false
         }
     }
+    
+    @objc func deleteFile(filePath: String) {
+        
+        do {
+            try FileManager.default.removeItem(atPath: filePath)
+        }
+        catch {}
+    }
+    
+    @objc func moveFileInBackground(atPath: String, toPath: String) {
+        
+        DispatchQueue.global().async {
+            do {
+                try FileManager.default.removeItem(atPath: toPath)
+                try FileManager.default.copyItem(atPath: atPath, toPath: toPath)
+                try FileManager.default.removeItem(atPath: atPath)
+            }
+            catch {}
+        }
+    }
 }
 

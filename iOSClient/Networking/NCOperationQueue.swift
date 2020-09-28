@@ -33,14 +33,18 @@ import NCCommunication
     }()
     
     private var downloadQueue = Queuer(name: "downloadQueue", maxConcurrentOperationCount: 5, qualityOfService: .default)
+    private let deleteQueue = Queuer(name: "deleteQueue", maxConcurrentOperationCount: 1, qualityOfService: .default)
+    private let copyMoveQueue = Queuer(name: "copyMoveQueue", maxConcurrentOperationCount: 1, qualityOfService: .default)
     private let synchronizationQueue = Queuer(name: "synchronizationQueue", maxConcurrentOperationCount: 1, qualityOfService: .default)
     private let downloadThumbnailQueue = Queuer(name: "downloadThumbnailQueue", maxConcurrentOperationCount: 10, qualityOfService: .default)
     private let readFileForMediaQueue = Queuer(name: "readFileForMediaQueue", maxConcurrentOperationCount: 10, qualityOfService: .default)
-
+   
     private var timerReadFileForMediaQueue: Timer?
 
     @objc func cancelAllQueue() {
         downloadCancelAll()
+        deleteCancelAll()
+        copyMoveCancelAll()
         synchronizationCancelAll()
         downloadThumbnailCancelAll()
         readFileForMediaCancelAll()
@@ -63,6 +67,40 @@ import NCCommunication
         return downloadQueue.operationCount
     }
     
+    // Delete file
+    
+    @objc func delete(metadata: tableMetadata, onlyLocal: Bool) {
+        for operation in deleteQueue.operations as! [NCOperationDelete]  {
+            if operation.metadata.ocId == metadata.ocId {
+                return
+            }
+        }
+        deleteQueue.addOperation(NCOperationDelete.init(metadata: metadata, onlyLocal: onlyLocal))
+    }
+    @objc func deleteCancelAll() {
+        deleteQueue.cancelAll()
+    }
+    @objc func deleteCount() -> Int {
+        return deleteQueue.operationCount
+    }
+    
+    // Copy Move file
+    
+    @objc func copyMove(metadata: tableMetadata, serverUrl: String, overwrite: Bool, move: Bool) {
+        for operation in copyMoveQueue.operations as! [NCOperationCopyMove]  {
+            if operation.metadata.ocId == metadata.ocId {
+                return
+            }
+        }
+        copyMoveQueue.addOperation(NCOperationCopyMove.init(metadata: metadata, serverUrlTo: serverUrl, overwrite: overwrite, move: move))
+    }
+    @objc func copyMoveCancelAll() {
+        copyMoveQueue.cancelAll()
+    }
+    @objc func copyMoveCount() -> Int {
+        return copyMoveQueue.operationCount
+    }
+    
     // Synchronization
     
     @objc func synchronizationMetadata(_ metadata: tableMetadata, selector: String) {
@@ -80,7 +118,7 @@ import NCCommunication
     // Download Thumbnail
     
     @objc func downloadThumbnail(metadata: tableMetadata, urlBase: String, view: Any, indexPath: IndexPath) {
-        if metadata.hasPreview && (!CCUtility.fileProviderStoragePreviewIconExists(metadata.ocId, etag: metadata.etag)) {
+        if metadata.hasPreview && metadata.status == k_metadataStatusNormal && (!CCUtility.fileProviderStoragePreviewIconExists(metadata.ocId, etag: metadata.etag)) {
             for operation in downloadThumbnailQueue.operations as! [NCOperationDownloadThumbnail] {
                 if operation.metadata.ocId == metadata.ocId {
                     return
@@ -163,6 +201,71 @@ class NCOperationDownload: ConcurrentOperation {
 
 //MARK: -
 
+class NCOperationDelete: ConcurrentOperation {
+   
+    var metadata: tableMetadata
+    var onlyLocal: Bool
+    
+    init(metadata: tableMetadata, onlyLocal: Bool) {
+        self.metadata = tableMetadata.init(value: metadata)
+        self.onlyLocal = onlyLocal
+    }
+    
+    override func start() {
+        if isCancelled {
+            self.finish()
+        } else {
+            NCNetworking.shared.deleteMetadata(metadata, account: metadata.account, urlBase: metadata.urlBase, onlyLocal: onlyLocal) { (errorCode, errorDescription) in
+                if errorCode != 0 {
+                    NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
+                }
+                self.finish()
+            }
+        }
+    }
+}
+
+//MARK: -
+
+class NCOperationCopyMove: ConcurrentOperation {
+   
+    var metadata: tableMetadata
+    var serverUrlTo: String
+    var overwrite: Bool
+    var move: Bool
+
+    init(metadata: tableMetadata, serverUrlTo: String, overwrite: Bool, move: Bool) {
+        self.metadata = tableMetadata.init(value: metadata)
+        self.serverUrlTo = serverUrlTo
+        self.overwrite = overwrite
+        self.move = move
+    }
+    
+    override func start() {
+        if isCancelled {
+            self.finish()
+        } else {
+            if move {
+                NCNetworking.shared.moveMetadata(metadata, serverUrlTo: serverUrlTo, overwrite: overwrite) { (errorCode, errorDescription) in
+                    if errorCode != 0 {
+                        NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
+                    }
+                    self.finish()
+                }
+            } else {
+                NCNetworking.shared.copyMetadata(metadata, serverUrlTo: serverUrlTo, overwrite: overwrite) { (errorCode, errorDescription) in
+                    if errorCode != 0 {
+                        NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
+                    }
+                    self.finish()
+                }
+            }
+        }
+    }
+}
+
+//MARK: -
+
 class NCOperationSynchronization: ConcurrentOperation {
    
     var metadata: tableMetadata
@@ -225,7 +328,7 @@ class NCOperationSynchronization: ConcurrentOperation {
                                 }
                             }
                             // Update etag directory
-                            NCManageDatabase.sharedInstance.addDirectory(encrypted: metadataFolder.e2eEncrypted, favorite: metadataFolder.favorite, ocId: metadataFolder.ocId, fileId: metadataFolder.fileId, etag: metadataFolder.etag, permissions: metadataFolder.permissions, serverUrl: serverUrlFileName, richWorkspace: metadataFolder.richWorkspace, account: metadataFolder.account)
+                            NCManageDatabase.sharedInstance.addDirectory(encrypted: metadataFolder.e2eEncrypted, favorite: metadataFolder.favorite, ocId: metadataFolder.ocId, fileId: metadataFolder.fileId, etag: metadataFolder.etag, permissions: metadataFolder.permissions, serverUrl: serverUrlFileName, richWorkspace: metadataFolder.richWorkspace, creationDate: metadataFolder.creationDate, account: metadataFolder.account)
                         }
                     
                     } else if errorCode == 404 && self.metadata.directory {
@@ -235,7 +338,10 @@ class NCOperationSynchronization: ConcurrentOperation {
                 }
             } else {
                 if self.download {
-                    NCOperationQueue.shared.download(metadata: metadata, selector: self.selector, setFavorite: false)
+                    let localFile = NCManageDatabase.sharedInstance.getTableLocalFile(predicate: NSPredicate(format: "ocId == %@", metadata.ocId))
+                    if localFile == nil || localFile?.etag != metadata.etag {
+                        NCOperationQueue.shared.download(metadata: metadata, selector: self.selector, setFavorite: false)
+                    }
                 }
                 self.finish()
             }
@@ -271,9 +377,9 @@ class NCOperationDownloadThumbnail: ConcurrentOperation {
             NCCommunication.shared.downloadPreview(fileNamePathOrFileId: fileNamePath, fileNamePreviewLocalPath: fileNamePreviewLocalPath , widthPreview: Int(k_sizePreview), heightPreview: Int(k_sizePreview), fileNameIconLocalPath: fileNameIconLocalPath, sizeIcon: Int(k_sizeIcon)) { (account, imagePreview, imageIcon,  errorCode, errorDescription) in
                 
                 var cell: NCImageCellProtocol?
-                if self.view is UICollectionView && NCMainCommon.sharedInstance.isValidIndexPath(self.indexPath, view: self.view) {
+                if self.view is UICollectionView && NCMainCommon.shared.isValidIndexPath(self.indexPath, view: self.view) {
                     cell = (self.view as! UICollectionView).cellForItem(at: self.indexPath) as? NCImageCellProtocol
-                } else if self.view is UITableView && NCMainCommon.sharedInstance.isValidIndexPath(self.indexPath, view: self.view) {
+                } else if self.view is UITableView && NCMainCommon.shared.isValidIndexPath(self.indexPath, view: self.view) {
                     cell = (self.view as! UITableView).cellForRow(at: self.indexPath) as? NCImageCellProtocol
                 }
 
@@ -352,7 +458,7 @@ class NCOperationReadFileForMediaQueue: ConcurrentOperation {
                     }
                 } else if errorCode == 404 {
                     NCManageDatabase.sharedInstance.deleteMetadata(predicate: NSPredicate(format: "ocId == %@", self.metadata.ocId))
-                    NotificationCenter.default.postOnMainThread(name: k_notificationCenter_deleteFile, userInfo: ["metadata": self.metadata, "errorCode": errorCode])
+                    NotificationCenter.default.postOnMainThread(name: k_notificationCenter_mediaFileNotFound, userInfo: ["metadata": self.metadata])
                 }
                 self.finish()
             }

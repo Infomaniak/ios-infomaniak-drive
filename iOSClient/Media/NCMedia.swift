@@ -24,7 +24,7 @@
 import Foundation
 import NCCommunication
 
-class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate, NCSelectDelegate {
+class NCMedia: UIViewController, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate, NCSelectDelegate {
     
     @IBOutlet weak var collectionView : UICollectionView!
     
@@ -34,7 +34,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     private let appDelegate = UIApplication.shared.delegate as! AppDelegate
     
     public var metadatas: [tableMetadata] = []
-    private var metadataPush: tableMetadata?
+    private var metadataTouch: tableMetadata?
     private var account: String = ""
 
     private var predicateDefault: NSPredicate?
@@ -54,7 +54,6 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     
     private var lastContentOffsetY: CGFloat = 0
     private var mediaPath = ""
-    private var limit: Int = 100
     private var livePhoto: Bool = false
     
     private var listOcIdReadFileForMedia: [String] = []
@@ -85,7 +84,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         collectionView.contentInset = UIEdgeInsets(top: 75, left: 0, bottom: 50, right: 0);
                 
         gridLayout = NCGridMediaLayout()
-        gridLayout.itemPerLine = CGFloat(min(CCUtility.getMediaWidthImage(), 4))
+        gridLayout.itemForLine = CGFloat(min(CCUtility.getMediaWidthImage(), 4))
         gridLayout.sectionHeadersPinToVisibleBounds = true
 
         collectionView.collectionViewLayout = gridLayout
@@ -101,6 +100,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         
         // Notification
         NotificationCenter.default.addObserver(self, selector: #selector(deleteFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_deleteFile), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(deleteFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_mediaFileNotFound), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(changeTheming), name: NSNotification.Name(rawValue: k_notificationCenter_changeTheming), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(moveFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_moveFile), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(renameFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_renameFile), object: nil)
@@ -108,8 +108,8 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         mediaCommandView = Bundle.main.loadNibNamed("NCMediaCommandView", owner: self, options: nil)?.first as? NCMediaCommandView
         self.view.addSubview(mediaCommandView!)
         mediaCommandView?.mediaView = self
-        mediaCommandView?.zoomInButton.isEnabled = !(self.gridLayout.itemPerLine == 1)
-        mediaCommandView?.zoomOutButton.isEnabled = !(self.gridLayout.itemPerLine == self.kMaxImageGrid - 1)
+        mediaCommandView?.zoomInButton.isEnabled = !(self.gridLayout.itemForLine == 1)
+        mediaCommandView?.zoomOutButton.isEnabled = !(self.gridLayout.itemForLine == self.kMaxImageGrid - 1)
         mediaCommandView?.collapseControlButtonView(true)
         mediaCommandView?.translatesAutoresizingMaskIntoConstraints = false
         mediaCommandView?.topAnchor.constraint(equalTo: view.topAnchor, constant: 0).isActive = true
@@ -172,31 +172,31 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     
     @objc func zoomOutGrid() {
         UIView.animate(withDuration: 0.0, animations: {
-            if(self.gridLayout.itemPerLine + 1 < self.kMaxImageGrid) {
-                self.gridLayout.itemPerLine += 1
+            if(self.gridLayout.itemForLine + 1 < self.kMaxImageGrid) {
+                self.gridLayout.itemForLine += 1
                 self.mediaCommandView?.zoomInButton.isEnabled = true
             }
-            if(self.gridLayout.itemPerLine == self.kMaxImageGrid - 1) {
+            if(self.gridLayout.itemForLine == self.kMaxImageGrid - 1) {
                 self.mediaCommandView?.zoomOutButton.isEnabled = false
             }
 
             self.collectionView.collectionViewLayout.invalidateLayout()
-            CCUtility.setMediaWidthImage(Int(self.gridLayout.itemPerLine))
+            CCUtility.setMediaWidthImage(Int(self.gridLayout.itemForLine))
         })
     }
 
     @objc func zoomInGrid() {
         UIView.animate(withDuration: 0.0, animations: {
-            if(self.gridLayout.itemPerLine - 1 > 0) {
-                self.gridLayout.itemPerLine -= 1
+            if(self.gridLayout.itemForLine - 1 > 0) {
+                self.gridLayout.itemForLine -= 1
                 self.mediaCommandView?.zoomOutButton.isEnabled = true
             }
-            if(self.gridLayout.itemPerLine == 1) {
+            if(self.gridLayout.itemForLine == 1) {
                 self.mediaCommandView?.zoomInButton.isEnabled = false
             }
 
             self.collectionView.collectionViewLayout.invalidateLayout()
-            CCUtility.setMediaWidthImage(Int(self.gridLayout.itemPerLine))
+            CCUtility.setMediaWidthImage(Int(self.gridLayout.itemForLine))
         })
     }
     
@@ -253,11 +253,10 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
                         viewController.hideButtonCreateFolder = true
                         viewController.includeDirectoryE2EEncryption = false
                         viewController.includeImages = false
-                        viewController.layoutViewSelect = k_layout_view_move
+                        viewController.keyLayout = k_layout_view_move
                         viewController.selectFile = false
                         viewController.titleButtonDone = NSLocalizedString("_select_", comment: "")
                         viewController.type = "mediaFolder"
-                        viewController.heightToolBarTop = 50
                         
                         navigationController.modalPresentationStyle = UIModalPresentationStyle.fullScreen
                         self.present(navigationController, animated: true, completion: nil)
@@ -325,8 +324,12 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
                     action: { menuAction in
                         self.isEditMode = false
                         for ocId in self.selectocId {
-                            if let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", ocId)) {
-                                NCNetworking.shared.deleteMetadata(metadata, account: self.appDelegate.account, urlBase: self.appDelegate.urlBase) { (errorCode, errorDescription) in }
+                            if let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
+                                NCNetworking.shared.deleteMetadata(metadata, account: self.appDelegate.account, urlBase: self.appDelegate.urlBase, onlyLocal: false) { (errorCode, errorDescription) in
+                                    if errorCode != 0 {
+                                        NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
+                                    }
+                                }
                             }
                         }
                     }
@@ -346,7 +349,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     
     // MARK: Select Path
     
-    func dismissSelect(serverUrl: String?, metadata: tableMetadata?, type: String, buttonType: String, overwrite: Bool) {
+    func dismissSelect(serverUrl: String?, metadata: tableMetadata?, type: String, array: [Any], buttonType: String, overwrite: Bool) {
         if serverUrl != nil {
             let path = CCUtility.returnPathfromServerUrl(serverUrl, urlBase: appDelegate.urlBase, account: appDelegate.account) ?? ""
             NCManageDatabase.sharedInstance.setAccountMediaPath(path, account: appDelegate.account)
@@ -372,8 +375,8 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int {
-                if metadata.account == appDelegate.account && errorCode == 0 {
+            if let metadata = userInfo["metadata"] as? tableMetadata {
+                if metadata.account == appDelegate.account {
                     
                     let indexes = self.metadatas.indices.filter { self.metadatas[$0].ocId == metadata.ocId }
                     let metadatas = self.metadatas.filter { $0.ocId != metadata.ocId }
@@ -396,8 +399,8 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int {
-                if metadata.account == appDelegate.account && errorCode == 0 {
+            if let metadata = userInfo["metadata"] as? tableMetadata {
+                if metadata.account == appDelegate.account {
                     self.reloadDataSource()
                 }
             }
@@ -408,8 +411,8 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int {
-                if metadata.account == appDelegate.account && errorCode == 0 {
+            if let metadata = userInfo["metadata"] as? tableMetadata {
+                if metadata.account == appDelegate.account {
                     self.reloadDataSource()
                 }
             }
@@ -427,7 +430,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
     }
     
     func image(forEmptyDataSet scrollView: UIScrollView) -> UIImage? {
-        return CCGraphics.changeThemingColorImage(UIImage.init(named: "media"), width: 300, height: 300, color: NCBrandColor.sharedInstance.brandElement)
+        return CCGraphics.changeThemingColorImage(UIImage.init(named: "media"), width: 300, height: 300, color: .gray)
     }
     
     func title(forEmptyDataSet scrollView: UIScrollView) -> NSAttributedString? {
@@ -438,7 +441,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
             text = "\n" + NSLocalizedString("_search_in_progress_", comment: "")
         }
         
-        let attributes = [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 20), NSAttributedString.Key.foregroundColor: UIColor.lightGray]
+        let attributes = [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 20), NSAttributedString.Key.foregroundColor: UIColor.gray]
         return NSAttributedString.init(string: text, attributes: attributes)
     }
     
@@ -453,7 +456,7 @@ class NCMedia: UIViewController, DropdownMenuDelegate, DZNEmptyDataSetSource, DZ
         if let segueNavigationController = segue.destination as? UINavigationController {
             if let segueViewController = segueNavigationController.topViewController as? NCDetailViewController {
             
-                segueViewController.metadata = metadataPush
+                segueViewController.metadata = metadataTouch
                 segueViewController.metadatas = metadatas
                 segueViewController.mediaFilterImage = true
             }
@@ -497,7 +500,7 @@ extension NCMedia: UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         
         let metadata = metadatas[indexPath.row]
-        metadataPush = metadata
+        metadataTouch = metadata
         
         if isEditMode {
             if let index = selectocId.firstIndex(of: metadata.ocId) {
@@ -518,7 +521,7 @@ extension NCMedia: UICollectionViewDelegate {
 
 extension NCMedia: UICollectionViewDataSourcePrefetching {
     func collectionView(_ collectionView: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
-        print("[LOG] n. " + String(indexPaths.count))
+        //print("[LOG] n. " + String(indexPaths.count))
     }
 }
 
@@ -693,7 +696,7 @@ extension NCMedia {
         }
     }
     
-    private func searchOldPhotoVideo(value: Int = -30) {
+    private func searchOldPhotoVideo(value: Int = -30, limit: Int = 300) {
         
         if oldInProgress { return }
         else { oldInProgress = true }
@@ -716,7 +719,7 @@ extension NCMedia {
         let height = self.tabBarController?.tabBar.frame.size.height ?? 0
         NCUtility.shared.startActivityIndicator(view: self.view, bottom: height + 50)
 
-        NCCommunication.shared.searchMedia(path: mediaPath, lessDate: lessDate, greaterDate: greaterDate, elementDate: "d:getlastmodified/", limit: 0, showHiddenFiles: CCUtility.getShowHiddenFiles(), user: appDelegate.user) { (account, files, errorCode, errorDescription) in
+        NCCommunication.shared.searchMedia(path: mediaPath, lessDate: lessDate, greaterDate: greaterDate, elementDate: "d:getlastmodified/", limit: limit, showHiddenFiles: CCUtility.getShowHiddenFiles(), timeout: 120) { (account, files, errorCode, errorDescription) in
             
             self.oldInProgress = false
             NCUtility.shared.stopActivityIndicator()
@@ -729,19 +732,11 @@ extension NCMedia {
                         let predicateDate = NSPredicate(format: "date > %@ AND date < %@", greaterDate as NSDate, lessDate as NSDate)
                         let predicateResult = NSCompoundPredicate.init(andPredicateWithSubpredicates:[predicateDate, self.predicateDefault!])
                         let metadatasResult = NCManageDatabase.sharedInstance.getMetadatas(predicate: predicateResult)
-                        let metadatasChanged = NCManageDatabase.sharedInstance.updateMetadatas(metadatas, metadatasResult: metadatasResult, addExistsInLocal: false, addCompareEtagLocal: false)
+                        let metadatasChanged = NCManageDatabase.sharedInstance.updateMetadatas(metadatas, metadatasResult: metadatasResult, addCompareLivePhoto: false)
                         
-                        if metadatasChanged.metadatasUpdate.count < self.limit {
+                        if metadatasChanged.metadatasUpdate.count == 0 {
                             
-                            if value == -30 {
-                                self.searchOldPhotoVideo(value: -90)
-                            } else if value == -90 {
-                                self.searchOldPhotoVideo(value: -180)
-                            } else if value == -180 {
-                                self.searchOldPhotoVideo(value: -999)
-                            } else {
-                                self.reloadDataSource()
-                            }
+                            self.researchOldPhotoVideo(value: value, limit: limit, withElseReloadDataSource: true)
                             
                         } else {
                             
@@ -751,19 +746,30 @@ extension NCMedia {
 
                 } else {
                     
-                    if value == -30 {
-                        self.searchOldPhotoVideo(value: -90)
-                    } else if value == -90 {
-                        self.searchOldPhotoVideo(value: -180)
-                    } else if value == -180 {
-                        self.searchOldPhotoVideo(value: -999)
-                    }
+                    self.researchOldPhotoVideo(value: value, limit: limit, withElseReloadDataSource: false)
                 }
             }
         }
     }
     
-    @objc func searchNewPhotoVideo() {
+    private func researchOldPhotoVideo(value: Int , limit: Int, withElseReloadDataSource: Bool) {
+        
+        if value == -30 {
+            searchOldPhotoVideo(value: -90)
+        } else if value == -90 {
+            searchOldPhotoVideo(value: -180)
+        } else if value == -180 {
+            searchOldPhotoVideo(value: -999)
+        } else if value == -999 && limit > 0 {
+            searchOldPhotoVideo(value: -999, limit: 0)
+        } else {
+            if withElseReloadDataSource {
+                reloadDataSource()
+            }
+        }
+    }
+    
+    @objc func searchNewPhotoVideo(limit: Int = 300) {
         
         guard var lessDate = Calendar.current.date(byAdding: .second, value: 1, to: Date()) else { return }
         guard var greaterDate = Calendar.current.date(byAdding: .day, value: -30, to: Date()) else { return }
@@ -785,7 +791,7 @@ extension NCMedia {
                 }
             }
 
-            NCCommunication.shared.searchMedia(path: self.mediaPath, lessDate: lessDate, greaterDate: greaterDate, elementDate: "d:getlastmodified/", limit: 0, showHiddenFiles: CCUtility.getShowHiddenFiles(), user: self.appDelegate.user) { (account, files, errorCode, errorDescription) in
+            NCCommunication.shared.searchMedia(path: self.mediaPath, lessDate: lessDate, greaterDate: greaterDate, elementDate: "d:getlastmodified/", limit: limit, showHiddenFiles: CCUtility.getShowHiddenFiles(), timeout: 120) { (account, files, errorCode, errorDescription) in
                 
                 self.newInProgress = false
                 
@@ -794,11 +800,13 @@ extension NCMedia {
                         let predicate = NSPredicate(format: "date > %@ AND date < %@", greaterDate as NSDate, lessDate as NSDate)
                         let predicateResult = NSCompoundPredicate.init(andPredicateWithSubpredicates:[predicate, self.predicate!])
                         let metadatasResult = NCManageDatabase.sharedInstance.getMetadatas(predicate: predicateResult)
-                        let updateMetadatas = NCManageDatabase.sharedInstance.updateMetadatas(metadatas, metadatasResult: metadatasResult, addExistsInLocal: false, addCompareEtagLocal: false)
+                        let updateMetadatas = NCManageDatabase.sharedInstance.updateMetadatas(metadatas, metadatasResult: metadatasResult, addCompareLivePhoto: false)
                         if updateMetadatas.metadatasUpdate.count > 0 {
                             self.reloadDataSource()
                         }
                     }
+                } else if errorCode == 0 && files.count == 0 && limit > 0 {
+                    self.searchNewPhotoVideo(limit: 0)
                 } else if errorCode == 0 && files.count == 0 && self.metadatas.count == 0 {
                     self.searchOldPhotoVideo()
                 }
@@ -864,6 +872,7 @@ class NCMediaCommandView: UIView {
     @IBOutlet weak var buttonControlWidthConstraint: NSLayoutConstraint!
     @IBOutlet weak var zoomInButton: UIButton!
     @IBOutlet weak var zoomOutButton: UIButton!
+    @IBOutlet weak var moreButton: UIButton!
     @IBOutlet weak var controlButtonView: UIVisualEffectView!
     @IBOutlet weak var title : UILabel!
     
@@ -880,7 +889,7 @@ class NCMediaCommandView: UIView {
         gradient.endPoint = CGPoint(x: 0, y: 0.9)
         gradient.colors = [UIColor.black.withAlphaComponent(0.4).cgColor , UIColor.clear.cgColor]
         layer.insertSublayer(gradient, at: 0)
-        
+        moreButton.setImage(CCGraphics.changeThemingColorImage(UIImage.init(named: "more"), width: 50, height: 50, color: .white), for: .normal)
         title.text = ""
     }
     
@@ -947,3 +956,50 @@ class NCMediaCommandView: UIView {
         gradient.frame = bounds
     }
 }
+
+// MARK: - Media Grid Layout
+
+class NCGridMediaLayout: UICollectionViewFlowLayout {
+    
+    var marginLeftRight: CGFloat = 6
+    var itemForLine: CGFloat = 3
+    
+    override init() {
+        super.init()
+        
+        sectionHeadersPinToVisibleBounds = false
+        
+        minimumInteritemSpacing = 0
+        minimumLineSpacing = marginLeftRight
+        
+        self.scrollDirection = .vertical
+        self.sectionInset = UIEdgeInsets(top: 0, left: marginLeftRight, bottom: 0, right:  marginLeftRight)
+    }
+    
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override var itemSize: CGSize {
+        get {
+            if let collectionView = collectionView {
+                
+                let itemWidth: CGFloat = (collectionView.frame.width - marginLeftRight * 2 - marginLeftRight * (itemForLine - 1)) / itemForLine
+                let itemHeight: CGFloat = itemWidth
+                
+                return CGSize(width: itemWidth, height: itemHeight)
+            }
+            
+            // Default fallback
+            return CGSize(width: 100, height: 100)
+        }
+        set {
+            super.itemSize = newValue
+        }
+    }
+    
+    override func targetContentOffset(forProposedContentOffset proposedContentOffset: CGPoint) -> CGPoint {
+        return proposedContentOffset
+    }
+}
+

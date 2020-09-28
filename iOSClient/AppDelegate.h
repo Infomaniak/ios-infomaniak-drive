@@ -31,16 +31,18 @@
 #import "CCUtility.h"
 #import "CCMain.h"
 #import "CCSettings.h"
-#import "CCFavorites.h"
-#import "CCTransfers.h"
 
 @class CCMore;
 @class NCMedia;
 @class NCOffline;
+@class NCTransfers;
+@class NCFavorite;
+@class NCTrash;
 @class NCAppConfigView;
 @class IMImagemeterViewer;
 @class NCDetailViewController;
 @class NCNetworkingAutoUpload;
+@class NCDocumentPickerViewController;
 
 @interface AppDelegate : UIResponder <UIApplicationDelegate, UNUserNotificationCenterDelegate>
 
@@ -48,8 +50,8 @@
 @property (nonatomic, strong) NSTimer *timerUpdateApplicationIconBadgeNumber;
 @property (nonatomic, strong) NSTimer *timerErrorNetworking;
 
-// For LMMediaPlayerView
-@property (strong, nonatomic) UIWindow *window;
+@property (nonatomic, strong) UIWindow *window;
+@property (nonatomic, strong) NCDocumentPickerViewController *documentPickerViewController;
 
 // Parameter account
 @property (nonatomic, strong) NSString *account;
@@ -84,20 +86,27 @@
 
 @property (nonatomic, retain) TOPasscodeViewController *passcodeViewController;
 
-@property (nonatomic, strong) CCMain *activeMain;
-@property (nonatomic, strong) CCMain *homeMain;
-@property (nonatomic, strong) CCFavorites *activeFavorites;
-@property (nonatomic, strong) NCMedia *activeMedia;
+@property (nonatomic, retain) NSString *activeServerUrl;
+@property (nonatomic, retain) id activeViewController;
+
+@property (nonatomic, retain) CCMain *activeMain;
+@property (nonatomic, retain) CCMain *homeMain;
+@property (nonatomic, retain) NCFavorite *activeFavorite;
+@property (nonatomic, retain) NCMedia *activeMedia;
 @property (nonatomic, retain) NCDetailViewController *activeDetail;
-@property (nonatomic, retain) CCTransfers *activeTransfers;
+@property (nonatomic, retain) NCTransfers *activeTransfers;
 @property (nonatomic, retain) CCLogin *activeLogin;
 @property (nonatomic, retain) NCLoginWeb *activeLoginWeb;
 @property (nonatomic, retain) CCMore *activeMore;
 @property (nonatomic, retain) NCOffline *activeOffline;
+@property (nonatomic, retain) NCTrash *activeTrash;
 @property (nonatomic, retain) NCAppConfigView *appConfigView;
 @property (nonatomic, retain) IMImagemeterViewer *activeImagemeterView;
 
 @property (nonatomic, strong) NSMutableDictionary *listMainVC;
+@property (nonatomic, strong) NSMutableDictionary *listFavoriteVC;
+@property (nonatomic, strong) NSMutableDictionary *listOfflineVC;
+
 @property (nonatomic, strong) NSMutableDictionary *listProgressMetadata;
 
 @property (nonatomic) UIUserInterfaceStyle preferredUserInterfaceStyle API_AVAILABLE(ios(12.0));
@@ -129,7 +138,6 @@
 
 // TabBarController
 - (void)createTabBarController:(UITabBarController *)tabBarController;
-- (NSString *)getTabBarControllerActiveServerUrl;
 
 // Push Notification
 - (void)pushNotification;

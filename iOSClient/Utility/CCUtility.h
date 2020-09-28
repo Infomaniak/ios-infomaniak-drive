@@ -53,12 +53,6 @@
 + (BOOL)getEnableTouchFaceID;
 + (void)setEnableTouchFaceID:(BOOL)set;
 
-+ (NSString *)getOrderSettings;
-+ (void)setOrderSettings:(NSString *)order;
-
-+ (BOOL)getAscendingSettings;
-+ (void)setAscendingSettings:(BOOL)ascendente;
-
 + (NSString *)getGroupBySettings;
 + (void)setGroupBySettings:(NSString *)groupby;
 
@@ -84,9 +78,6 @@
 
 + (NSString *)getHint;
 + (void)setHint:(NSString *)hint;
-
-+ (BOOL)getDirectoryOnTop;
-+ (void)setDirectoryOnTop:(BOOL)directoryOnTop;
 
 + (BOOL)getOriginalFileName:(NSString *)key;
 + (void)setOriginalFileName:(BOOL)value key:(NSString *)key;
@@ -237,7 +228,7 @@
 + (NSString *)getLastPathFromServerUrl:(NSString *)serverUrl urlBase:(NSString *)urlBase;
 + (NSString *)returnPathfromServerUrl:(NSString *)serverUrl urlBase:(NSString *)urlBase account:(NSString *)account;
 + (NSString *)returnFileNamePathFromFileName:(NSString *)metadataFileName serverUrl:(NSString *)serverUrl urlBase:(NSString *)urlBase account:(NSString *)account;
-+ (NSArray *)createNameSubFolder:(PHFetchResult *)assets;
++ (NSArray *)createNameSubFolder:(NSArray *)assets;
 
 + (BOOL)isDocumentModifiableExtension:(NSString *)fileExtension;
 
@@ -259,7 +250,7 @@
 
 + (NSString *)getTimeIntervalSince197;
 
-+ (void)extractImageVideoFromAssetLocalIdentifierForUpload:(tableMetadata *)metadata notification:(BOOL)notification completion:(void(^)(tableMetadata *newMetadata, NSString* fileNamePath))completion;
++ (void)extractImageVideoFromAssetLocalIdentifierForUpload:(tableMetadata *)metadataForUpload notification:(BOOL)notification completion:(void(^)(tableMetadata *newMetadata, NSString* fileNamePath))completion;
 + (void)extractLivePhotoAsset:(PHAsset*)asset filePath:(NSString *)filePath withCompletion:(void (^)(NSURL* url))completion;
 
 // ===== E2E Encrypted =====

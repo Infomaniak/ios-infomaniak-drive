@@ -30,10 +30,14 @@ extension NCDetailNavigationController {
         if appDelegate.activeDetail.backgroundView.subviews.first == nil && appDelegate.activeDetail.viewerImageViewController == nil {
             return
         }
-        guard let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId)) else { return }
         
         let mainMenuViewController = UIStoryboard.init(name: "NCMenu", bundle: nil).instantiateViewController(withIdentifier: "NCMainMenuTableViewController") as! NCMainMenuTableViewController
-        mainMenuViewController.actions = self.initMoreMenu(viewController: viewController, metadata: metadata)
+        
+        if let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(metadata.ocId) {
+            mainMenuViewController.actions = self.initMoreMenu(viewController: viewController, metadata: metadata)
+        } else {
+            mainMenuViewController.actions = self.initMoreMenuClose(viewController: viewController)
+        }
 
         let menuPanelController = NCMenuPanelController()
         menuPanelController.parentPresenter = viewController
@@ -42,6 +46,21 @@ extension NCDetailNavigationController {
         menuPanelController.track(scrollView: mainMenuViewController.tableView)
 
         viewController.present(menuPanelController, animated: true, completion: nil)
+    }
+    
+    private func initMoreMenuClose(viewController: UIViewController) -> [NCMenuAction] {
+        var actions = [NCMenuAction]()
+                
+        actions.append(
+            NCMenuAction(title: NSLocalizedString("_close_", comment: ""),
+                icon: CCGraphics.changeThemingColorImage(UIImage(named: "exit"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
+                action: { menuAction in
+                    NotificationCenter.default.postOnMainThread(name: k_notificationCenter_menuDetailClose)
+                }
+            )
+        )
+        
+        return actions
     }
     
     private func initMoreMenu(viewController: UIViewController, metadata: tableMetadata) -> [NCMenuAction] {
@@ -61,7 +80,11 @@ extension NCDetailNavigationController {
                 title: titleFavorite,
                 icon: CCGraphics.changeThemingColorImage(UIImage(named: "favorite"), width: 50, height: 50, color: NCBrandColor.sharedInstance.yellowFavorite),
                 action: { menuAction in
-                    NCNetworking.shared.favoriteMetadata(metadata, urlBase: self.appDelegate.urlBase) { (errorCode, errorDescription) in }
+                    NCNetworking.shared.favoriteMetadata(metadata, urlBase: self.appDelegate.urlBase) { (errorCode, errorDescription) in
+                        if errorCode != 0 {
+                            NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
+                        }
+                    }
                 }
             )
         )
@@ -71,7 +94,7 @@ extension NCDetailNavigationController {
                 title: NSLocalizedString("_details_", comment: ""),
                 icon: CCGraphics.changeThemingColorImage(UIImage(named: "details"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                 action: { menuAction in
-                    NCMainCommon.sharedInstance.openShare(ViewController: self, metadata: metadata, indexPage: 0)
+                    NCMainCommon.shared.openShare(ViewController: self, metadata: metadata, indexPage: 0)
                 }
             )
         )
@@ -81,7 +104,7 @@ extension NCDetailNavigationController {
                 NCMenuAction(title: NSLocalizedString("_open_in_", comment: ""),
                     icon: CCGraphics.changeThemingColorImage(UIImage(named: "openFile"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                     action: { menuAction in
-                        NCMainCommon.sharedInstance.downloadOpen(metadata: metadata, selector: selectorOpenInDetail)
+                        NCMainCommon.shared.downloadOpen(metadata: metadata, selector: selectorOpenInDetail)
                     }
                 )
             )
@@ -98,7 +121,11 @@ extension NCDetailNavigationController {
                     let cancelAction = UIAlertAction(title: NSLocalizedString("_cancel_", comment: ""), style: .cancel, handler: nil)
                     let okAction = UIAlertAction(title: NSLocalizedString("_ok_", comment: ""), style: .default, handler: { action in
                         let fileNameNew = alertController.textFields![0].text
-                        NCNetworking.shared.renameMetadata(metadata, fileNameNew: fileNameNew!, urlBase: self.appDelegate.urlBase, viewController: self) { (errorCode, errorDescription) in }
+                        NCNetworking.shared.renameMetadata(metadata, fileNameNew: fileNameNew!, urlBase: self.appDelegate.urlBase, viewController: self) { (errorCode, errorDescription) in
+                            if errorCode != 0 {
+                                NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
+                            }
+                        }
                     })
                     alertController.addAction(cancelAction)
                     alertController.addAction(okAction)
@@ -128,7 +155,7 @@ extension NCDetailNavigationController {
                     viewController.titleButtonDone1 = NSLocalizedString("_copy_", comment: "")
                     viewController.isButtonDone1Hide = false
                     viewController.isOverwriteHide = false
-                    viewController.layoutViewSelect = k_layout_view_move
+                    viewController.keyLayout = k_layout_view_move
                     
                     navigationController.modalPresentationStyle = UIModalPresentationStyle.fullScreen
                     self.present(navigationController, animated: true, completion: nil)
@@ -162,7 +189,11 @@ extension NCDetailNavigationController {
                     
                     alertController.addAction(UIAlertAction(title: NSLocalizedString("_yes_delete_", comment: ""), style: .default) { (action:UIAlertAction) in
                         
-                        NCNetworking.shared.deleteMetadata(metadata, account: self.appDelegate.account, urlBase: self.appDelegate.urlBase) { (errorCode, errorDescription) in }
+                        NCNetworking.shared.deleteMetadata(metadata, account: self.appDelegate.account, urlBase: self.appDelegate.urlBase, onlyLocal: false) { (errorCode, errorDescription) in
+                            if errorCode != 0 {
+                                NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
+                            }
+                        }
                     })
                     
                     alertController.addAction(UIAlertAction(title: NSLocalizedString("_no_delete_", comment: ""), style: .default) { (action:UIAlertAction) in })

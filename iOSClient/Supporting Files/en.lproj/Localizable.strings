@@ -137,6 +137,7 @@
 "_copy_"                    = "Copy";
 "_now_"                     = "Now";
 "_wait_"                    = "Please wait...";
+"_attention_"               = "Attention";
 
 // App
 
@@ -152,6 +153,7 @@
 "_no_reuploadfile_"         = "Could not find nor resend file. Delete the upload and reload the file to upload it.";
 "_file_already_exists_"     = "Unable to complete the operation, a file with the same name exists";
 "_read_file_error_"         = "Could not read the file";
+"_write_file_error_"        = "Could not write the file";
 
 // More
 
@@ -344,7 +346,7 @@
 "_access_photo_location_not_enabled_"       = "Access to Photos and Location not enabled";
 "_access_photo_location_not_enabled_msg_"   = "Please go to \"Settings\" and turn on \"Photo Access\" and \"Location Services\"";
 "_tutorial_photo_view_"                     = "No photos or videos uploaded yet";
-"_create_full_upload_"                      = "Creating archive… May take a long time, please wait.";
+"_create_full_upload_"                      = "Creating archive… May take a long time. During this process, keep the application active during the transfer as well.";
 "_error_createsubfolders_upload_"           = "Error creating subfolders";
 "_activate_autoupload_"                     = "Enable auto upload";
 "_remove_photo_CameraRoll_"                 = "Remove from camera roll";
@@ -436,7 +438,7 @@
 "_tite_footer_download_wwan_"   = "  Wi-Fi network required, %lu %@ to download";
 "_tite_footer_download_"        = "%lu %@ to download";
 "_limited_dimension_"           = "Maximum size reached";
-"_save_selected_files_"         = "Save images and videos to photo album";
+"_save_selected_files_"         = "Save to photo gallery";
 "_file_not_saved_cameraroll_"   = "Error: File not saved in photo album";
 "_file_saved_cameraroll_"       = "File saved in photo album";
 "_directory_on_top_yes_"        = "✓ Folders on top";
@@ -796,7 +798,7 @@
 "_not_possible_download_"               = "It is not possible to download the file";
 "_not_possible_upload_"                 = "It is not possible to upload the file";
 "_method_not_allowed_"                  = "The requested method is not supported";
-"_invalid_url_"                         = "Invalid server url";
+"_invalid_url_"                         = "Invalid server URL";
 "_invalid_literal_"                     = "Invalid search string";
 "_invalid_date_format_"                 = "Invalid date format";
 "_invalid_data_format_"                 = "Invalid data format";

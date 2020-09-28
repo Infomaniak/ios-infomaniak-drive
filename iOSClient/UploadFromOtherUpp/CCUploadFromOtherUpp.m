@@ -45,7 +45,7 @@
     self.title = NSLocalizedString(@"_upload_", nil);
     
     serverUrlLocal= [[NCUtility shared] getHomeServerWithUrlBase:appDelegate.urlBase account:appDelegate.account];
-    destinationTitle = NSLocalizedString(@"_home_", nil);
+    destinationTitle = @"/";
     
     // changeTheming
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changeTheming) name:k_notificationCenter_changeTheming object:nil];
@@ -139,11 +139,15 @@
 #pragma mark == IBAction ==
 #pragma --------------------------------------------------------------------------------------------
 
-- (void)dismissSelectWithServerUrl:(NSString *)serverUrl metadata:(tableMetadata *)metadata type:(NSString *)type buttonType:(NSString *)buttonType overwrite:(BOOL)overwrite
+- (void)dismissSelectWithServerUrl:(NSString *)serverUrl metadata:(tableMetadata *)metadata type:(NSString *)type array:(NSArray *)array buttonType:(NSString *)buttonType overwrite:(BOOL)overwrite
 {
     if (serverUrl) {
         serverUrlLocal = serverUrl;
-        destinationTitle = metadata.fileNameView;
+        if ([serverUrl isEqualToString:appDelegate.urlBase]) {
+            destinationTitle =  @"/";
+        } else {
+            destinationTitle = [CCUtility returnPathfromServerUrl:serverUrl urlBase:appDelegate.urlBase account:appDelegate.account];
+        }
         self.destinationLabel.text = destinationTitle;
     }
 }
@@ -160,7 +164,7 @@
     viewController.includeImages = false;
     viewController.type = @"";
     viewController.titleButtonDone = NSLocalizedString(@"_select_", nil);
-    viewController.layoutViewSelect = k_layout_view_move;
+    viewController.keyLayout = k_layout_view_move;
     
     [navigationController setModalPresentationStyle:UIModalPresentationFullScreen];
     [self presentViewController:navigationController animated:YES completion:nil];
@@ -172,7 +176,7 @@
     
     tableMetadata *metadataForUpload = [[NCManageDatabase sharedInstance] createMetadataWithAccount:appDelegate.account fileName:fileName ocId:[[NSUUID UUID] UUIDString] serverUrl:serverUrlLocal urlBase:appDelegate.urlBase url:@"" contentType:@"" livePhoto:false];
     
-    metadataForUpload.session = NCCommunicationCommon.shared.sessionIdentifierBackground;
+    metadataForUpload.session = NCNetworking.shared.sessionIdentifierBackground;
     metadataForUpload.sessionSelector = selectorUploadFile;
     metadataForUpload.status = k_metadataStatusWaitUpload;
     

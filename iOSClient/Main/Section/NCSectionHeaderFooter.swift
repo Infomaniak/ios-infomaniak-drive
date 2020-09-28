@@ -22,80 +22,81 @@
 //
 
 import Foundation
+import MarkdownKit
 
-class NCSectionHeaderMenu: UICollectionReusableView {
+class NCSectionHeaderMenu: UICollectionReusableView, UIGestureRecognizerDelegate {
     
     @IBOutlet weak var buttonMore: UIButton!
     @IBOutlet weak var buttonSwitch: UIButton!
     @IBOutlet weak var buttonOrder: UIButton!
     @IBOutlet weak var buttonOrderWidthConstraint: NSLayoutConstraint!
-    @IBOutlet weak var viewLabelSection: UIView!
-    @IBOutlet weak var labelSection: UILabel!
-    @IBOutlet weak var labelSectionHeightConstraint: NSLayoutConstraint!
+    @IBOutlet weak var viewRichWorkspace: UIView!
+    @IBOutlet weak var viewRichWorkspaceHeightConstraint: NSLayoutConstraint!
+    @IBOutlet weak var textViewRichWorkspace: UITextView!
     @IBOutlet weak var separator: UIView!
     
     var delegate: NCSectionHeaderMenuDelegate?
     
+    private var markdownParser = MarkdownParser()
+    private var richWorkspaceText: String?
+    private var textViewColor: UIColor?
+    private let gradient : CAGradientLayer = CAGradientLayer()
+    
     override func awakeFromNib() {
         super.awakeFromNib()
         
-        buttonSwitch.setImage(CCGraphics.changeThemingColorImage(UIImage.init(named: "switchList"), multiplier: 2, color: NCBrandColor.sharedInstance.icon), for: .normal)
+        buttonSwitch.setImage(CCGraphics.changeThemingColorImage(UIImage.init(named: "switchList"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon), for: .normal)
         
         buttonOrder.setTitle("", for: .normal)
-        buttonOrder.setTitleColor(NCBrandColor.sharedInstance.icon, for: .normal)
+        buttonOrder.setTitleColor(NCBrandColor.sharedInstance.brandElement, for: .normal)
         
-        buttonMore.setImage(CCGraphics.changeThemingColorImage(UIImage.init(named: "more"), multiplier: 2, color: NCBrandColor.sharedInstance.icon), for: .normal)
+        buttonMore.setImage(CCGraphics.changeThemingColorImage(UIImage.init(named: "more"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon), for: .normal)
         
-        viewLabelSection.backgroundColor = NCBrandColor.sharedInstance.select
         separator.backgroundColor = NCBrandColor.sharedInstance.separator
         self.backgroundColor = NCBrandColor.sharedInstance.backgroundView
+        
+        // Gradient
+        gradient.startPoint = CGPoint(x: 0, y: 0.60)
+        gradient.endPoint = CGPoint(x: 0, y: 1)
+        viewRichWorkspace.layer.addSublayer(gradient)
+        
+        let tap = UITapGestureRecognizer(target: self, action: #selector(touchUpInsideViewRichWorkspace(_:)))
+        tap.delegate = self
+        viewRichWorkspace?.addGestureRecognizer(tap)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(changeTheming), name: NSNotification.Name(rawValue: k_notificationCenter_changeTheming), object: nil)
+        changeTheming()
     }
     
-    func setTitleOrder(datasourceSorted: String, datasourceAscending: Bool) {
-        
-        // Order (∨∧▽△)
-        var title = ""
-        
-        switch datasourceSorted {
-        case "fileName":
-            if datasourceAscending == true { title = NSLocalizedString("_order_by_name_a_z_", comment: "") }
-            if datasourceAscending == false { title = NSLocalizedString("_order_by_name_z_a_", comment: "") }
-        case "date":
-            if datasourceAscending == false { title = NSLocalizedString("_order_by_date_more_recent_", comment: "") }
-            if datasourceAscending == true { title = NSLocalizedString("_order_by_date_less_recent_", comment: "") }
-        case "size":
-            if datasourceAscending == true { title = NSLocalizedString("_order_by_size_smallest_", comment: "") }
-            if datasourceAscending == false { title = NSLocalizedString("_order_by_size_largest_", comment: "") }
-        default:
-            title = NSLocalizedString("_order_by_", comment: "") + " " + datasourceSorted
+    override func layoutSublayers(of layer: CALayer) {
+        super.layoutSublayers(of: layer)
+        gradient.frame = viewRichWorkspace.bounds
+    }
+    
+    @objc func changeTheming() {
+        if textViewColor != NCBrandColor.sharedInstance.textView {
+            markdownParser = MarkdownParser(font: UIFont.systemFont(ofSize: 15), color: NCBrandColor.sharedInstance.textView)
+            markdownParser.header.font = UIFont.systemFont(ofSize: 25)
+            if let richWorkspaceText = richWorkspaceText {
+                textViewRichWorkspace.attributedText = markdownParser.parse(richWorkspaceText)
+            }
+            textViewColor = NCBrandColor.sharedInstance.textView
+            
+            if CCUtility.getDarkMode() {
+                gradient.colors = [UIColor.init(white: 0, alpha: 0).cgColor, UIColor.black.cgColor]
+            } else {
+                gradient.colors = [UIColor.init(white: 1, alpha: 0).cgColor, UIColor.white.cgColor]
+            }
         }
+    }
+    
+    func setTitleSorted(datasourceTitleButton: String) {
         
-        title = title + "  ▽"
+        let title = NSLocalizedString(datasourceTitleButton, comment: "")
         let size = title.size(withAttributes:[.font: buttonOrder.titleLabel?.font as Any])
         
         buttonOrder.setTitle(title, for: .normal)
         buttonOrderWidthConstraint.constant = size.width + 5
-    }
-    
-    func setTitleLabel(sectionDatasource: CCSectionDataSourceMetadata, section: Int) {
-        
-        var title = ""
-        
-        if sectionDatasource.sections.object(at: section) is String {
-            title = sectionDatasource.sections.object(at: section) as! String
-        }
-        if sectionDatasource.sections.object(at: section) is Date {
-            let titleDate = sectionDatasource.sections.object(at: section) as! Date
-            title = CCUtility.getTitleSectionDate(titleDate)
-        }
-        
-        if title.contains("download") {
-            labelSection.text = NSLocalizedString("_title_section_download_", comment: "")
-        } else if title.contains("upload") {
-            labelSection.text = NSLocalizedString("_title_section_upload_", comment: "")
-        } else {
-            labelSection.text = NSLocalizedString(title, comment: "")
-        }
     }
     
     func setStatusButton(count: Int) {
@@ -111,6 +112,14 @@ class NCSectionHeaderMenu: UICollectionReusableView {
         }
     }
     
+    func setRichWorkspaceText(richWorkspaceText: String?) {
+        guard let richWorkspaceText = richWorkspaceText else { return }
+        if richWorkspaceText != self.richWorkspaceText {
+            textViewRichWorkspace.attributedText = markdownParser.parse(richWorkspaceText)
+            self.richWorkspaceText = richWorkspaceText
+        }
+    }
+    
     @IBAction func touchUpInsideMore(_ sender: Any) {
         delegate?.tapMoreHeader(sender: sender)
     }
@@ -122,44 +131,17 @@ class NCSectionHeaderMenu: UICollectionReusableView {
     @IBAction func touchUpInsideOrder(_ sender: Any) {
         delegate?.tapOrderHeader(sender: sender)
     }
+    
+    @objc func touchUpInsideViewRichWorkspace(_ sender: Any) {
+        delegate?.tapRichWorkspace(sender: sender)
+    }
 }
 
 protocol NCSectionHeaderMenuDelegate {
     func tapSwitchHeader(sender: Any)
     func tapMoreHeader(sender: Any)
     func tapOrderHeader(sender: Any)
-}
-
-class NCSectionHeader: UICollectionReusableView {
-    
-    @IBOutlet weak var labelSection: UILabel!
-    
-    override func awakeFromNib() {
-        super.awakeFromNib()
-        
-        self.backgroundColor = NCBrandColor.sharedInstance.select
-    }
-    
-    func setTitleLabel(sectionDatasource: CCSectionDataSourceMetadata, section: Int) {
-        
-        var title = ""
-        
-        if sectionDatasource.sections.object(at: section) is String {
-            title = sectionDatasource.sections.object(at: section) as! String
-        }
-        if sectionDatasource.sections.object(at: section) is Date {
-            let titleDate = sectionDatasource.sections.object(at: section) as! Date
-            title = CCUtility.getTitleSectionDate(titleDate)
-        }
-        
-        if title.contains("download") {
-            labelSection.text = NSLocalizedString("_title_section_download_", comment: "")
-        } else if title.contains("upload") {
-            labelSection.text = NSLocalizedString("_title_section_upload_", comment: "")
-        } else {
-            labelSection.text = NSLocalizedString(title, comment: "")
-        }
-    }
+    func tapRichWorkspace(sender: Any)
 }
 
 class NCSectionFooter: UICollectionReusableView {
@@ -173,21 +155,21 @@ class NCSectionFooter: UICollectionReusableView {
         labelSection.textColor = NCBrandColor.sharedInstance.icon
     }
     
-    func setTitleLabel(sectionDatasource: CCSectionDataSourceMetadata) {
+    func setTitleLabel(directories: Int, files: Int, size: Double) {
         
         var foldersText = ""
         var filesText = ""
         
-        if sectionDatasource.directories > 1 {
-            foldersText = "\(sectionDatasource.directories) " + NSLocalizedString("_folders_", comment: "")
-        } else if sectionDatasource.directories == 1 {
+        if directories > 1 {
+            foldersText = "\(directories) " + NSLocalizedString("_folders_", comment: "")
+        } else if directories == 1 {
             foldersText = "1 " + NSLocalizedString("_folder_", comment: "")
         }
         
-        if sectionDatasource.files > 1 {
-            filesText = "\(sectionDatasource.files) " + NSLocalizedString("_files_", comment: "") + " " + CCUtility.transformedSize(sectionDatasource.totalSize)
-        } else if sectionDatasource.files == 1 {
-            filesText = "1 " + NSLocalizedString("_file_", comment: "") + " " + CCUtility.transformedSize(sectionDatasource.totalSize)
+        if files > 1 {
+            filesText = "\(files) " + NSLocalizedString("_files_", comment: "") + " " + CCUtility.transformedSize(size)
+        } else if files == 1 {
+            filesText = "1 " + NSLocalizedString("_file_", comment: "") + " " + CCUtility.transformedSize(size)
         }
         
         if foldersText == "" {

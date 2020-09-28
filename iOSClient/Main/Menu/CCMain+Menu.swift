@@ -28,114 +28,6 @@ import NCCommunication
 
 extension CCMain {
 
-    // MARK: - Sort Menu
-    
-    @objc func toggleMenu(viewController: UIViewController) {
-        let mainMenuViewController = UIStoryboard.init(name: "NCMenu", bundle: nil).instantiateViewController(withIdentifier: "NCMainMenuTableViewController") as! NCMainMenuTableViewController
-        mainMenuViewController.actions = self.initSortMenu()
-
-        let menuPanelController = NCMenuPanelController()
-        menuPanelController.parentPresenter = viewController
-        menuPanelController.delegate = mainMenuViewController
-        menuPanelController.set(contentViewController: mainMenuViewController)
-        menuPanelController.track(scrollView: mainMenuViewController.tableView)
-
-        viewController.present(menuPanelController, animated: true, completion: nil)
-    }
-    
-    @objc func SetSortButtonText() {
-        
-        switch CCUtility.getOrderSettings() {
-        case "fileName":
-            self.sortButton.setTitle((CCUtility.getAscendingSettings() ? NSLocalizedString("_sorted_by_name_a_z_", comment: "") : NSLocalizedString("_sorted_by_name_z_a_", comment: "")), for: .normal)
-        case "date":
-            self.sortButton.setTitle((CCUtility.getAscendingSettings() ? NSLocalizedString("_sorted_by_date_less_recent_", comment: "") : NSLocalizedString("_sorted_by_date_more_recent_", comment: "")), for: .normal)
-        case "size":
-            self.sortButton.setTitle((CCUtility.getAscendingSettings() ? NSLocalizedString("_sorted_by_size_largest_", comment: "") : NSLocalizedString("_sorted_by_size_smallest_", comment: "")), for: .normal)
-        default:
-            break
-        }
-    }
-
-    private func initSortMenu() -> [NCMenuAction] {
-        var actions = [NCMenuAction]()
-
-        actions.append(
-            NCMenuAction(
-                title: NSLocalizedString("_order_by_name_a_z_", comment: ""),
-                icon: CCGraphics.changeThemingColorImage(UIImage(named: "sortFileNameAZ"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
-                onTitle: NSLocalizedString("_order_by_name_z_a_", comment: ""),
-                onIcon: CCGraphics.changeThemingColorImage(UIImage(named: "sortFileNameZA"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
-                selected: CCUtility.getOrderSettings() == "fileName",
-                on: CCUtility.getAscendingSettings(),
-                action: { menuAction in
-                    if(CCUtility.getOrderSettings() == "fileName") {
-                        CCUtility.setAscendingSettings(!CCUtility.getAscendingSettings())
-                    } else {
-                        CCUtility.setOrderSettings("fileName")
-                    }
-                    self.SetSortButtonText()
-                    NotificationCenter.default.postOnMainThread(name: k_notificationCenter_reloadDataSource, userInfo: ["serverUrl":self.serverUrl ?? ""])
-                }
-            )
-        )
-
-        actions.append(
-            NCMenuAction(
-                title: NSLocalizedString("_order_by_date_more_recent_", comment: ""),
-                icon: CCGraphics.changeThemingColorImage(UIImage(named: "sortDateMoreRecent"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
-                onTitle: NSLocalizedString("_order_by_date_less_recent_", comment: ""),
-                onIcon: CCGraphics.changeThemingColorImage(UIImage(named: "sortDateLessRecent"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
-                selected: CCUtility.getOrderSettings() == "date",
-                on: CCUtility.getAscendingSettings(),
-                action: { menuAction in
-                    if(CCUtility.getOrderSettings() == "date") {
-                        CCUtility.setAscendingSettings(!CCUtility.getAscendingSettings())
-                    } else {
-                        CCUtility.setOrderSettings("date")
-                    }
-                    self.SetSortButtonText()
-                    NotificationCenter.default.postOnMainThread(name: k_notificationCenter_reloadDataSource, userInfo: ["serverUrl":self.serverUrl ?? ""])
-                }
-            )
-        )
-
-        actions.append(
-            NCMenuAction(
-                title: NSLocalizedString("_order_by_size_smallest_", comment: ""),
-                icon: CCGraphics.changeThemingColorImage(UIImage(named: "sortSmallest"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
-                onTitle: NSLocalizedString("_order_by_size_largest_", comment: ""),
-                onIcon: CCGraphics.changeThemingColorImage(UIImage(named: "sortLargest"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
-                selected: CCUtility.getOrderSettings() == "size",
-                on: CCUtility.getAscendingSettings(),
-                action: { menuAction in
-                    if(CCUtility.getOrderSettings() == "size") {
-                        CCUtility.setAscendingSettings(!CCUtility.getAscendingSettings())
-                    } else {
-                        CCUtility.setOrderSettings("size")
-                    }
-                    self.SetSortButtonText()
-                    NotificationCenter.default.postOnMainThread(name: k_notificationCenter_reloadDataSource, userInfo: ["serverUrl":self.serverUrl ?? ""])
-                }
-            )
-        )
-
-        actions.append(
-            NCMenuAction(
-                title: NSLocalizedString("_directory_on_top_no_", comment: ""),
-                icon: CCGraphics.changeThemingColorImage(UIImage(named: "foldersOnTop"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
-                selected: CCUtility.getDirectoryOnTop(),
-                on: CCUtility.getDirectoryOnTop(),
-                action: { menuAction in
-                    CCUtility.setDirectoryOnTop(!CCUtility.getDirectoryOnTop())
-                    NotificationCenter.default.postOnMainThread(name: k_notificationCenter_reloadDataSource, userInfo: ["serverUrl":self.serverUrl ?? ""])
-                }
-            )
-        )
-
-        return actions
-    }
-
     // MARK: - Select Menu
     
     @objc func toggleSelectMenu(viewController: UIViewController) {
@@ -177,16 +69,6 @@ extension CCMain {
 
         actions.append(
             NCMenuAction(
-                title: NSLocalizedString("_download_selected_files_folders_", comment: ""),
-                icon: CCGraphics.changeThemingColorImage(UIImage(named: "downloadSelectedFiles"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
-                action: { menuAction in
-                    self.downloadSelectedFilesFolders()
-                }
-            )
-        )
-
-        actions.append(
-            NCMenuAction(
                 title: NSLocalizedString("_save_selected_files_", comment: ""),
                 icon: CCGraphics.changeThemingColorImage(UIImage(named: "saveSelectedFiles"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                 action: { menuAction in
@@ -212,7 +94,7 @@ extension CCMain {
 
     @objc func toggleMoreMenu(viewController: UIViewController, indexPath: IndexPath, metadata: tableMetadata, metadataFolder: tableMetadata) {
            
-        if let metadata = NCManageDatabase.sharedInstance.getMetadata(predicate: NSPredicate(format: "ocId == %@", metadata.ocId)) {
+        if let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(metadata.ocId) {
             
             let mainMenuViewController = UIStoryboard.init(name: "NCMenu", bundle: nil).instantiateViewController(withIdentifier: "NCMainMenuTableViewController") as! NCMainMenuTableViewController
             mainMenuViewController.actions = self.initMoreMenu(indexPath: indexPath, metadata: metadata, metadataFolder: metadataFolder)
@@ -254,7 +136,11 @@ extension CCMain {
                     title: metadata.favorite ? NSLocalizedString("_remove_favorites_", comment: "") : NSLocalizedString("_add_favorites_", comment: ""),
                     icon: CCGraphics.changeThemingColorImage(UIImage(named: "favorite"), width: 50, height: 50, color: NCBrandColor.sharedInstance.yellowFavorite),
                     action: { menuAction in
-                        NCNetworking.shared.favoriteMetadata(metadata, urlBase: appDelegate.urlBase) { (errorCode, errorDescription) in }
+                        NCNetworking.shared.favoriteMetadata(metadata, urlBase: appDelegate.urlBase) { (errorCode, errorDescription) in
+                            if errorCode != 0 {
+                                NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
+                            }
+                        }
                     }
                 )
             )
@@ -265,7 +151,7 @@ extension CCMain {
                         title: NSLocalizedString("_sharing_", comment: ""),
                         icon: CCGraphics.changeThemingColorImage(UIImage(named: "shareTypeLink"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                         action: { menuAction in
-                                NCMainCommon.sharedInstance.openShare(ViewController: self, metadata: metadata, indexPage: 2)
+                                NCMainCommon.shared.openShare(ViewController: self, metadata: metadata, indexPage: 2)
                         }
                     )
                 )
@@ -275,7 +161,7 @@ extension CCMain {
                         title: NSLocalizedString("_details_", comment: ""),
                         icon: CCGraphics.changeThemingColorImage(UIImage(named: "details"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                         action: { menuAction in
-                            NCMainCommon.sharedInstance.openShare(ViewController: self, metadata: metadata, indexPage: 0)
+                            NCMainCommon.shared.openShare(ViewController: self, metadata: metadata, indexPage: 0)
                         }
                     )
                 )
@@ -291,18 +177,19 @@ extension CCMain {
 
                             alertController.addTextField { (textField) in
                                 textField.text = metadata.fileNameView
-                                textField.delegate = self as? UITextFieldDelegate
-                                textField.addTarget(self, action: #selector(self.minCharTextFieldDidChange(_:)
-                                    ), for: UIControl.Event.editingChanged)
                             }
 
                             let cancelAction = UIAlertAction(title: NSLocalizedString("_cancel_", comment: ""), style: .cancel, handler: nil)
 
                             let okAction = UIAlertAction(title: NSLocalizedString("_ok_", comment: ""), style: .default, handler: { action in
                                 let fileNameNew = alertController.textFields![0].text
-                                NCNetworking.shared.renameMetadata(metadata, fileNameNew: fileNameNew!, urlBase: appDelegate.urlBase, viewController: self) { (errorCode, errorDescription) in }
+                                NCNetworking.shared.renameMetadata(metadata, fileNameNew: fileNameNew!, urlBase: appDelegate.urlBase, viewController: self) { (errorCode, errorDescription) in
+                                    if errorCode != 0 {
+                                        NCContentPresenter.shared.messageNotification("_error_", description: errorDescription, delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.error, errorCode: errorCode)
+                                    }
+                                }
                             })
-                            okAction.isEnabled = false
+
                             alertController.addAction(cancelAction)
                             alertController.addAction(okAction)
 
@@ -421,7 +308,7 @@ extension CCMain {
                         title: NSLocalizedString("_details_", comment: ""),
                         icon: CCGraphics.changeThemingColorImage(UIImage(named: "details"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                         action: { menuAction in
-                            NCMainCommon.sharedInstance.openShare(ViewController: self, metadata: metadata, indexPage: 0)
+                            NCMainCommon.shared.openShare(ViewController: self, metadata: metadata, indexPage: 0)
                         }
                     )
                 )
@@ -433,7 +320,7 @@ extension CCMain {
                         icon: CCGraphics.changeThemingColorImage(UIImage(named: "openFile"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                         action: { menuAction in
                             self.tableView.setEditing(false, animated: true)
-                            NCMainCommon.sharedInstance.downloadOpen(metadata: metadata, selector: selectorOpenIn)
+                            NCMainCommon.shared.downloadOpen(metadata: metadata, selector: selectorOpenIn)
                         }
                     )
                 )
@@ -448,9 +335,6 @@ extension CCMain {
 
                         alertController.addTextField { (textField) in
                             textField.text = metadata.fileNameView
-                            textField.delegate = self as? UITextFieldDelegate
-                            textField.addTarget(self, action: #selector(self.minCharTextFieldDidChange(_:)
-                                ), for: UIControl.Event.editingChanged)
                         }
 
                         let cancelAction = UIAlertAction(title: NSLocalizedString("_cancel_", comment: ""), style: .cancel, handler: nil)
@@ -459,7 +343,7 @@ extension CCMain {
                             let fileNameNew = alertController.textFields![0].text
                             NCNetworking.shared.renameMetadata(metadata, fileNameNew: fileNameNew!, urlBase: appDelegate.urlBase, viewController: self) { (errorCode, errorDescription) in }
                         })
-                        okAction.isEnabled = false
+                        
                         alertController.addAction(cancelAction)
                         alertController.addAction(okAction)
 
@@ -474,7 +358,7 @@ extension CCMain {
                         title: NSLocalizedString("_sharing_", comment: ""),
                         icon: CCGraphics.changeThemingColorImage(UIImage(named: "shareTypeLink"), width: 50, height: 50, color: NCBrandColor.sharedInstance.icon),
                         action: { menuAction in
-                                NCMainCommon.sharedInstance.openShare(ViewController: self, metadata: metadata, indexPage: 2)
+                                NCMainCommon.shared.openShare(ViewController: self, metadata: metadata, indexPage: 2)
                         }
                     )
                 )

@@ -204,7 +204,7 @@ class NCCapabilitiesViewController: UIViewController, UIDocumentInteractionContr
             let fileURL = NSURL.fileURL(withPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent("capabilities.txt")
             do {
                 try self.capabilitiesText.write(to: fileURL, atomically: true, encoding: .utf8)
-                NCMainCommon.sharedInstance.openIn(fileURL: fileURL, selector: nil)
+                NCNetworkingNotificationCenter.shared.openIn(fileURL: fileURL, selector: nil)
             } catch { }
         }
     }
@@ -224,7 +224,7 @@ class NCCapabilitiesViewController: UIViewController, UIDocumentInteractionContr
             statusFileSharing.text = NSLocalizedString("_not_available_", comment: "")
         }
         
-        if NCManageDatabase.sharedInstance.getCapabilitiesServerBool(account: account, elements: NCElementsJSON.shared.capabilitiesExternalSitesExists, exists: false) {
+        if NCManageDatabase.sharedInstance.getCapabilitiesServerBool(account: account, elements: NCElementsJSON.shared.capabilitiesExternalSitesExists, exists: true) {
             statusExternalSite.text = "✓ " + NSLocalizedString("_available_", comment: "")
         } else {
             statusExternalSite.text = NSLocalizedString("_not_available_", comment: "")
