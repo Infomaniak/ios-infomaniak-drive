@@ -75,6 +75,8 @@ class NCContentPresenter: NSObject {
             else if errorCode == 423 { return }     // WebDAV locked
             else if errorCode == -1001 { return }   // Time out
             else if errorCode == -1005 { return }   // Connection lost
+            else if errorCode == 501 { return }     // kDrive only - hide
+            else if errorCode == 409 { return }     // kDrive only - hide
             else if errorCode == 0 && type == messageType.error { return }
             
             // No repeat message for:
