@@ -492,6 +492,7 @@ class NCCreateFormUploadScanDocument: XLFormViewController, NCSelectDelegate, NC
             
             do {
                 try textFile.write(to: NSURL(fileURLWithPath: fileNameGenerateExport) as URL  , atomically: true, encoding: .utf8)
+                metadata.size = Double(textFile.data(using: .utf8)?.count ?? 0)
             } catch {
                 NCUtility.shared.stopActivityIndicator()
                 NCContentPresenter.shared.messageNotification("_error_", description: "_error_creation_file_", delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.info, errorCode: Int(k_CCErrorCreationFile), forced: true)
@@ -573,6 +574,7 @@ class NCCreateFormUploadScanDocument: XLFormViewController, NCSelectDelegate, NC
             
             do {
                 try pdfData.write(toFile: fileNameGenerateExport, options: .atomic)
+                metadata.size = Double(pdfData.count)
             } catch {
                 print("error catched")
             }
@@ -590,6 +592,7 @@ class NCCreateFormUploadScanDocument: XLFormViewController, NCSelectDelegate, NC
             
             do {
                 try data.write(to: NSURL.fileURL(withPath: fileNameGenerateExport), options: .atomic)
+                metadata.size = Double(data.count)
             } catch {
                 NCUtility.shared.stopActivityIndicator()
                 NCContentPresenter.shared.messageNotification("_error_", description: "_error_creation_file_", delay: TimeInterval(k_dismissAfterSecond), type: NCContentPresenter.messageType.info, errorCode: Int(k_CCErrorCreationFile), forced: true)
