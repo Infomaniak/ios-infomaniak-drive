@@ -201,7 +201,8 @@ class NCDetailViewController: UIViewController {
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let metadataNew = userInfo["metadataNew"] as? tableMetadata {
+            if let ocId = userInfo["ocId"] as? String, let ocIdNew = userInfo["ocIdNew"] as? String,  let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId), let metadataNew = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocIdNew) {
+                
                 if metadata.account != self.metadata?.account { return }
                 
                 // IMAGE
@@ -233,15 +234,14 @@ class NCDetailViewController: UIViewController {
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata {
-                if metadata.account != self.metadata?.account || metadata.serverUrl != self.metadata?.serverUrl { return }
-                                    
+            if let ocId = userInfo["ocId"] as? String, let typeFile = userInfo["typeFile"] as? String {
+                                                    
                 // IMAGE
-                if (metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio) {
+                if (typeFile == k_metadataTypeFile_image || typeFile == k_metadataTypeFile_video || typeFile == k_metadataTypeFile_audio) {
                 
-                    let metadatas = self.metadatas.filter { $0.ocId != metadata.ocId }
+                    let metadatas = self.metadatas.filter { $0.ocId != ocId }
                     if metadatas.count > 0 {
-                        if self.metadata?.ocId == metadata.ocId {
+                        if self.metadata?.ocId == ocId {
                             var index = viewerImageViewController!.index - 1
                             if index < 0 { index = 0}
                             self.metadata = metadatas[index]
@@ -253,7 +253,7 @@ class NCDetailViewController: UIViewController {
                 }
                 
                 // OTHER
-                if (metadata.typeFile == k_metadataTypeFile_document || metadata.typeFile == k_metadataTypeFile_unknown) && metadata.ocId == self.metadata?.ocId {
+                if (typeFile == k_metadataTypeFile_document || typeFile == k_metadataTypeFile_unknown) && ocId == self.metadata?.ocId {
                     viewUnload()
                 }
             }
@@ -264,7 +264,8 @@ class NCDetailViewController: UIViewController {
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata {
+            if let ocId = userInfo["ocId"] as? String, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
+            
                 if metadata.account != self.metadata?.account || metadata.serverUrl != self.metadata?.serverUrl { return }
                 
                 // IMAGE
@@ -291,8 +292,9 @@ class NCDetailViewController: UIViewController {
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let errorCode = userInfo["errorCode"] as? Int {
-                if metadata.account != self.metadata?.account || metadata.serverUrl != self.metadata?.serverUrl { return }
+            if let ocId = userInfo["ocId"] as? String, let errorCode = userInfo["errorCode"] as? Int, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
+
+            if metadata.account != self.metadata?.account || metadata.serverUrl != self.metadata?.serverUrl { return }
                 
                 // IMAGE
                 if metadata.typeFile == k_metadataTypeFile_image || metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio && errorCode != 0  {
@@ -309,9 +311,9 @@ class NCDetailViewController: UIViewController {
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let _ = userInfo["errorCode"] as? Int {
+            if let ocId = userInfo["ocId"] as? String, let _ = userInfo["errorCode"] as? Int, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
                 if metadata.serverUrl != self.metadata?.serverUrl { return }
-                    progress(0)
+                progress(0)
             }
         }
     }
@@ -320,7 +322,7 @@ class NCDetailViewController: UIViewController {
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata {
+            if let ocId = userInfo["ocId"] as? String, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
 
                 NCNetworking.shared.download(metadata: metadata, selector: "") { (_) in }
 
@@ -335,7 +337,7 @@ class NCDetailViewController: UIViewController {
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let metadataMov = userInfo["metadataMov"] as? tableMetadata {
+            if let ocId = userInfo["ocId"] as? String, let ocIdMov = userInfo["ocIdMov"] as? String, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId), let metadataMov = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocIdMov) {
                 let fileNameImage = URL(fileURLWithPath: CCUtility.getDirectoryProviderStorageOcId(metadata.ocId, fileNameView: metadata.fileNameView)!)
                 let fileNameMov = URL(fileURLWithPath: CCUtility.getDirectoryProviderStorageOcId(metadataMov.ocId, fileNameView: metadataMov.fileNameView)!)
                 
@@ -647,12 +649,14 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
             let fileNameLocalPath = CCUtility.getDirectoryProviderStorageOcId(metadata.ocId, fileNameView: metadata.fileName)!
                         
             NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, requestHandler: { (_) in
-                                
+                
+            }, taskHandler: { (task) in
+                
             },  progressHandler: { (progress) in
                                 
                 self.progress(Float(progress.fractionCompleted))
                 
-            }) { (account, etag, date, length, error, errorCode, errorDescription) in
+            }) { (account, etag, date, length, allHeaderFields, error, errorCode, errorDescription) in
                 
                 if errorCode == 0 && account == metadata.account {
                     
@@ -685,7 +689,7 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
             let fileNamePreviewLocalPath = CCUtility.getDirectoryProviderStoragePreviewOcId(metadata.ocId, etag: metadata.etag)!
             let fileNameIconLocalPath = CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, etag: metadata.etag)!
                     
-            NCCommunication.shared.downloadPreview(fileNamePathOrFileId: fileNamePath, fileNamePreviewLocalPath: fileNamePreviewLocalPath, widthPreview: Int(k_sizePreview), heightPreview: Int(k_sizePreview), fileNameIconLocalPath: fileNameIconLocalPath, sizeIcon: Int(k_sizeIcon)) { (account, imagePreview, imageIcon,  errorCode, errorMessage) in
+            NCCommunication.shared.downloadPreview(fileNamePathOrFileId: fileNamePath, fileNamePreviewLocalPath: fileNamePreviewLocalPath, widthPreview: CGFloat(k_sizePreview), heightPreview: CGFloat(k_sizePreview), fileNameIconLocalPath: fileNameIconLocalPath, sizeIcon: CGFloat(k_sizeIcon)) { (account, imagePreview, imageIcon,  errorCode, errorMessage) in
                 if errorCode == 0 && imagePreview != nil {
                     completion(index, imagePreview, metadata, ZoomScale.default, nil)
                 } else {
@@ -766,11 +770,13 @@ extension NCDetailViewController: NCViewerImageViewControllerDelegate, NCViewerI
                                 
                 NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath, requestHandler: { (_) in
                     
+                }, taskHandler: { (task) in
+                    
                 }, progressHandler: { (progress) in
                                     
                     self.progress(Float(progress.fractionCompleted))
                     
-                }) { (account, etag, date, length, error, errorCode, errorDescription) in
+                }) { (account, etag, date, length, allHeaderFields, error, errorCode, errorDescription) in
                     
                     self.progress(0)
                     

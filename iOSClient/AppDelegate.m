@@ -28,8 +28,7 @@
 #import "NCPushNotificationEncryption.h"
 #import <QuartzCore/QuartzCore.h>
 
-@import Sentry;
-
+@import Firebase;
 @class NCViewerRichdocument;
 
 @interface AppDelegate() <TOPasscodeViewControllerDelegate>
@@ -46,20 +45,8 @@
 {
     BOOL isSimulatorOrTestFlight = [[NCUtility shared] isSimulatorOrTestFlight];
     
-    if (isSimulatorOrTestFlight) {
-        NCBrandOptions.sharedInstance.disable_crash_service = false;
-    }
     if (![CCUtility getDisableCrashservice] && NCBrandOptions.sharedInstance.disable_crash_service == false) {
-        [SentrySDK startWithOptions: @{
-            @"dsn": @"https://42eaf570ec2646b1a564a4c4bfc8c279@o394108.ingest.sentry.io/5243836",
-            @"debug": @(YES),
-            @"enableAutoSessionTracking": @(YES)
-            /* PRIVACY : https://github.com/getsentry/sentry-cocoa
-             By default, we don’t apply the user identification provided to the SDK via the API. Instead, we use
-             the installation ID generated with the first use of the application. The ID doesn’t contain any
-             private or public data of your users or any public or shared data of their device.
-             */
-        }];
+        [FIRApp configure];
     }
     
     [CCUtility createDirectoryStandard];
@@ -168,7 +155,9 @@
         if (self.account.length == 0) {
             [self openLoginView:nil selector:k_intro_login openLoginWeb:false];
         }
+        
     } else {
+        
         if ([CCUtility getIntro] == NO) {
             UIViewController *introViewController = [[UIStoryboard storyboardWithName:@"NCIntro" bundle:[NSBundle mainBundle]] instantiateInitialViewController];
             
@@ -199,9 +188,7 @@
 //
 - (void)applicationWillResignActive:(UIApplication *)application
 {
-    // Test Maintenance
-    if (self.account.length == 0 || self.maintenanceMode)
-        return;
+    if (self.account.length == 0) { return; }
     
     // Dismiss FileViewInFolder
     if (self.activeFileViewInFolder != nil ) {
@@ -218,7 +205,7 @@
 //
 - (void)applicationWillEnterForeground:(UIApplication *)application
 {
-    if (self.account.length == 0 || self.maintenanceMode) { return; }
+    if (self.account.length == 0) { return; }
     
     [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_applicationWillEnterForeground object:nil];
     
@@ -250,7 +237,7 @@
 //
 - (void)applicationDidBecomeActive:(UIApplication *)application
 {
-    if (self.account.length == 0 || self.maintenanceMode) { return; }
+    if (self.account.length == 0) { return; }
         
     // Brand
     #if defined(HC)
@@ -274,7 +261,7 @@
 //
 - (void)applicationDidEnterBackground:(UIApplication *)application
 {
-    if (self.account.length == 0 || self.maintenanceMode) { return; }
+    if (self.account.length == 0) { return; }
 
     [[NSNotificationCenter defaultCenter] postNotificationOnMainThreadName:k_notificationCenter_applicationDidEnterBackground object:nil];
     
@@ -324,9 +311,9 @@
     // Registeration push notification
     [self pushNotification];
     
-    // Registeration domain File Provider
-    FileProviderDomain *fileProviderDomain = [FileProviderDomain new];
-    [fileProviderDomain removeAllDomains];
+    //Registeration domain File Provider
+    //FileProviderDomain *fileProviderDomain = [FileProviderDomain new];
+    //[fileProviderDomain removeAllDomains];
     //[fileProviderDomain registerDomains];
     
     [[NCCommunicationCommon shared] writeLog:@"initialize Main"];
@@ -339,8 +326,7 @@
 - (void)checkErrorNetworking
 {
     // test
-    if (self.account.length == 0 || self.maintenanceMode)
-        return;
+    if (self.account.length == 0) { return; }
     
     // check unauthorized server (401)
     if ([CCUtility getPassword:self.account].length == 0) {
@@ -539,9 +525,7 @@
 
 - (void)pushNotification
 {
-    // test
-    if (self.account.length == 0 || self.maintenanceMode || self.pushKitToken.length == 0)
-        return;
+    if (self.account.length == 0 || self.pushKitToken.length == 0) { return; }
     
     for (tableAccount *result in [[NCManageDatabase sharedInstance] getAllAccount]) {
         
@@ -560,9 +544,7 @@
 
 - (void)subscribingNextcloudServerPushNotification:(NSString *)account urlBase:(NSString *)urlBase user:(NSString *)user
 {
-    // test
-    if (self.account.length == 0 || self.maintenanceMode || self.pushKitToken.length == 0)
-        return;
+    if (self.account.length == 0 || self.pushKitToken.length == 0) { return; }
     
     [[NCPushNotificationEncryption sharedInstance] generatePushNotificationsKeyPair:account];
 
@@ -591,9 +573,7 @@
 
 - (void)unsubscribingNextcloudServerPushNotification:(NSString *)account urlBase:(NSString *)urlBase user:(NSString *)user withSubscribing:(BOOL)subscribing
 {
-    // test
-    if (self.account.length == 0 || self.maintenanceMode)
-        return;
+    if (self.account.length == 0) { return; }
     
     NSString *deviceIdentifier = [CCUtility getPushNotificationDeviceIdentifier:account];
     NSString *signature = [CCUtility getPushNotificationDeviceIdentifierSignature:account];
@@ -795,7 +775,7 @@
 
 - (void)updateApplicationIconBadgeNumber
 {
-    if (self.account.length == 0 || self.maintenanceMode) return;
+    if (self.account.length == 0) { return; }
             
     NSInteger counterDownload = [[NCOperationQueue shared] downloadCount];
     NSInteger counterUpload = [[NCManageDatabase sharedInstance] getMetadatasWithPredicate:[NSPredicate predicateWithFormat:@"status == %d OR status == %d OR status == %d", k_metadataStatusWaitUpload, k_metadataStatusInUpload, k_metadataStatusUploading]].count;
@@ -916,10 +896,6 @@
 
 - (void)handleTouchTabbarCenter:(id)sender
 {
-    // Test Maintenance
-    if (self.maintenanceMode)
-        return;
-    
     tableDirectory *tableDirectory = [[NCManageDatabase sharedInstance] getTableDirectoryWithPredicate:[NSPredicate predicateWithFormat:@"account == %@ AND serverUrl == %@", self.account, self.activeServerUrl]];
     
     if ([tableDirectory.permissions containsString:@"CK"]) {
@@ -935,8 +911,7 @@
 
 - (void)settingThemingColorBrand
 {
-    if (self.account.length == 0 || self.maintenanceMode)
-        return;
+    if (self.account.length == 0) { return; }
     
     if ([NCBrandOptions sharedInstance].use_themingColor) {
         
@@ -950,9 +925,9 @@
         BOOL isTooDark = NCBrandColor.sharedInstance.brandElement.isTooDark;
         
         if (isTooLight) {
-            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.brandElement darkerBy:10];
+            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.brandElement darkerBy:30];
         } else if (isTooDark) {
-            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.brandElement lighterBy:40];
+            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.brandElement lighterBy:30];
         }
     
     } else {
@@ -961,9 +936,9 @@
         BOOL isTooDark = NCBrandColor.sharedInstance.customer.isTooDark;
         
         if (isTooLight) {
-            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.customer darkerBy:10];
+            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.customer darkerBy:30];
         } else if (isTooDark) {
-            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.customer lighterBy:40];
+            NCBrandColor.sharedInstance.brandElement = [NCBrandColor.sharedInstance.customer lighterBy:30];
         } else {
             NCBrandColor.sharedInstance.brandElement = NCBrandColor.sharedInstance.customer;
         }
@@ -1028,8 +1003,7 @@
 
 - (void)application:(UIApplication *)application performFetchWithCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 {
-    // Test Maintenance
-    if (self.account.length == 0 || self.maintenanceMode) {
+    if (self.account.length == 0) {
         completionHandler(UIBackgroundFetchResultNoData);
         return;
     }
@@ -1074,8 +1048,7 @@
 // Method called from iOS system to send a file from other app.
 - (BOOL)application:(UIApplication *)application openURL:(NSURL *)url options:(NSDictionary<NSString *,id> *)options
 {
-    if (self.account.length == 0 || self.maintenanceMode)
-        return YES;
+    if (self.account.length == 0) { return YES; }
     
     NSString *scheme = url.scheme;
     NSString *fileName;
@@ -1278,15 +1251,6 @@
             }
         }];
     }
-}
-
-#pragma --------------------------------------------------------------------------------------------
-#pragma mark ===== Maintenance Mode =====
-#pragma --------------------------------------------------------------------------------------------
-
-- (void)maintenanceMode:(BOOL)mode
-{
-    self.maintenanceMode = mode;
 }
 
 @end

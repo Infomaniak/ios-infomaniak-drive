@@ -187,8 +187,6 @@ class FileProviderExtension: NSFileProviderExtension, NCNetworkingDelegate {
         
         let pathComponents = url.pathComponents
         let identifier = NSFileProviderItemIdentifier(pathComponents[pathComponents.count - 2])
-        var downloadRequest: DownloadRequest?
-        var task: URLSessionTask?
         
         if let _ = outstandingSessionTasks[url] {
             completionHandler(nil)
@@ -214,19 +212,15 @@ class FileProviderExtension: NSFileProviderExtension, NCNetworkingDelegate {
         fileProviderData.shared.signalEnumerator(ocId: metadata.ocId, update: true)
         
         NCCommunication.shared.download(serverUrlFileName: serverUrlFileName, fileNameLocalPath: fileNameLocalPath,  requestHandler: { (request) in
+                        
+        }, taskHandler: { (task) in
             
-            downloadRequest = request
+            self.outstandingSessionTasks[url] = task
+            fileProviderData.shared.fileProviderManager.register(task, forItemWithIdentifier: NSFileProviderItemIdentifier(identifier.rawValue)) { (error) in }
             
-        }, progressHandler: { (progress) in
+        }, progressHandler: { (_) in
             
-            if task == nil && downloadRequest?.task != nil {
-                task = downloadRequest?.task
-                self.outstandingSessionTasks[url] = task
-                
-                fileProviderData.shared.fileProviderManager.register(task!, forItemWithIdentifier: NSFileProviderItemIdentifier(identifier.rawValue)) { (error) in }
-            }
-            
-        }) { (account, etag, date, length, error, errorCode, errorDescription) in
+        }) { (account, etag, date, length, allHeaderFields, error, errorCode, errorDescription) in
             
             self.outstandingSessionTasks.removeValue(forKey: url)
             guard var metadata = fileProviderUtility.shared.getTableMetadataFromItemIdentifier(identifier) else {

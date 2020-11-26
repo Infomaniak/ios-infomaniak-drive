@@ -40,6 +40,7 @@
 @class NCOffline;
 @class NCTransfers;
 @class NCFavorite;
+@class NCShares;
 @class NCTrash;
 @class NCAppConfigView;
 @class IMImagemeterViewer;
@@ -97,6 +98,7 @@
 @property (nonatomic, retain) NCFileViewInFolder *activeFileViewInFolder;
 @property (nonatomic, retain) NCFavorite *activeFavorite;
 @property (nonatomic, retain) NCRecent *activeRecent;
+@property (nonatomic, retain) NCShares *activeShares;
 @property (nonatomic, retain) NCMedia *activeMedia;
 @property (nonatomic, retain) NCDetailViewController *activeDetail;
 @property (nonatomic, retain) NCTransfers *activeTransfers;
@@ -119,9 +121,6 @@
 
 // Shares
 @property (nonatomic, strong) NSArray *shares;
-
-// Maintenance Mode
-@property BOOL maintenanceMode;
 
 // UserDefaults
 @property (nonatomic, strong) NSUserDefaults *ncUserDefaults;
@@ -151,9 +150,6 @@
 // Theming Color
 - (void)settingThemingColorBrand;
 - (void)changeTheming:(UIViewController *)viewController tableView:(UITableView *)tableView collectionView:(UICollectionView *)collectionView form:(BOOL)form;
-
-// Maintenance Mode
-- (void)maintenanceMode:(BOOL)mode;
 
 @end
 

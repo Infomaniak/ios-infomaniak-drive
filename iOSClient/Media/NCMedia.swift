@@ -24,10 +24,11 @@
 import Foundation
 import NCCommunication
 
-class NCMedia: UIViewController, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate, NCSelectDelegate {
+class NCMedia: UIViewController, NCEmptyDataSetDelegate, NCSelectDelegate {
     
     @IBOutlet weak var collectionView : UICollectionView!
     
+    private var emptyDataSet: NCEmptyDataSet?
     private var mediaCommandView: NCMediaCommandView?
     private var gridLayout: NCGridMediaLayout!
 
@@ -86,9 +87,8 @@ class NCMedia: UIViewController, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate,
 
         collectionView.collectionViewLayout = gridLayout
         
-        // empty Data Source
-        collectionView.emptyDataSetDelegate = self
-        collectionView.emptyDataSetSource = self
+        // Empty
+        emptyDataSet = NCEmptyDataSet.init(view: collectionView, offset: 0, delegate: self)
                 
         // 3D Touch peek and pop
         if traitCollection.forceTouchCapability == .available {
@@ -97,7 +97,6 @@ class NCMedia: UIViewController, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate,
         
         // Notification
         NotificationCenter.default.addObserver(self, selector: #selector(deleteFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_deleteFile), object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(deleteFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_mediaFileNotFound), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(changeTheming), name: NSNotification.Name(rawValue: k_notificationCenter_changeTheming), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(moveFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_moveFile), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(renameFile(_:)), name: NSNotification.Name(rawValue: k_notificationCenter_renameFile), object: nil)
@@ -398,22 +397,20 @@ class NCMedia: UIViewController, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate,
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata {
-                if metadata.account == appDelegate.account {
-                    
-                    let indexes = self.metadatas.indices.filter { self.metadatas[$0].ocId == metadata.ocId }
-                    let metadatas = self.metadatas.filter { $0.ocId != metadata.ocId }
-                    self.metadatas = metadatas
-                    
-                    if self.metadatas.count == 0 {
-                        collectionView?.reloadData()
-                    } else if let row = indexes.first {
-                        let indexPath = IndexPath(row: row, section: 0)
-                        collectionView?.deleteItems(at: [indexPath])
-                    }
-                    
-                    self.updateMediaControlVisibility()
+            if let ocId = userInfo["ocId"] as? String {
+          
+                let indexes = self.metadatas.indices.filter { self.metadatas[$0].ocId == ocId }
+                let metadatas = self.metadatas.filter { $0.ocId != ocId }
+                self.metadatas = metadatas
+                
+                if self.metadatas.count == 0 {
+                    collectionView?.reloadData()
+                } else if let row = indexes.first {
+                    let indexPath = IndexPath(row: row, section: 0)
+                    collectionView?.deleteItems(at: [indexPath])
                 }
+                
+                self.updateMediaControlVisibility()
             }
         }
     }
@@ -422,7 +419,8 @@ class NCMedia: UIViewController, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate,
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata {
+            if let ocId = userInfo["ocId"] as? String, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
+     
                 if metadata.account == appDelegate.account {
                     
                     let indexes = self.metadatas.indices.filter { self.metadatas[$0].ocId == metadata.ocId }
@@ -439,6 +437,7 @@ class NCMedia: UIViewController, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate,
                     self.updateMediaControlVisibility()
                 }
             }
+            
         }
     }
     
@@ -446,7 +445,7 @@ class NCMedia: UIViewController, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate,
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata {
+            if let ocId = userInfo["ocId"] as? String, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
                 if metadata.account == appDelegate.account {
                     self.reloadDataSource()
                 }
@@ -454,30 +453,17 @@ class NCMedia: UIViewController, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate,
         }
     }
     
-    // MARK: DZNEmpty
+    // MARK: - Empty
     
-    func backgroundColor(forEmptyDataSet scrollView: UIScrollView) -> UIColor? {
-        return NCBrandColor.sharedInstance.backgroundView
-    }
-    
-    func image(forEmptyDataSet scrollView: UIScrollView) -> UIImage? {
-        return CCGraphics.changeThemingColorImage(UIImage.init(named: "media"), width: 300, height: 300, color: .gray)
-    }
-    
-    func title(forEmptyDataSet scrollView: UIScrollView) -> NSAttributedString? {
+    func emptyDataSetView(_ view: NCEmptyView) {
         
-        var text = "\n" + NSLocalizedString("_tutorial_photo_view_", comment: "")
-
+        view.emptyImage.image = CCGraphics.changeThemingColorImage(UIImage.init(named: "media"), width: 300, height: 300, color: .gray)
         if oldInProgress || newInProgress {
-            text = "\n" + NSLocalizedString("_search_in_progress_", comment: "")
+            view.emptyTitle.text = NSLocalizedString("_search_in_progress_", comment: "")
+        } else {
+            view.emptyTitle.text = NSLocalizedString("_tutorial_photo_view_", comment: "")
         }
-        
-        let attributes = [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 20), NSAttributedString.Key.foregroundColor: UIColor.gray]
-        return NSAttributedString.init(string: text, attributes: attributes)
-    }
-    
-    func emptyDataSetShouldAllowScroll(_ scrollView: UIScrollView) -> Bool {
-        return true
+        view.emptyDescription.text = ""
     }
     
     // MARK: SEGUE
@@ -567,7 +553,7 @@ extension NCMedia: UICollectionViewDataSource {
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        
+        emptyDataSet?.numberOfItemsInSection(metadatas.count, section: section)
         return metadatas.count
     }
 
@@ -587,41 +573,47 @@ extension NCMedia: UICollectionViewDataSource {
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         
-        let metadata = metadatas[indexPath.row]
-        
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "gridCell", for: indexPath) as! NCGridMediaCell
-        self.cellHeigth = cell.frame.size.height
 
-        if FileManager().fileExists(atPath: CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, etag: metadata.etag)) {
-            cell.imageItem.backgroundColor = nil
-            cell.imageItem.image = UIImage.init(contentsOfFile: CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, etag: metadata.etag))
-        } else if(!metadata.hasPreview) {
-            cell.imageItem.backgroundColor = nil
-            if metadata.iconName.count > 0 {
-                cell.imageItem.image = UIImage.init(named: metadata.iconName)
-            } else {
-                cell.imageItem.image = NCCollectionCommon.images.cellFileImage 
-            }
-        }
-        cell.date = metadata.date as Date
-
-        if metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio {
-            cell.imageStatus.image = cacheImages.cellPlayImage
-        } else if metadata.livePhoto && livePhoto {
-            cell.imageStatus.image = cacheImages.cellLivePhotoImage
-        }
+        if indexPath.section < collectionView.numberOfSections && indexPath.row < collectionView.numberOfItems(inSection: indexPath.section) {
         
-        if isEditMode {
-            cell.selectMode(true)
-            if selectOcId.contains(metadata.ocId) {
-                cell.selected(true)
+            let metadata = metadatas[indexPath.row]
+            
+            self.cellHeigth = cell.frame.size.height
+
+            if FileManager().fileExists(atPath: CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, etag: metadata.etag)) {
+                cell.imageItem.backgroundColor = nil
+                cell.imageItem.image = UIImage.init(contentsOfFile: CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, etag: metadata.etag))
+            } else if(!metadata.hasPreview) {
+                cell.imageItem.backgroundColor = nil
+                if metadata.iconName.count > 0 {
+                    cell.imageItem.image = UIImage.init(named: metadata.iconName)
+                } else {
+                    cell.imageItem.image = NCCollectionCommon.images.cellFileImage
+                }
+            }
+            cell.date = metadata.date as Date
+
+            if metadata.typeFile == k_metadataTypeFile_video || metadata.typeFile == k_metadataTypeFile_audio {
+                cell.imageStatus.image = cacheImages.cellPlayImage
+            } else if metadata.livePhoto && livePhoto {
+                cell.imageStatus.image = cacheImages.cellLivePhotoImage
+            }
+            
+            if isEditMode {
+                cell.selectMode(true)
+                if selectOcId.contains(metadata.ocId) {
+                    cell.selected(true)
+                } else {
+                    cell.selected(false)
+                }
             } else {
-                cell.selected(false)
+                cell.selectMode(false)
             }
         } else {
-            cell.selectMode(false)
+            print("error")
         }
-       
+        
         return cell
     }
 }
@@ -647,7 +639,7 @@ extension NCMedia {
     
     @objc func reloadDataSourceWithCompletion(_ completion: @escaping (_ metadatas: [tableMetadata]) -> Void) {
         
-        if (appDelegate.account == nil || appDelegate.account.count == 0 || appDelegate.maintenanceMode == true) { return }
+        if appDelegate.account == nil || appDelegate.account.count == 0 { return }
         
         if account != appDelegate.account {
             self.metadatas = []

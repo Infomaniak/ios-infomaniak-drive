@@ -24,7 +24,7 @@
 import Foundation
 import NCCommunication
 
-class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UISearchResultsUpdating, UISearchControllerDelegate, UISearchBarDelegate, NCListCellDelegate, NCGridCellDelegate, NCSectionHeaderMenuDelegate, DZNEmptyDataSetSource, DZNEmptyDataSetDelegate, UIAdaptivePresentationControllerDelegate  {
+class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UISearchResultsUpdating, UISearchControllerDelegate, UISearchBarDelegate, NCListCellDelegate, NCGridCellDelegate, NCSectionHeaderMenuDelegate, NCEmptyDataSetDelegate, UIAdaptivePresentationControllerDelegate  {
 
     @IBOutlet weak var collectionView: UICollectionView!
 
@@ -32,7 +32,8 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
 
     internal let refreshControl = UIRefreshControl()
     internal var searchController: UISearchController?
-    
+    internal var emptyDataSet: NCEmptyDataSet?
+
     internal var serverUrl: String = ""
     internal var isEncryptedFolder = false
     internal var isEditMode = false
@@ -71,9 +72,9 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
     internal var layoutKey = ""
     internal var titleCurrentFolder = ""
     internal var enableSearchBar: Bool = false
-    internal var DZNimage: UIImage?
-    internal var DZNtitle: String = ""
-    internal var DZNdescription: String = ""
+    internal var emptyImage: UIImage?
+    internal var emptyTitle: String = ""
+    internal var emptyDescription: String = ""
     
     required init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
@@ -115,9 +116,8 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
         refreshControl.tintColor = .gray
         refreshControl.addTarget(self, action: #selector(reloadDataSourceNetworkRefreshControl), for: .valueChanged)
         
-        // empty Data Source
-        self.collectionView.emptyDataSetDelegate = self
-        self.collectionView.emptyDataSetSource = self
+        // Empty
+        emptyDataSet = NCEmptyDataSet.init(view: collectionView, offset: 0, delegate: self)
         
         // 3D Touch peek and pop
         if traitCollection.forceTouchCapability == .available {
@@ -229,7 +229,8 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
     // MARK: - NotificationCenter
 
     @objc func initializeMain() {
-        if appDelegate.account.count == 0 { return }
+        
+        if appDelegate.account == nil || appDelegate.account.count == 0 { return }
         
         if searchController?.isActive ?? false {
             searchController?.isActive = false
@@ -279,14 +280,13 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let onlyLocal = userInfo["onlyLocal"] as? Bool {
-                
+            if let ocId = userInfo["ocId"] as? String, let fileNameView = userInfo["fileNameView"] as? String, let onlyLocal = userInfo["onlyLocal"] as? Bool {
                 if onlyLocal {
                     reloadDataSource()
-                } else if metadata.fileNameView.lowercased() == k_fileNameRichWorkspace.lowercased() {
+                } else if fileNameView.lowercased() == k_fileNameRichWorkspace.lowercased() {
                     reloadDataSourceNetwork(forced: true)
                 } else {
-                    if let row = dataSource.deleteMetadata(ocId: metadata.ocId) {
+                    if let row = dataSource.deleteMetadata(ocId: ocId) {
                         let indexPath = IndexPath(row: row, section: 0)
                         collectionView?.performBatchUpdates({
                             collectionView?.deleteItems(at: [indexPath])
@@ -303,8 +303,7 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let metadataNew = userInfo["metadataNew"] as? tableMetadata {
-                
+            if let ocId = userInfo["ocId"] as? String, let ocIdNew = userInfo["ocIdNew"] as? String, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId), let metadataNew = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocIdNew) {
                 if metadata.serverUrl == serverUrl && metadata.account == appDelegate.account {
                     if let row = dataSource.deleteMetadata(ocId: metadata.ocId) {
                         let indexPath = IndexPath(row: row, section: 0)
@@ -350,7 +349,7 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata {
+            if let ocId = userInfo["ocId"] as? String, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
                 if metadata.serverUrl == serverUrl && metadata.account == appDelegate.account {
                     if let row = dataSource.addMetadata(metadata) {
                         let indexPath = IndexPath(row: row, section: 0)
@@ -371,7 +370,7 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata {
+            if let ocId = userInfo["ocId"] as? String, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
                 if dataSource.getIndexMetadata(ocId: metadata.ocId) != nil {
                     reloadDataSource()
                 }
@@ -383,8 +382,7 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata {
-                
+            if let ocId = userInfo["ocId"] as? String, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
                 if let row = dataSource.reloadMetadata(ocId: metadata.ocId) {
                     let indexPath = IndexPath(row: row, section: 0)
                     collectionView?.reloadItems(at: [indexPath])
@@ -397,8 +395,7 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let _ = userInfo["errorCode"] as? Int {
-                
+            if let ocId = userInfo["ocId"] as? String, let _ = userInfo["errorCode"] as? Int, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
                if let row = dataSource.reloadMetadata(ocId: metadata.ocId) {
                    let indexPath = IndexPath(row: row, section: 0)
                    collectionView?.reloadItems(at: [indexPath])
@@ -411,8 +408,7 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata {
-               
+            if let ocId = userInfo["ocId"] as? String, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
                 if let row = dataSource.reloadMetadata(ocId: metadata.ocId) {
                     let indexPath = IndexPath(row: row, section: 0)
                     collectionView?.reloadItems(at: [indexPath])
@@ -425,7 +421,7 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata {
+            if let ocId = userInfo["ocId"] as? String, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
                 if metadata.serverUrl == serverUrl && metadata.account == appDelegate.account {
                     
                     if let row = dataSource.addMetadata(metadata) {
@@ -445,9 +441,8 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata, let ocIdTemp = userInfo["ocIdTemp"] as? String, let _ = userInfo["errorCode"] as? Int {
+            if let ocId = userInfo["ocId"] as? String, let ocIdTemp = userInfo["ocIdTemp"] as? String, let _ = userInfo["errorCode"] as? Int, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId)  {
                 if metadata.serverUrl == serverUrl && metadata.account == appDelegate.account {
-                   
                     dataSource.reloadMetadata(ocId: metadata.ocId, ocIdTemp: ocIdTemp)
                     collectionView?.reloadData()
                 }
@@ -459,7 +454,7 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
         if self.view?.window == nil { return }
         
         if let userInfo = notification.userInfo as NSDictionary? {
-            if let metadata = userInfo["metadata"] as? tableMetadata {
+            if let ocId = userInfo["ocId"] as? String, let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
                 if metadata.serverUrl == serverUrl && metadata.account == appDelegate.account {
                     
                     if let row = dataSource.deleteMetadata(ocId: metadata.ocId) {
@@ -533,63 +528,27 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
         }
     }
         
-    // MARK: - DZNEmpty
+    // MARK: - Empty
     
-    func backgroundColor(forEmptyDataSet scrollView: UIScrollView) -> UIColor? {
-        return NCBrandColor.sharedInstance.backgroundView
-    }
-    
-    func image(forEmptyDataSet scrollView: UIScrollView) -> UIImage? {
+    func emptyDataSetView(_ view: NCEmptyView) {
         
         if searchController?.isActive ?? false {
-            return CCGraphics.changeThemingColorImage(UIImage.init(named: "search"), width: 300, height: 300, color: .gray)
-        }
-        
-        if isReloadDataSourceNetworkInProgress {
-            return CCGraphics.changeThemingColorImage(UIImage.init(named: "networkInProgress"), width: 300, height: 300, color: .gray)
-        }
-        
-        return DZNimage
-    }
-    
-    func title(forEmptyDataSet scrollView: UIScrollView) -> NSAttributedString? {
-        
-        var text = "\n"+NSLocalizedString(DZNtitle, comment: "")
-        
-        if isReloadDataSourceNetworkInProgress {
-            text = "\n"+NSLocalizedString("_request_in_progress_", comment: "")
-        }
-        
-        if searchController?.isActive ?? false {
+            view.emptyImage.image = CCGraphics.changeThemingColorImage(UIImage.init(named: "search"), width: 300, height: 300, color: .gray)
             if isReloadDataSourceNetworkInProgress {
-                text = "\n"+NSLocalizedString("_search_in_progress_", comment: "")
+                view.emptyTitle.text = NSLocalizedString("_search_in_progress_", comment: "")
             } else {
-                text = "\n"+NSLocalizedString("_search_no_record_found_", comment: "")
+                view.emptyTitle.text = NSLocalizedString("_search_no_record_found_", comment: "")
             }
+            view.emptyDescription.text = NSLocalizedString("_search_instruction_", comment: "")
+        } else if isReloadDataSourceNetworkInProgress {
+            view.emptyImage.image = CCGraphics.changeThemingColorImage(UIImage.init(named: "networkInProgress"), width: 300, height: 300, color: .gray)
+            view.emptyTitle.text = NSLocalizedString("_request_in_progress_", comment: "")
+            view.emptyDescription.text = ""
+        } else {
+            view.emptyImage.image = emptyImage
+            view.emptyTitle.text = NSLocalizedString(emptyTitle, comment: "")
+            view.emptyDescription.text = NSLocalizedString(emptyDescription, comment: "")
         }
-        
-        let attributes = [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 20), NSAttributedString.Key.foregroundColor: UIColor.gray]
-        return NSAttributedString.init(string: text, attributes: attributes)
-    }
-    
-    func description(forEmptyDataSet scrollView: UIScrollView!) -> NSAttributedString! {
-        
-        var text = "\n"+NSLocalizedString(DZNdescription, comment: "")
-        
-        if isReloadDataSourceNetworkInProgress {
-            text = ""
-        }
-        
-        if searchController?.isActive ?? false {
-            text = "\n"+NSLocalizedString("_search_instruction_", comment: "")
-        }
-        
-        let attributes = [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 14), NSAttributedString.Key.foregroundColor: UIColor.lightGray]
-        return NSAttributedString.init(string: text, attributes: attributes)
-    }
-    
-    func emptyDataSetShouldAllowScroll(_ scrollView: UIScrollView) -> Bool {
-        return true
     }
     
     // MARK: - SEARCH
@@ -900,7 +859,7 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
         guard let metadata = metadataTouch else { return }
                 
         if CCUtility.fileProviderStorageExists(metadata.ocId, fileNameView: metadata.fileNameView) {
-            NotificationCenter.default.postOnMainThread(name: k_notificationCenter_downloadedFile, userInfo: ["metadata": metadata, "selector": selectorLoadFileQuickLook, "errorCode": 0, "errorDescription": "" ])
+            NotificationCenter.default.postOnMainThread(name: k_notificationCenter_downloadedFile, userInfo: ["ocId": metadata.ocId, "selector": selectorLoadFileQuickLook, "errorCode": 0, "errorDescription": "" ])
         } else {
             NCNetworking.shared.download(metadata: metadata, selector: selectorLoadFileQuickLook) { (_) in }
         }
@@ -910,7 +869,7 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
         guard let metadata = metadataTouch else { return }
                 
         if CCUtility.fileProviderStorageExists(metadata.ocId, fileNameView: metadata.fileNameView) {
-            NotificationCenter.default.postOnMainThread(name: k_notificationCenter_downloadedFile, userInfo: ["metadata": metadata, "selector": selectorOpenIn, "errorCode": 0, "errorDescription": "" ])
+            NotificationCenter.default.postOnMainThread(name: k_notificationCenter_downloadedFile, userInfo: ["ocId": metadata.ocId, "selector": selectorOpenIn, "errorCode": 0, "errorDescription": "" ])
         } else {
             NCNetworking.shared.download(metadata: metadata, selector: selectorOpenIn) { (_) in }
         }
@@ -944,7 +903,8 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
     // MARK: - DataSource + NC Endpoint
     
     @objc func reloadDataSource() {
-        if appDelegate.account.count == 0 { return }
+        
+        if appDelegate.account == nil || appDelegate.account.count == 0 { return }
         
         // Get richWorkspace Text
         let directory = NCManageDatabase.sharedInstance.getTableDirectory(predicate: NSPredicate(format: "account == %@ AND serverUrl == %@", appDelegate.account, serverUrl))
@@ -965,7 +925,8 @@ class NCCollectionViewCommon: UIViewController, UIGestureRecognizerDelegate, UIS
         reloadDataSourceNetwork(forced: true)
     }
     @objc func networkSearch() {
-        if appDelegate.account.count == 0 { return }
+        
+        if appDelegate.account == nil || appDelegate.account.count == 0 { return }
         
         if literalSearch?.count ?? 0 > 1 {
         
@@ -1280,8 +1241,6 @@ extension NCCollectionViewCommon: UICollectionViewDataSource {
             }
             
             header.delegate = self
-            header.backgroundColor = NCBrandColor.sharedInstance.backgroundView
-            header.separator.backgroundColor = NCBrandColor.sharedInstance.separator
             header.setStatusButton(count: dataSource.metadatas.count)
             header.setTitleSorted(datasourceTitleButton: titleButton)
             header.viewRichWorkspaceHeightConstraint.constant = headerRichWorkspaceHeight
@@ -1305,7 +1264,9 @@ extension NCCollectionViewCommon: UICollectionViewDataSource {
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return dataSource.numberOfItems()
+        let numberItems = dataSource.numberOfItems()
+        emptyDataSet?.numberOfItemsInSection(numberItems, section: section)
+        return numberItems
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
