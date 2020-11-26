@@ -93,7 +93,6 @@
 		F7434B3420E23FD700417916 /* NCDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7BAADB41ED5A87C00B7EAD4 /* NCDatabase.swift */; };
 		F7434B3620E23FE000417916 /* NCManageDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7BAADB51ED5A87C00B7EAD4 /* NCManageDatabase.swift */; };
 		F7434B3820E2400600417916 /* NCBrand.swift in Sources */ = {isa = PBXBuildFile; fileRef = F76B3CCD1EAE01BD00921AC9 /* NCBrand.swift */; };
-		F743793425655BE3004935EE /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = F743793325655BE3004935EE /* GoogleService-Info.plist */; };
 		F745B251222D871800346520 /* QRCodeReader.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F745B250222D871800346520 /* QRCodeReader.framework */; };
 		F745B253222D88AE00346520 /* NCLoginQRCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F745B252222D88AE00346520 /* NCLoginQRCode.swift */; };
 		F747BA1F22354D2000971601 /* NCCreateFormUploadVoiceNote.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = F747BA1E22354D2000971601 /* NCCreateFormUploadVoiceNote.storyboard */; };
@@ -111,17 +110,7 @@
 		F74DE14325135B6800917068 /* NCTransfers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F74DE14125135B6800917068 /* NCTransfers.swift */; };
 		F74DE14425135B6800917068 /* NCTransfers.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = F74DE14225135B6800917068 /* NCTransfers.storyboard */; };
 		F74EAEFB256517D5000C023B /* Protobuf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F74EAEF9256517D5000C023B /* Protobuf.framework */; };
-		F74EAEFD256517D5000C023B /* FirebaseCrashlytics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F74EAEFA256517D5000C023B /* FirebaseCrashlytics.framework */; };
 		F74EAF07256523D9000C023B /* Protobuf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F74EAEF9256517D5000C023B /* Protobuf.framework */; };
-		F74EAF09256523D9000C023B /* FirebaseCrashlytics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F74EAEFA256517D5000C023B /* FirebaseCrashlytics.framework */; };
-		F74EAF17256523DA000C023B /* FirebaseAnalytics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F74EAF0C256523D9000C023B /* FirebaseAnalytics.framework */; };
-		F74EAF19256523DB000C023B /* GoogleAppMeasurement.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F74EAF0D256523D9000C023B /* GoogleAppMeasurement.framework */; };
-		F74EAF1D256523DB000C023B /* GoogleUtilities.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F74EAF0F256523DA000C023B /* GoogleUtilities.framework */; };
-		F74EAF1F256523DB000C023B /* GoogleDataTransport.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F74EAF10256523DA000C023B /* GoogleDataTransport.framework */; };
-		F74EAF21256523DB000C023B /* FirebaseCoreDiagnostics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F74EAF11256523DA000C023B /* FirebaseCoreDiagnostics.framework */; };
-		F74EAF23256523DB000C023B /* FIRAnalyticsConnector.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F74EAF12256523DA000C023B /* FIRAnalyticsConnector.framework */; };
-		F74EAF25256523DB000C023B /* FirebaseInstallations.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F74EAF13256523DA000C023B /* FirebaseInstallations.framework */; };
-		F74EAF27256523DB000C023B /* FirebaseCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F74EAF14256523DA000C023B /* FirebaseCore.framework */; };
 		F74EAF29256523DB000C023B /* nanopb.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F74EAF15256523DA000C023B /* nanopb.framework */; };
 		F74EAF2B256523DB000C023B /* PromisesObjC.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F74EAF16256523DA000C023B /* PromisesObjC.framework */; };
 		F7501C322212E57500FB1415 /* NCMedia.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = F7501C302212E57400FB1415 /* NCMedia.storyboard */; };
@@ -782,12 +771,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F74EAF17256523DA000C023B /* FirebaseAnalytics.framework in Frameworks */,
 				F74C4FBB2328C3C200A23E25 /* OpenSSL.framework in Frameworks */,
-				F74EAF19256523DB000C023B /* GoogleAppMeasurement.framework in Frameworks */,
 				F74EAF29256523DB000C023B /* nanopb.framework in Frameworks */,
 				F7421EAF2294044B00C4B7C1 /* Accelerate.framework in Frameworks */,
-				F74EAF21256523DB000C023B /* FirebaseCoreDiagnostics.framework in Frameworks */,
 				F7C4D88D2534887E00C142DA /* Parchment in Frameworks */,
 				F7C40BF32199978B0004137E /* MBProgressHUD.framework in Frameworks */,
 				F76FDEAB24859C3D0095B6C2 /* Queuer.framework in Frameworks */,
@@ -797,9 +783,7 @@
 				F745B251222D871800346520 /* QRCodeReader.framework in Frameworks */,
 				F765608723BF806D00765969 /* QuickLayout.framework in Frameworks */,
 				F72E0B9D21AD60BC00898D7B /* WeScan.framework in Frameworks */,
-				F74EAF1D256523DB000C023B /* GoogleUtilities.framework in Frameworks */,
 				F7063DED2199E55F003F38DA /* SVGKit.framework in Frameworks */,
-				F74EAF25256523DB000C023B /* FirebaseInstallations.framework in Frameworks */,
 				F7063DEF2199E568003F38DA /* CocoaLumberjack.framework in Frameworks */,
 				F74EAF2B256523DB000C023B /* PromisesObjC.framework in Frameworks */,
 				F765608B23BF80A400765969 /* SwiftEntryKit.framework in Frameworks */,
@@ -815,14 +799,9 @@
 				F74AFCE922E8B025003DE61F /* FSCalendar.framework in Frameworks */,
 				F74EAEFB256517D5000C023B /* Protobuf.framework in Frameworks */,
 				F7D2C773246470CA008513AE /* XLForm.framework in Frameworks */,
-				F74EAEFD256517D5000C023B /* FirebaseCrashlytics.framework in Frameworks */,
 				F782A57D25123694007BBABD /* RealmSwift in Frameworks */,
 				371B5A3323D0BD5500FAFAE9 /* FloatingPanel.framework in Frameworks */,
-				F74EAF1F256523DB000C023B /* GoogleDataTransport.framework in Frameworks */,
-				F74EAF27256523DB000C023B /* FirebaseCore.framework in Frameworks */,
-				F74EAF09256523D9000C023B /* FirebaseCrashlytics.framework in Frameworks */,
 				F70F2BA5225F2D8900EBB73E /* ZIPFoundation.framework in Frameworks */,
-				F74EAF23256523DB000C023B /* FIRAnalyticsConnector.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1927,7 +1906,6 @@
 				F749C10D23C4A5340027D966 /* NCIntro.storyboard in Resources */,
 				F747BA1F22354D2000971601 /* NCCreateFormUploadVoiceNote.storyboard in Resources */,
 				F7B2DEF11F976859007CF4D2 /* english.txt in Resources */,
-				F743793425655BE3004935EE /* GoogleService-Info.plist in Resources */,
 				F7651A8A23A2A3F2001403D2 /* NCCreateFormUploadDocuments.storyboard in Resources */,
 				F704B5E72430C06700632F5F /* NCCreateFormUploadConflictCell.xib in Resources */,
 				F7C9555321F0C4CA0024296E /* NCActivity.storyboard in Resources */,
