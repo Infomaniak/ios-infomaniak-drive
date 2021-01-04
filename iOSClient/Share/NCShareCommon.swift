@@ -25,7 +25,7 @@ import FSCalendar
 import DropDown
 
 class NCShareCommon: NSObject {
-    @objc static let sharedInstance: NCShareCommon = {
+    @objc static let shared: NCShareCommon = {
         let instance = NCShareCommon()
         return instance
     }()
@@ -83,7 +83,7 @@ class NCShareCommon: NSObject {
             shareLinkMenuView.height = 262
         }
         
-        shareLinkMenuView.backgroundColor = NCBrandColor.sharedInstance.backgroundForm
+        shareLinkMenuView.backgroundColor = NCBrandColor.shared.backgroundForm
         shareLinkMenuView.metadata = metadata
         shareLinkMenuView.viewWindow = viewWindow
         shareLinkMenuView.shareViewController = shareViewController
@@ -127,7 +127,7 @@ class NCShareCommon: NSObject {
             shareUserMenuView.height = 260
         }
         
-        shareUserMenuView.backgroundColor = NCBrandColor.sharedInstance.backgroundForm
+        shareUserMenuView.backgroundColor = NCBrandColor.shared.backgroundForm
         shareUserMenuView.metadata = metadata
         shareUserMenuView.viewWindow = viewWindow
         shareUserMenuView.shareViewController = shareViewController
@@ -178,7 +178,7 @@ class NCShareCommon: NSObject {
         calendar.appearance.weekdayTextColor = UIColor(red: 100/255, green: 100/255, blue: 100/255, alpha: 1)
         calendar.appearance.weekdayFont = UIFont.systemFont(ofSize: 12)
         
-        calendar.appearance.todayColor = NCBrandColor.sharedInstance.brandElement
+        calendar.appearance.todayColor = NCBrandColor.shared.brandElement
         calendar.appearance.titleFont = UIFont.systemFont(ofSize: 12)
         
         viewWindow.addSubview(calendar)

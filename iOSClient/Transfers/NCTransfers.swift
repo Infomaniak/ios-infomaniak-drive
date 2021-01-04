@@ -83,79 +83,17 @@ class NCTransfers: NCCollectionViewCommon, NCTransferCellDelegate  {
     
     override func uploadStartFile(_ notification: NSNotification) {
         if self.view?.window == nil { return }
-        
-        if let userInfo = notification.userInfo as NSDictionary? {
-            if let ocId = userInfo["ocId"] as? String {
-                if let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
-                    if let row = dataSource.addMetadata(metadata) {
-                        let indexPath = IndexPath(row: row, section: 0)
-                        collectionView?.performBatchUpdates({
-                            collectionView?.insertItems(at: [indexPath])
-                        }, completion: { (_) in
-                            self.reloadDataSource()
-                        })
-                    }
-                }
-            }
-        }
+        reloadDataSource()
     }
     
     override func uploadedFile(_ notification: NSNotification) {
         if self.view?.window == nil { return }
-        
-        if let userInfo = notification.userInfo as NSDictionary? {
-            if let ocId = userInfo["ocId"] as? String, let ocIdTemp = userInfo["ocIdTemp"] as? String, let errorCode = userInfo["errorCode"] as? Int {
-                if let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
-                    if  errorCode == 0 {
-                        
-                        if let row = dataSource.deleteMetadata(ocId: metadata.ocId) {
-                            let indexPath = IndexPath(row: row, section: 0)
-                            collectionView?.performBatchUpdates({
-                                collectionView?.deleteItems(at: [indexPath])
-                            }, completion: { (_) in
-                                self.collectionView?.reloadData()
-                            })
-                        } else {
-                            reloadDataSource()
-                        }
-                        
-                    } else if errorCode != NSURLErrorCancelled {
-                        
-                        if let row = dataSource.reloadMetadata(ocId: metadata.ocId, ocIdTemp: ocIdTemp) {
-                            let indexPath = IndexPath(row: row, section: 0)
-                            collectionView?.performBatchUpdates({
-                                collectionView?.reloadItems(at: [indexPath])
-                            }, completion: { (_) in
-                                self.collectionView?.reloadData()
-                            })
-                        } else {
-                            reloadDataSource()
-                        }
-                    }
-                }
-            }
-        }
+        reloadDataSource()
     }
     
     override func uploadCancelFile(_ notification: NSNotification) {
         if self.view?.window == nil { return }
-        
-        if let userInfo = notification.userInfo as NSDictionary? {
-            if let ocId = userInfo["ocId"] as? String {
-                if let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(ocId) {
-                    if let row = dataSource.deleteMetadata(ocId: metadata.ocId) {
-                        let indexPath = IndexPath(row: row, section: 0)
-                        collectionView?.performBatchUpdates({
-                            collectionView?.deleteItems(at: [indexPath])
-                        }, completion: { (_) in
-                            self.collectionView?.reloadData()
-                        })
-                    } else {
-                        self.reloadDataSource()
-                    }
-                }
-            }
-        }
+        reloadDataSource()
     }
     
     // MARK: TAP EVENT
@@ -180,7 +118,7 @@ class NCTransfers: NCCollectionViewCommon, NCTransferCellDelegate  {
         
         if gestureRecognizer.state != .began { return }
         
-        if let metadata = NCManageDatabase.sharedInstance.getMetadataFromOcId(objectId) {
+        if let metadata = NCManageDatabase.shared.getMetadataFromOcId(objectId) {
             metadataTemp = metadata
             let touchPoint = gestureRecognizer.location(in: collectionView)
             becomeFirstResponder()
@@ -200,7 +138,7 @@ class NCTransfers: NCCollectionViewCommon, NCTransferCellDelegate  {
         metadata.status = Int(k_metadataStatusInUpload)
         metadata.session = NCCommunicationCommon.shared.sessionIdentifierUpload
         
-        NCManageDatabase.sharedInstance.addMetadata(metadata)
+        NCManageDatabase.shared.addMetadata(metadata)
         NCNetworking.shared.upload(metadata: metadata) { (_, _) in }
     }
     
@@ -230,7 +168,7 @@ class NCTransfers: NCCollectionViewCommon, NCTransferCellDelegate  {
     override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
        
         guard let metadata = dataSource.cellForItemAt(indexPath: indexPath) else {
-            return UICollectionViewCell()
+            return collectionView.dequeueReusableCell(withReuseIdentifier: "transferCell", for: indexPath) as! NCTransferCell
         }
                 
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "transferCell", for: indexPath) as! NCTransferCell
@@ -243,7 +181,7 @@ class NCTransfers: NCCollectionViewCommon, NCTransferCellDelegate  {
         cell.imageItem.backgroundColor = nil
         
         cell.labelTitle.text = metadata.fileNameView
-        cell.labelTitle.textColor = NCBrandColor.sharedInstance.textView
+        cell.labelTitle.textColor = NCBrandColor.shared.textView
         
         let serverUrlHome = NCUtility.shared.getHomeServer(urlBase: metadata.urlBase, account: metadata.account)
         var pathText = metadata.serverUrl.replacingOccurrences(of: serverUrlHome, with: "")
@@ -253,7 +191,7 @@ class NCTransfers: NCCollectionViewCommon, NCTransferCellDelegate  {
         cell.setButtonMore(named: k_buttonMoreStop, image: NCCollectionCommon.images.cellButtonStop)
 
         cell.progressView.progress = 0.0
-        cell.separator.backgroundColor = NCBrandColor.sharedInstance.separator
+        cell.separator.backgroundColor = NCBrandColor.shared.separator
                 
         if FileManager().fileExists(atPath: CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, etag: metadata.etag)) {
             cell.imageItem.image =  UIImage(contentsOfFile: CCUtility.getDirectoryProviderStorageIconOcId(metadata.ocId, etag: metadata.etag))
@@ -330,7 +268,7 @@ class NCTransfers: NCCollectionViewCommon, NCTransferCellDelegate  {
     override func reloadDataSource() {
         super.reloadDataSource()
                 
-        metadatasSource = NCManageDatabase.sharedInstance.getAdvancedMetadatas(predicate: NSPredicate(format: "(session CONTAINS 'upload') OR (session CONTAINS 'download')"), page: 1, limit: 100, sorted: "sessionTaskIdentifier", ascending: false)
+        metadatasSource = NCManageDatabase.shared.getAdvancedMetadatas(predicate: NSPredicate(format: "(session CONTAINS 'upload') OR (session CONTAINS 'download')"), page: 1, limit: 100, sorted: "sessionTaskIdentifier", ascending: false)
         self.dataSource = NCDataSource.init(metadatasSource: metadatasSource)
         
         refreshControl.endRefreshing()
