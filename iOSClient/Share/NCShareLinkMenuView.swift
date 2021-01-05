@@ -114,8 +114,6 @@ class NCShareLinkMenuView: UIView, UIGestureRecognizerDelegate, NCShareNetworkin
         labelSetExpirationDate?.textColor = NCBrandColor.shared.textView
         labelNoteToRecipient?.text = NSLocalizedString("_share_note_recipient_", comment: "")
         labelNoteToRecipient?.textColor = NCBrandColor.shared.textView
-        labelDeleteShareLink?.text = NSLocalizedString("_share_delete_sharelink_", comment: "")
-        labelDeleteShareLink?.textColor = NCBrandColor.shared.textView
         labelAddAnotherLink?.text = NSLocalizedString("_share_add_sharelink_", comment: "")
         labelAddAnotherLink?.textColor = NCBrandColor.shared.textView
         

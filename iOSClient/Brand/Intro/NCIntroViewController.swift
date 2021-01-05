@@ -47,8 +47,8 @@ class NCIntroViewController: UIViewController, UICollectionViewDataSource, UICol
             navBarAppearance.configureWithTransparentBackground()
             self.navigationController?.navigationBar.standardAppearance = navBarAppearance
         } else {
-            self.navigationController?.navigationBar.tintColor = NCBrandColor.sharedInstance.customer
-            self.navigationController?.navigationBar.barTintColor = NCBrandColor.sharedInstance.introBackground
+            self.navigationController?.navigationBar.tintColor = NCBrandColor.shared.customer
+            self.navigationController?.navigationBar.barTintColor = NCBrandColor.shared.introBackground
             self.navigationController?.navigationBar.shadowImage = UIImage()
             self.pageControl.currentPageIndicatorTintColor = .darkGray
             self.pageControl.pageIndicatorTintColor = .gray
@@ -56,7 +56,7 @@ class NCIntroViewController: UIViewController, UICollectionViewDataSource, UICol
 
         self.buttonLogin.layer.cornerRadius = 5
         self.buttonLogin.setTitleColor(.white, for: .normal)
-        self.buttonLogin.backgroundColor = NCBrandColor.sharedInstance.customer
+        self.buttonLogin.backgroundColor = NCBrandColor.shared.customer
         self.buttonLogin.setTitle(NSLocalizedString("_log_in_", comment: ""), for: .normal)
 
         self.buttonSignUp.isHidden = true
@@ -66,9 +66,9 @@ class NCIntroViewController: UIViewController, UICollectionViewDataSource, UICol
         self.introCollectionView.register(UINib(nibName: "NCIntroCollectionViewCell", bundle: nil), forCellWithReuseIdentifier: "introCell")
         self.introCollectionView.dataSource = self
         self.introCollectionView.delegate = self
-        self.introCollectionView.backgroundColor = NCBrandColor.sharedInstance.introBackground
+        self.introCollectionView.backgroundColor = NCBrandColor.shared.introBackground
         self.pageControl.numberOfPages = self.titles.count
-        self.view.backgroundColor = NCBrandColor.sharedInstance.introBackground
+        self.view.backgroundColor = NCBrandColor.shared.introBackground
         self.timerAutoScroll = Timer.scheduledTimer(timeInterval: 5, target: self, selector: (#selector(NCIntroViewController.autoScroll)), userInfo: nil, repeats: true)
     }
 
@@ -140,7 +140,7 @@ class NCIntroViewController: UIViewController, UICollectionViewDataSource, UICol
 
         let browserWebVC = UIStoryboard(name: "NCBrowserWeb", bundle: nil).instantiateInitialViewController() as? NCBrowserWeb
 
-        browserWebVC?.urlBase = NCBrandOptions.sharedInstance.linkLoginHost
+        browserWebVC?.urlBase = NCBrandOptions.shared.linkLoginHost
 
         if let browserWebVC = browserWebVC {
             appDelegate?.window.rootViewController?.present(browserWebVC, animated: true)

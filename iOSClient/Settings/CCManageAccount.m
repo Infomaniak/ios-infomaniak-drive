@@ -88,7 +88,7 @@
     row.height = 70;
     [row.cellConfig setObject:avatar forKey:@"imageView.image"];
     [row.cellConfig setObject:[UIFont systemFontOfSize:13.0] forKey:@"textLabel.font"];
-    row.cellConfigAtConfigure[@"backgroundColor"] = NCBrandColor.sharedInstance.backgroundCell;
+    row.cellConfigAtConfigure[@"backgroundColor"] = NCBrandColor.shared.backgroundCell;
     [section addFormRow:row];
 
     // Section : MANAGE ACCOUNT -------------------------------------------
@@ -391,7 +391,7 @@
             }
             
             if ([[newValue formValue] isEqualToString:@""]) {
-                NSArray *listAccount = [[NCManageDatabase sharedInstance] getAccounts];
+                NSArray *listAccount = [[NCManageDatabase shared] getAccounts];
                 if ([listAccount count] > 0) {
                     [self ChangeDefaultAccount:listAccount[0]];
                 }
@@ -427,7 +427,7 @@
         
         XLFormPickerCell *pickerAccount = (XLFormPickerCell *)[[self.form formRowWithTag:@"pickerAccount"] cellForFormController:self];
         
-        tableAccount *tableAccount = [[NCManageDatabase sharedInstance] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", [pickerAccount.rowDescriptor.value formValue]]];
+        tableAccount *tableAccount = [[NCManageDatabase shared] getAccountWithPredicate:[NSPredicate predicateWithFormat:@"account == %@", [pickerAccount.rowDescriptor.value formValue]]];
         NSString *account = tableAccount.account;
         
         if (account) {

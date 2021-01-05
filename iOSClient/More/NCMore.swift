@@ -307,15 +307,17 @@ class NCMore: UIViewController, UITableViewDelegate, UITableViewDataSource {
 
             if let themingAvatarFile = UIImage.init(contentsOfFile: fileNamePath) {
                 cell.avatar?.image = themingAvatarFile
+                cell.avatar?.tintColor = nil
             } else {
-                cell.avatar?.image = UIImage.init(named: "moreAvatar")
+                cell.avatar?.image = UIImage.init(named: "moreAvatar")?.withRenderingMode(.alwaysTemplate)
+                cell.avatar?.tintColor = NCBrandColor.shared.brand
             }
-            cell.imageIcon?.layer.masksToBounds = true
-            cell.imageIcon?.layer.cornerRadius = cell.imageIcon.frame.size.width / 2
-            //Infomaniak only
-            cell.labelText?.text = NSLocalizedString("_manage_account_", comment: "")
-            cell.labelText.textColor = NCBrandColor.sharedInstance.textView
-
+            cell.avatar?.layer.masksToBounds = true
+            cell.avatar?.layer.cornerRadius = cell.avatar.frame.size.width / 2
+            if let account = tabAccount {
+                cell.displayName?.text = account.displayName
+                cell.displayName.textColor = NCBrandColor.shared.textView
+            }
 
             cell.selectedBackgroundView = selectionColor
             cell.backgroundColor = NCBrandColor.shared.backgroundCell

@@ -116,7 +116,7 @@ class NCCollectionCommon: NSObject, NCSelectDelegate {
         }
         
         let homeUrl = NCUtility.shared.getHomeServer(urlBase: appDelegate.urlBase, account: appDelegate.account)
-        var serverUrl = (copyItems[0] as! Nextcloud.tableMetadata).serverUrl
+        var serverUrl = (copyItems[0] as! kDrive.tableMetadata).serverUrl
         
         // Setup view controllers such that the current view is of the same directory the items to be copied are in
         while true {
